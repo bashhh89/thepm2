@@ -3,7 +3,11 @@ import { NavLink } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { cn } from '../lib/utils';
 
-export function DashboardNav() {
+interface DashboardNavProps {
+  collapsed?: boolean;
+}
+
+export function DashboardNav({ collapsed = false }: DashboardNavProps) {
   const { user } = useUser();
 
   const links = [
@@ -85,13 +89,24 @@ export function DashboardNav() {
           end={link.href === '/dashboard'}
           className={({ isActive }) =>
             cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent',
-              isActive ? 'bg-accent' : 'transparent'
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent relative group',
+              isActive ? 'bg-accent' : 'transparent',
+              collapsed && 'justify-center px-2'
             )
           }
         >
-          {link.icon}
-          {link.title}
+          <div className={cn(
+            "min-w-[24px]",
+            collapsed && "mx-auto"
+          )}>
+            {link.icon}
+          </div>
+          {!collapsed && link.title}
+          {collapsed && (
+            <div className="absolute left-full ml-2 px-2 py-1 bg-background border rounded-md text-sm invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all whitespace-nowrap z-50">
+              {link.title}
+            </div>
+          )}
         </NavLink>
       ))}
     </nav>

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Pipeline, Stage, Lead } from '../types/pipeline';
+import { Pipeline, PipelineStage, Lead } from '../types/pipeline';
 
 interface PipelineContextType {
   pipelines: Pipeline[];
@@ -10,7 +10,7 @@ interface PipelineContextType {
   deletePipeline: (id: string) => void;
   setCurrentPipeline: (id: string) => void;
   addStage: (pipelineId: string, name: string) => void;
-  updateStage: (pipelineId: string, stage: Stage) => void;
+  updateStage: (pipelineId: string, stage: PipelineStage) => void;
   deleteStage: (pipelineId: string, stageId: string) => void;
   addLead: (lead: Omit<Lead, 'id'>) => void;
   updateLead: (lead: Lead) => void;
@@ -26,12 +26,12 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       id: '1',
       name: 'Default Pipeline',
       stages: [
-        { id: 'new', name: 'New Leads' },
-        { id: 'contacted', name: 'Contacted' },
-        { id: 'qualified', name: 'Qualified' },
-        { id: 'proposal', name: 'Proposal' },
-        { id: 'negotiation', name: 'Negotiation' },
-        { id: 'closed', name: 'Closed' }
+        { id: 'new', name: 'New Leads', order: 0 },
+        { id: 'contacted', name: 'Contacted', order: 1 },
+        { id: 'qualified', name: 'Qualified', order: 2 },
+        { id: 'proposal', name: 'Proposal', order: 3 },
+        { id: 'negotiation', name: 'Negotiation', order: 4 },
+        { id: 'closed', name: 'Closed', order: 5 }
       ]
     }
   ]);
@@ -42,7 +42,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
     { id: '1', name: 'Tech Solutions Inc', status: 'new', value: '$15,000', pipelineId: '1', company: 'Tech Solutions', email: 'contact@techsolutions.com' },
     { id: '2', name: 'Global Ventures', status: 'qualified', value: '$25,000', pipelineId: '1', company: 'Global Ventures LLC', phone: '+1-234-567-8900' },
     { id: '3', name: 'Innovate Corp', status: 'new', value: '$10,000', pipelineId: '1', company: 'Innovate Corporation', source: 'Website Form' },
-    { id: '4', name: 'Future Systems', status: 'closed', value: '$30,000', pipelineId: '1', company: 'Future Systems Inc', lastContact: '2024-02-15' },
+    { id: '4', name: 'Future Systems', status: 'closed', value: '$30,000', pipelineId: '1', company: 'Future Systems Inc' }
   ]);
 
   const addPipeline = (name: string) => {
@@ -50,9 +50,9 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       id: Date.now().toString(),
       name,
       stages: [
-        { id: 'new', name: 'New Leads' },
-        { id: 'contacted', name: 'Contacted' },
-        { id: 'qualified', name: 'Qualified' }
+        { id: 'new', name: 'New Leads', order: 0 },
+        { id: 'contacted', name: 'Contacted', order: 1 },
+        { id: 'qualified', name: 'Qualified', order: 2 }
       ]
     };
     setPipelines([...pipelines, newPipeline]);
@@ -74,16 +74,21 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
   const addStage = (pipelineId: string, name: string) => {
     setPipelines(pipelines.map(pipeline => {
       if (pipeline.id === pipelineId) {
+        const maxOrder = Math.max(...pipeline.stages.map(s => s.order), -1);
         return {
           ...pipeline,
-          stages: [...pipeline.stages, { id: Date.now().toString(), name }]
+          stages: [...pipeline.stages, { 
+            id: Date.now().toString(), 
+            name,
+            order: maxOrder + 1
+          }]
         };
       }
       return pipeline;
     }));
   };
 
-  const updateStage = (pipelineId: string, stage: Stage) => {
+  const updateStage = (pipelineId: string, stage: PipelineStage) => {
     setPipelines(pipelines.map(pipeline => {
       if (pipeline.id === pipelineId) {
         return {
