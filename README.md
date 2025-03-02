@@ -77,7 +77,73 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 QanDu represents the future of business intelligence - where AI meets intuitive design to create a powerful, user-friendly platform that drives business success. By choosing QanDu, you're not just getting a tool; you're gaining a competitive advantage in today's data-driven business landscape.
 
----
+## 🚀 How to Run the Project
+
+### Running Natively
+
+#### Backend
+1. Navigate to the `backend` directory:
+   ```sh
+   cd backend
+   ```
+2. Install the required Python packages:
+   ```sh
+   pip install -r requirements.txt
+   ```
+3. Run the backend server:
+   ```sh
+   python main.py
+   ```
+
+#### Frontend
+1. Navigate to the `frontend` directory:
+   ```sh
+   cd frontend
+   ```
+2. Install the required Node.js packages using pnpm:
+   ```sh
+   npm install -g pnpm
+   pnpm install
+   ```
+3. Run the frontend development server:
+   ```sh
+   pnpm run dev
+   ```
+
+### Running with Docker
+
+#### Backend
+1. Navigate to the `backend` directory:
+   ```sh
+   cd backend
+   ```
+2. Build the Docker image:
+   ```sh
+   docker build -t qandu-backend .
+   ```
+3. Run the Docker container:
+   ```sh
+   docker run -p 8000:8000 qandu-backend
+   ```
+
+#### Frontend
+1. Navigate to the `frontend` directory:
+   ```sh
+   cd frontend
+   ```
+2. Build the Docker image:
+   ```sh
+   docker build -t qandu-frontend .
+   ```
+3. Run the Docker container:
+   ```sh
+   docker run -p 5173:5173 qandu-frontend
+   ```
+
+### Benefits of Using Docker
+- **Consistency**: Ensures a consistent development environment across different systems.
+- **Portability**: Makes it easy to share and run the project on any machine with Docker installed.
+- **Efficiency**: Avoids repetitive installation of dependencies, saving time and internet data.
 
 For more information, visit [QanDu's website](https://qandu.ai) or contact our team at support@qandu.ai.
 

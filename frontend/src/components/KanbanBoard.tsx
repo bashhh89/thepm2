@@ -131,6 +131,24 @@ export function KanbanBoard({ leads, onLeadClick, onLeadMove }: KanbanBoardProps
     };
   }, []);
 
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (!containerRef.current) return;
+
+    const container = containerRef.current;
+    const scrollAmount = 300; // Width of a card + gap
+
+    if (e.key === 'ArrowLeft') {
+      container.scrollLeft -= scrollAmount;
+    } else if (e.key === 'ArrowRight') {
+      container.scrollLeft += scrollAmount;
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const currentPipeline = pipelines.find(p => p.id === currentPipelineId);
   if (!currentPipeline) return null;
 
@@ -142,7 +160,7 @@ export function KanbanBoard({ leads, onLeadClick, onLeadMove }: KanbanBoardProps
       onDragStart={handleDragStart} 
       onDragEnd={handleDragEnd}
     >
-      <div className="relative w-full h-full">
+      <div className="relative w-full h-full" tabIndex={0} role="region" aria-label="Pipeline stages">
         <div 
           ref={containerRef}
           className="flex gap-4 p-4 overflow-x-auto scrollbar-hide relative"
