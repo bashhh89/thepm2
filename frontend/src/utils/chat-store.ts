@@ -31,19 +31,27 @@ interface ChatState {
 }
 
 // Function to dynamically load Puter.js script
-const loadPuterScript = async (): Promise<void> => {
+const ensurePuterScriptLoaded = (): Promise<void> => {
   return new Promise((resolve, reject) => {
     if (window.puter) {
       resolve();
       return;
     }
-    
+
+    const existingScript = document.getElementById('puter-js');
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve());
+      existingScript.addEventListener('error', () => reject());
+      return;
+    }
+
     const script = document.createElement('script');
+    script.id = 'puter-js';
     script.src = 'https://js.puter.com/v2/';
     script.async = true;
     script.onload = () => resolve();
-    script.onerror = (e) => reject(new Error('Failed to load Puter.js'));
-    document.body.appendChild(script);
+    script.onerror = () => reject();
+    document.head.appendChild(script);
   });
 };
 
@@ -210,9 +218,6 @@ export const useChatStore = create<ChatState>((set, get) => {
             conversations: newConversations
           };
         });
-
-        // Ensure Puter.js is loaded
-        await loadPuterScript();
         
         // Process with Puter AI
         const messages = messagesUpdated.map(m => ({
@@ -220,15 +225,23 @@ export const useChatStore = create<ChatState>((set, get) => {
           content: m.content
         }));
         
-        const response = await window.puter.ai.chat(messages, false, {
-          model: model,
-          stream: false
-        });
+        const response = await window.puter.ai.chat(
+          messages,
+          false,
+          {
+            model: model,
+            stream: false
+          }
+        );
+
+        const responseContent = typeof response === 'string' ? 
+          response : 
+          response.message?.content || '';
 
         // Add AI response
         const assistantMessage: Message = {
           role: 'assistant',
-          content: response,
+          content: responseContent,
           timestamp: new Date()
         };
         const allMessages = [...messagesUpdated, assistantMessage];

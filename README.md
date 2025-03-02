@@ -1,150 +1,149 @@
-# QanDu - AI-Powered Business Intelligence Platform
+# QanDu White Label Platform
 
-## 🚀 Overview
+A powerful, AI-driven document creation and content management platform that can be white-labeled for different businesses.
 
-QanDu is a cutting-edge business intelligence platform that harnesses the power of AI to transform how businesses operate, make decisions, and grow. By seamlessly integrating advanced analytics, intelligent automation, and intuitive user interfaces, QanDu empowers organizations to unlock their full potential.
+## Features
 
-## ✨ Key Features
+### Document Creation
+- AI-powered document generation from topics
+- Customizable section count and content length
+- Support for multiple document types (documents, presentations, webpages)
+- Template-based document creation
+- Rich text editing capabilities
 
-### 🤖 AI-Driven Insights
-- **Real-time Business Analytics**: Get instant, AI-generated insights about your business performance
-- **Predictive Analytics**: Leverage machine learning to forecast trends and make data-driven decisions
-- **Smart Recommendations**: Receive personalized suggestions for business optimization
+### Content Generation
+- Integration with Puter.js AI services
+- Support for multiple AI models including:
+  - GPT-4o mini (default)
+  - GPT-4o
+  - Claude-3.5-sonnet
+  - DeepSeek Chat/Reasoner
+  - Gemini 2.0/1.5 Flash
+  - Meta Llama 3.1 series
+  - Mistral/Pixtral Large
+  - Codestral
+  - Gemma 2.27B
+  - Grok Beta
 
-### 📊 Comprehensive Dashboard
-- **Business Overview**: Track key metrics including active leads, projects, and task completion rates
-- **Interactive Analytics**: Visualize data through dynamic charts and graphs
-- **Customizable Widgets**: Tailor your dashboard to focus on what matters most to your business
+### Content Enhancement
+- Automatic content generation
+- AI-powered visual suggestions (images, charts, tables)
+- Grammar and style checking
+- Content enhancement and refinement
 
-### 💼 Lead Management
-- **Intelligent Lead Tracking**: Monitor and manage leads through their entire lifecycle
-- **Chat-to-Lead Conversion**: Automatically convert website chat interactions into qualified leads
-- **Conversion Analytics**: Track conversion rates and identify optimization opportunities
-- **Automated Follow-ups**: Keep leads engaged with AI-powered communication
+### Multilingual Support
+- Content translation across multiple languages
+- Cultural localization options
+- Support for different regional markets (US, UK, etc.)
+- Formal and casual tone adjustments
 
-### 🤝 Team Collaboration
-- **Project Management**: Streamline team workflows and track project milestones
-- **Task Management**: Assign, monitor, and complete tasks efficiently
-- **Document Sharing**: Centralized document management for seamless collaboration
+### Collaboration
+- Real-time collaboration features
+- Document sharing capabilities
+- Role-based access control
+- Version history tracking
 
-### 💬 Dual AI Chat System
-- **Website Chat Widget**: Engage visitors with an AI-powered chat widget that automatically creates leads
-- **Internal AI Assistant**: Access business insights and provide team support
-- **Seamless CRM Integration**: All chat interactions automatically populate your leads dashboard
-- **Knowledge Base**: Build and maintain an AI-powered knowledge repository
+### Visual Content
+- AI-generated images
+- Dynamic chart creation and editing
+- Interactive data tables
+- Custom visualization options
 
-## 🔄 How It Works
+### User Interface
+- Modern, responsive design
+- Dark/light theme support
+- Customizable components
+- Floating chat interface
 
-QanDu operates as a unified ecosystem where each feature enhances the others:
+## Technical Stack
 
-1. **Data Collection & Analysis**
-   - Continuously gathers business metrics and user interactions
-   - Processes data through advanced AI algorithms
-   - Generates actionable insights in real-time
+### Frontend
+- React with TypeScript
+- Vite for build tooling
+- TailwindCSS for styling
+- ShadcnUI components
+- Recharts for data visualization
 
-2. **Intelligent Automation**
-   - Automates routine tasks and data analysis
-   - Triggers smart notifications and alerts
-   - Maintains workflow efficiency
+### Backend
+- Python with FastAPI
+- PostgreSQL database
+- Docker containerization
+- JWT authentication
 
-3. **User Engagement**
-   - Provides intuitive interfaces for all skill levels
-   - Enables natural language interactions through AI chat
-   - Facilitates collaborative decision-making
+### AI Integration
+- Puter.js AI services
+- Multiple AI model support
+- Streaming responses
+- Function calling capabilities
 
-## 💪 Benefits
+## Getting Started
 
-- **White-Label Ready**: Rebrand and resell QanDu as your own SaaS solution
-- **Enhanced Productivity**: Save time with AI-automated tasks and streamlined workflows
-- **Better Decision Making**: Make informed choices based on real-time data and AI insights
-- **Improved Team Collaboration**: Foster seamless communication and project management
-- **Increased ROI**: Optimize business processes and identify growth opportunities
-- **Scalable Solution**: Grows with your business needs
+1. Clone the repository:
+\`\`\`bash
+git clone [repository-url]
+\`\`\`
 
-## 🔧 Technical Documentation
+2. Install frontend dependencies:
+\`\`\`bash
+cd frontend
+pnpm install
+\`\`\`
 
-For technical details, installation instructions, and development guidelines, please see our [Technical Documentation](TECHNICAL.md).
+3. Install backend dependencies:
+\`\`\`bash
+cd backend
+pip install -r requirements.txt
+\`\`\`
 
-## 🤝 Contributing
+4. Start the development servers:
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+Frontend:
+\`\`\`bash
+cd frontend
+pnpm dev
+\`\`\`
 
-## 📄 License
+Backend:
+\`\`\`bash
+cd backend
+python main.py
+\`\`\`
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Docker Deployment
 
-## 🌟 Why QanDu?
+Both frontend and backend include Dockerfile configurations for containerized deployment.
 
-QanDu represents the future of business intelligence - where AI meets intuitive design to create a powerful, user-friendly platform that drives business success. By choosing QanDu, you're not just getting a tool; you're gaining a competitive advantage in today's data-driven business landscape.
+To build and run with Docker:
 
-## 🚀 How to Run the Project
+\`\`\`bash
+# Frontend
+cd frontend
+docker build -t qandu-frontend .
+docker run -p 3000:3000 qandu-frontend
 
-### Running Natively
+# Backend
+cd backend
+docker build -t qandu-backend .
+docker run -p 8000:8000 qandu-backend
+\`\`\`
 
-#### Backend
-1. Navigate to the `backend` directory:
-   ```sh
-   cd backend
-   ```
-2. Install the required Python packages:
-   ```sh
-   pip install -r requirements.txt
-   ```
-3. Run the backend server:
-   ```sh
-   python main.py
-   ```
+## Environment Configuration
 
-#### Frontend
-1. Navigate to the `frontend` directory:
-   ```sh
-   cd frontend
-   ```
-2. Install the required Node.js packages using pnpm:
-   ```sh
-   npm install -g pnpm
-   pnpm install
-   ```
-3. Run the frontend development server:
-   ```sh
-   pnpm run dev
-   ```
+Create a \`.env\` file in the backend directory with the following variables:
+\`\`\`
+DATABASE_URL=postgresql://user:password@localhost:5432/qandu
+JWT_SECRET=your-secret-key
+AI_API_KEY=your-ai-api-key
+\`\`\`
 
-### Running with Docker
+## Contributing
 
-#### Backend
-1. Navigate to the `backend` directory:
-   ```sh
-   cd backend
-   ```
-2. Build the Docker image:
-   ```sh
-   docker build -t qandu-backend .
-   ```
-3. Run the Docker container:
-   ```sh
-   docker run -p 8000:8000 qandu-backend
-   ```
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
-#### Frontend
-1. Navigate to the `frontend` directory:
-   ```sh
-   cd frontend
-   ```
-2. Build the Docker image:
-   ```sh
-   docker build -t qandu-frontend .
-   ```
-3. Run the Docker container:
-   ```sh
-   docker run -p 5173:5173 qandu-frontend
-   ```
+## License
 
-### Benefits of Using Docker
-- **Consistency**: Ensures a consistent development environment across different systems.
-- **Portability**: Makes it easy to share and run the project on any machine with Docker installed.
-- **Efficiency**: Avoids repetitive installation of dependencies, saving time and internet data.
-
-For more information, visit [QanDu's website](https://qandu.ai) or contact our team at support@qandu.ai.
-
-*Transform your business with QanDu - Where AI meets Intelligence.*
+This project is proprietary software. All rights reserved.

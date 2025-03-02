@@ -51,14 +51,16 @@ export function FloatingChatButton() {
   };
 
   const handleSendMessage = async (message: string) => {
-    if (!message.trim()) return;
+    if (!message.trim() || isStreaming) return;
 
     // Create a lead on first message
     if (messages.length === 0) {
       const newLeadId = createLeadFromChat(message, userInfo.name, userInfo.email);
       setLeadId(newLeadId);
-    } else if (leadId) {
-      // Update lead notes with new message
+    }
+
+    // Update lead notes with new message
+    if (leadId) {
       const leads = JSON.parse(localStorage.getItem('leads') || '[]');
       const updatedLeads = leads.map((lead: any) => {
         if (lead.id === leadId) {
@@ -81,7 +83,10 @@ export function FloatingChatButton() {
 
     try {
       let fullResponse = '';
-      const stream = await streamChat(message);
+      const stream = await streamChat(message, {
+        model: 'gpt-4o-mini',
+        stream: true
+      });
       
       for await (const part of stream) {
         fullResponse += part?.text || '';
@@ -119,34 +124,74 @@ export function FloatingChatButton() {
   if (!isOpen) {
     return (
       <Button
-        className="fixed bottom-6 right-6 rounded-full w-12 h-12 p-0 shadow-lg"
+        className="fixed bottom-6 right-6 rounded-full w-14 h-14 p-0 shadow-lg group hover:scale-110 transition-transform"
         onClick={() => {
           setIsOpen(true);
           setShowUserInfoForm(true);
         }}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
+        <div className="relative w-full h-full">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="w-6 h-6 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 group-hover:opacity-0 transition-opacity"
+          >
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="w-6 h-6 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2" />
+            <path d="M12 8c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4" />
+            <line x1="12" y1="16" x2="12" y2="16" />
+            <line x1="12" y1="8" x2="12" y2="8" />
+            <line x1="16" y1="12" x2="16" y2="12" />
+            <line x1="8" y1="12" x2="8" y2="12" />
+          </svg>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full animate-pulse" />
+        </div>
       </Button>
     );
   }
 
   if (showUserInfoForm) {
     return (
-      <Card className="fixed bottom-6 right-6 w-96 shadow-xl">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-semibold">Welcome to QanDu Chat</h3>
-          <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
+      <Card className="fixed bottom-6 right-6 w-96 p-6 shadow-xl">
+        <form onSubmit={handleUserInfoSubmit} className="space-y-4">
+          <div className="flex items-center gap-3 mb-6">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="w-6 h-6 text-primary"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4M12 8h0" />
             </svg>
-          </Button>
-        </div>
-        <form onSubmit={handleUserInfoSubmit} className="p-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Name</label>
+            <div>
+              <h3 className="text-lg font-semibold">Welcome to QanDu AI</h3>
+              <p className="text-sm text-muted-foreground">Please introduce yourself to get started</p>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Your Name</label>
             <input
               type="text"
               required
@@ -156,8 +201,8 @@ export function FloatingChatButton() {
               placeholder="Enter your name"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Your Email</label>
             <input
               type="email"
               required
@@ -178,29 +223,83 @@ export function FloatingChatButton() {
   return (
     <Card className="fixed bottom-6 right-6 w-96 h-[600px] shadow-xl flex flex-col">
       <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="font-semibold">QanDu AI Assistant</h3>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="w-8 h-8 text-primary"
+            >
+              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2" />
+              <path d="M12 8c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4" />
+              <line x1="12" y1="16" x2="12" y2="16" />
+              <line x1="12" y1="8" x2="12" y2="8" />
+              <line x1="16" y1="12" x2="16" y2="12" />
+              <line x1="8" y1="12" x2="8" y2="12" />
+            </svg>
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full animate-pulse" />
+          </div>
+          <div>
+            <h3 className="font-semibold">QanDu AI Assistant</h3>
+            <p className="text-xs text-muted-foreground">Always here to help</p>
+          </div>
+        </div>
         <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         </Button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        <ChatMessages 
-          messages={[
-            { role: 'assistant', content: `Hi ${userInfo.name}! How can I help you today?` },
-            ...messages
-          ]} 
-        />
+        {messages.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="w-12 h-12 mx-auto mb-4 text-primary/50"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4" />
+              <line x1="12" y1="16" x2="12" y2="16" />
+              <line x1="12" y1="8" x2="12" y2="8" />
+              <line x1="16" y1="12" x2="16" y2="12" />
+              <line x1="8" y1="12" x2="8" y2="12" />
+            </svg>
+            <p className="text-sm mb-2">Hi! I'm your AI assistant.</p>
+            <p className="text-xs">Ask me anything about our services, or get help with tasks.</p>
+          </div>
+        ) : (
+          <ChatMessages messages={messages} isTyping={isStreaming} />
+        )}
       </div>
 
       <div className="p-4 border-t">
         <ChatInput
           onSendMessage={handleSendMessage}
-          disabled={isStreaming}
-          placeholder="Ask me anything..."
+          isDisabled={isStreaming}
+          placeholder="Type your message..."
         />
       </div>
     </Card>

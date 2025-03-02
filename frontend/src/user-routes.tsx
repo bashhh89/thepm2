@@ -11,6 +11,8 @@ const Chat = lazy(() => import("./pages/Chat.tsx"));
 const ChatHistoryPage = lazy(() => import("./pages/ChatHistoryPage.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const DocumentsPage = lazy(() => import("./pages/DocumentsPage.tsx"));
+const DocumentCreatePage = lazy(() => import("./pages/create/DocumentCreatePage.tsx"));
+const DocumentViewPage = lazy(() => import("./pages/DocumentViewPage.tsx"));
 const JobsPage = lazy(() => import("./pages/JobsPage.tsx"));
 const LeadsPage = lazy(() => import("./pages/LeadsPage.tsx"));
 const Login = lazy(() => import("./pages/Login.tsx"));
@@ -33,6 +35,8 @@ export const userRoutes: RouteObject[] = [
       { path: "chat", element: <SuspenseWrapper><Chat /></SuspenseWrapper>},
       { path: "chat-history", element: <SuspenseWrapper><ChatHistoryPage /></SuspenseWrapper>},
       { path: "documents", element: <SuspenseWrapper><DocumentsPage /></SuspenseWrapper>},
+      { path: "documents/create", element: <SuspenseWrapper><DocumentCreatePage /></SuspenseWrapper>},
+      { path: "documents/:id", element: <SuspenseWrapper><DocumentViewPage /></SuspenseWrapper>},
       { path: "jobs", element: <SuspenseWrapper><JobsPage /></SuspenseWrapper>},
       { path: "leads", element: <SuspenseWrapper><LeadsPage /></SuspenseWrapper>},
       { path: "profile", element: <SuspenseWrapper><Profile /></SuspenseWrapper>},
