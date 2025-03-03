@@ -14,6 +14,14 @@ interface DataTableProps {
 }
 
 export function DataTable({ data, onChange, onEnhance, isEditing }: DataTableProps) {
+  // Early return with empty state if data is not properly initialized or malformed
+  if (!data || !data.headers || !Array.isArray(data.rows) || !data.rows.every(Array.isArray)) {
+    return (
+      <Card className="p-4">
+        <div className="text-sm text-muted-foreground">No data available or invalid data format</div>
+      </Card>
+    );
+  }
   const [editingCell, setEditingCell] = useState<[number, number] | null>(null);
   const [editValue, setEditValue] = useState('');
 

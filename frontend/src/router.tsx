@@ -15,6 +15,35 @@ const SomethingWentWrongPage = lazy(
   () => import("./pages/SomethingWentWrongPage"),
 );
 
+// Wait for Puter to be ready with timeout
+const waitForPuterReady = async () => {
+  const maxWaitTime = 10000; // 10 seconds
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < maxWaitTime) {
+    if (window.puter?.isReady) {
+      return true;
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  return false;
+};
+
+// Initialize router with Puter.js check
+const initializeRouter = async () => {
+  try {
+    // Try to initialize Puter.js first
+    await waitForPuterReady();
+    console.log('Puter.js initialized successfully');
+  } catch (error) {
+    console.warn('Puter.js initialization failed:', error);
+    // Continue anyway - features will degrade gracefully
+  }
+};
+
+// Initialize on router creation
+initializeRouter().catch(console.error);
+
 export const router = createBrowserRouter(
   [
     ...userRoutes,

@@ -16,45 +16,70 @@ export default function DocumentsPage() {
   const navigate = useNavigate();
   const [documents, setDocuments] = useState<DocumentInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadDocuments = async () => {
       try {
+        // First check if Puter.js is available
+        if (!window.puter?.fs) {
+          throw new Error('File system service is not available');
+        }
+
         // Create documents directory if it doesn't exist
         try {
           await window.puter.fs.mkdir('/documents');
-        } catch (error) {
-          // Directory might already exist
+        } catch (error: any) {
+          // Ignore directory exists error, but handle other errors
+          if (!error.message?.includes('exists')) {
+            console.error('Failed to initialize documents directory:', error);
+            setError('Failed to initialize documents directory. Please try again later.');
+            return;
+          }
         }
 
         // List all documents
-        const files = await window.puter.fs.readdir('/documents');
-        const docPromises = files
-          .filter(file => file.endsWith('.json'))
-          .map(async (file) => {
-            const content = await window.puter.fs.read(`/documents/${file}`);
-            const doc = JSON.parse(content);
-            return {
-              id: doc.id,
-              title: doc.title || 'Untitled Document',
-              type: doc.type,
-              updatedAt: doc.updatedAt
-            };
-          });
+        try {
+          const files = await window.puter.fs.readdir('/documents');
+          const docPromises = files
+            .filter(file => file.endsWith('.json'))
+            .map(async (file) => {
+              try {
+                const content = await window.puter.fs.read(`/documents/${file}`);
+                const doc = JSON.parse(content);
+                return {
+                  id: doc.id,
+                  title: doc.title || 'Untitled Document',
+                  type: doc.type,
+                  updatedAt: doc.updatedAt
+                };
+              } catch (error) {
+                console.error(`Failed to load document ${file}:`, error);
+                return null;
+              }
+            });
 
-        const loadedDocs = await Promise.all(docPromises);
-        setDocuments(loadedDocs.sort((a, b) => 
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-        ));
+          const loadedDocs = (await Promise.all(docPromises))
+            .filter(doc => doc !== null)
+            .sort((a, b) => 
+              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+            );
+            
+          setDocuments(loadedDocs);
+        } catch (error) {
+          console.error('Failed to list documents:', error);
+          setError('Failed to load documents. Please try again later.');
+        }
       } catch (error) {
         console.error('Failed to load documents:', error);
+        setError(error instanceof Error ? error.message : 'Failed to load documents');
       } finally {
         setIsLoading(false);
       }
     };
 
     loadDocuments();
-  }, []);
+  }, []); // Add an empty dependency array to ensure this effect runs only once
 
   const handleCreateDocument = () => {
     navigate('/dashboard/documents/create');
@@ -71,6 +96,20 @@ export default function DocumentsPage() {
           <h1 className="text-3xl font-bold">Documents</h1>
           <Button onClick={handleCreateDocument}>Create Document</Button>
         </div>
+
+        {error && (
+          <div className="bg-destructive/10 text-destructive p-4 rounded-md mb-6">
+            {error}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="ml-2"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </Button>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="text-center py-8">Loading documents...</div>
@@ -126,7 +165,12 @@ export default function DocumentsPage() {
                   <Button
                     variant="outline"
                     className="w-full justify-start"
-                    onClick={() => window.puter.ui.openFilePicker()}
+                    onClick={() => {
+                      window.puter.ui.alert({
+                        title: 'Import Document',
+                        message: 'Document import functionality will be available soon.'
+                      });
+                    }}
                   >
                     Import Document
                   </Button>

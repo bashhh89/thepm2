@@ -12,9 +12,28 @@ export interface PuterAIOptions {
     }>;
 }
 
+interface PuterUIToast {
+    message: string;
+    type?: 'success' | 'error' | 'warning' | 'info';
+    duration?: number;
+}
+
+interface PuterUIAlertButton {
+    text: string;
+    variant?: 'primary' | 'secondary' | 'danger';
+    onClick?: () => void;
+}
+
+interface PuterUIAlert {
+    title: string;
+    message: string;
+    buttons?: PuterUIAlertButton[];
+}
+
 declare global {
     interface Window {
         puter: {
+            token: string;
             ai: {
                 chat: (
                     prompt: string | Array<{ role: string; content: string }>,
@@ -26,6 +45,18 @@ declare global {
                 generateSpeech: (options: { text: string; voice: string }) => Promise<{ url: string }>;
                 transcribeAudio: (options: { audio: string }) => Promise<{ text: string }>;
                 print: (text: string) => void;
+            };
+            fs: {
+                write: (path: string, content: any) => Promise<void>;
+                mkdir: (path: string) => Promise<void>;
+                readdir: (path: string) => Promise<string[]>;
+                readFile: (path: string) => Promise<any>;
+                delete: (path: string) => Promise<void>;
+                exists: (path: string) => Promise<boolean>;
+            };
+            ui: {
+                toast: (options: PuterUIToast) => void;
+                alert: (options: PuterUIAlert) => void;
             };
         };
     }
@@ -71,6 +102,28 @@ export const ensurePuterScriptLoaded = (): Promise<void> => {
     });
 };
 
+// Update the list of available models
+const AVAILABLE_MODELS = {
+    DEFAULT: 'gpt-4o-mini',
+    GPT4O: 'gpt-4o',
+    O3MINI: 'o3-mini',
+    O1MINI: 'o1-mini',
+    CLAUDE: 'claude-3-5-sonnet',
+    DEEPSEEK_CHAT: 'deepseek-chat',
+    DEEPSEEK_REASONER: 'deepseek-reasoner',
+    GEMINI_20: 'gemini-2.0-flash',
+    GEMINI_15: 'gemini-1.5-flash',
+    LLAMA_8B: 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+    LLAMA_70B: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+    LLAMA_405B: 'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo',
+    MISTRAL: 'mistral-large-latest',
+    PIXTRAL: 'pixtral-large-latest',
+    CODESTRAL: 'codestral-latest',
+    GEMMA: 'google/gemma-2-27b-it',
+    GROK: 'grok-beta'
+};
+
+// Update the chatWithAI function to handle both streaming and non-streaming cases
 export async function chatWithAI(
     prompt: string | Array<{ role: string; content: string }>,
     options: ChatOptions = {}
@@ -78,12 +131,16 @@ export async function chatWithAI(
     try {
         await ensurePuterScriptLoaded();
         
+        if (options.stream) {
+            return streamChat(prompt, options) as Promise<ChatResponse>;
+        }
+
         const response = await window.puter.ai.chat(
             prompt,
             false, // testMode = false
             {
-                model: options.model || 'gpt-4o-mini',
-                stream: options.stream || false,
+                model: options.model || AVAILABLE_MODELS.DEFAULT,
+                stream: false,
                 tools: options.tools
             }
         );
@@ -104,41 +161,90 @@ export async function chatWithAI(
     }
 }
 
+// Update the streamChat function to properly handle streaming
 export async function streamChat(
-    message: string,
+    message: string | Array<{ role: string; content: string }>,
     options: ChatOptions = {}
 ): Promise<AsyncIterable<any>> {
     try {
-        const response = await chatWithAI(message, { ...options, stream: true });
-        return response as AsyncIterable<any>;
+        await ensurePuterScriptLoaded();
+
+        const response = await window.puter.ai.chat(
+            message,
+            false, // testMode = false
+            {
+                model: options.model || AVAILABLE_MODELS.DEFAULT,
+                stream: true,
+                tools: options.tools
+            }
+        );
+
+        // Return the AsyncIterator directly from the response
+        // The response is already an async iterable when stream is true
+        return response;
     } catch (error) {
         console.error('Streaming chat failed:', error);
-        throw error;
+        throw new Error('Failed to communicate with AI service. Please try again later.');
     }
 }
 
-export async function generateImage(prompt: string): Promise<string> {
+export async function generateImage(prompt: string, size: string = '512x512'): Promise<string> {
     try {
+        await ensurePuterScriptLoaded();
         const response = await window.puter.ai.generateImage({
             prompt,
-            size: '512x512'
+            size
         });
         return response.url;
     } catch (error) {
         console.error('Image generation failed:', error);
-        throw error;
+        throw new Error('Failed to generate image. Please try again.');
     }
 }
 
-export async function analyzeImage(imageUrl: string): Promise<string> {
+export async function uploadImage(file: File): Promise<string> {
     try {
+        await ensurePuterScriptLoaded();
+        const fileName = `${Date.now()}-${file.name}`;
+        await window.puter.fs.write(`/uploads/${fileName}`, file);
+        return `/uploads/${fileName}`;
+    } catch (error) {
+        console.error('Image upload failed:', error);
+        throw new Error('Failed to upload image. Please try again.');
+    }
+}
+
+export async function analyzeImage(imageUrl: string): Promise<{
+    description: string;
+    tags: string[];
+    objects: string[];
+}> {
+    try {
+        await ensurePuterScriptLoaded();
         const response = await window.puter.ai.analyzeImage({
             image: imageUrl
         });
-        return response.description;
+        
+        // Parse response to extract more detailed information
+        const analysis = {
+            description: response.description,
+            tags: [],
+            objects: []
+        };
+
+        try {
+            const parsed = JSON.parse(response.description);
+            if (parsed.tags) analysis.tags = parsed.tags;
+            if (parsed.objects) analysis.objects = parsed.objects;
+        } catch {
+            // If response is not JSON, use it as plain description
+            analysis.tags = response.description.split(',').map(tag => tag.trim());
+        }
+
+        return analysis;
     } catch (error) {
         console.error('Image analysis failed:', error);
-        throw error;
+        throw new Error('Failed to analyze image. Please try again.');
     }
 }
 

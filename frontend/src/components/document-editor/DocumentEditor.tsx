@@ -1,622 +1,391 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
 import { Button } from '../Button';
-import { Card } from '../Card';
-import { cn } from '../../lib/utils';
-import { useAIAssistant } from '../../hooks/useAIAssistant';
 import { DocumentToolbar } from './DocumentToolbar';
 import { ContentBlock } from './ContentBlock';
-import { TemplateSelector } from './TemplateSelector';
 import { CollaborationPanel } from './CollaborationPanel';
-import { DocumentType, Template, Block } from '../../types/documents';
-import { TranslationToolbar } from './TranslationToolbar';
+import { AIGeneratedContent } from './AIGeneratedContent';
+import { useAIAssistant } from '../../hooks/useAIAssistant';
+import { Block, DocumentType } from '../../types/documents';
+import { cn } from '../../lib/utils';
+import { saveDocumentToPuter } from '../../utils/api';
+import { AIAssistantFloating } from './AIAssistantFloating';
+import { useUser } from "@clerk/clerk-react";
+import type { PuterWindow } from '../../types/puter';
 
+// Constants
+const DOCUMENT_TEMPLATES = {
+  business: ['Executive Summary', 'Introduction', 'Market Analysis', 'Findings', 'Recommendations', 'Conclusion'],
+  research: ['Abstract', 'Introduction', 'Literature Review', 'Methodology', 'Results', 'Discussion', 'Conclusion'],
+  proposal: ['Overview', 'Problem Statement', 'Proposed Solution', 'Implementation Plan', 'Budget', 'Timeline', 'Conclusion']
+} as const;
+
+// Types
 interface DocumentEditorProps {
+  initialBlocks?: Block[];
   documentId?: string;
-  initialContent?: Block[];
   documentType: DocumentType;
-  onSave: (content: Block[]) => Promise<void>;
-  onPublish?: () => Promise<void>;
+  collaborationMode?: boolean;
+  readOnly?: boolean;
 }
 
 export function DocumentEditor({
+  initialBlocks,
   documentId,
-  initialContent = [],
-  documentType,
-  onSave,
-  onPublish
+  documentType = 'document',
+  collaborationMode = false,
+  readOnly = false
 }: DocumentEditorProps) {
-  const [content, setContent] = useState<Block[]>(initialContent);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
-  const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false);
-  const editorRef = useRef<HTMLDivElement>(null);
-  const { generateContent, enhanceContent, isGenerating, handleAIAction } = useAIAssistant();
+  // State management
+  const [blocks, setBlocks] = useState<Block[]>(initialBlocks || []);
+  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+  const [showCollaboration, setShowCollaboration] = useState(false);
+  const [showAIGeneration, setShowAIGeneration] = useState(false);
+  const [topic, setTopic] = useState<string>('');
+  const [documentStructure, setDocumentStructure] = useState<keyof typeof DOCUMENT_TEMPLATES>('business');
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [selectedText, setSelectedText] = useState('');
+  const [aiPosition, setAIPosition] = useState({ x: 0, y: 0 });
 
-  useEffect(() => {
-    const loadDocument = async () => {
-      if (!documentId) return;
-      try {
-        const file = await window.puter.fs.read(`/documents/${documentId}.json`);
-        const docData = JSON.parse(file);
-        setContent(docData.content);
-        setSelectedTemplate(docData.template || null);
-      } catch (error) {
-        console.error('Failed to load document:', error);
+  // Hooks
+  const { user } = useUser();
+  const { handleAIAssist, isGenerating } = useAIAssistant();
+  const blocksContainerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const docId = documentId || id;
+
+  // Block management functions
+  const createBlock = (type: Block['type'] = 'text', content = ''): Block => ({
+    id: uuidv4(),
+    type,
+    content,
+    meta: { style: { fontSize: 'normal', textAlign: 'left' } }
+  });
+
+  const blockOperations = {
+    add: (type: Block['type'], index: number) => {
+      const newBlock = createBlock(type);
+      setBlocks(prev => {
+        const newBlocks = [...prev];
+        newBlocks.splice(index + 1, 0, newBlock);
+        return newBlocks;
+      });
+      setActiveBlockId(newBlock.id);
+      setTimeout(() => document.getElementById(`block-${newBlock.id}`)?.focus(), 0);
+    },
+
+    delete: (id: string) => {
+      if (blocks.length <= 1) return;
+      const index = blocks.findIndex(block => block.id === id);
+      if (index === -1) return;
+      
+      setBlocks(prev => prev.filter(block => block.id !== id));
+      setActiveBlockId(blocks[Math.max(0, index - 1)]?.id || null);
+    },
+
+    update: (id: string, content: string, meta?: any) => {
+      setBlocks(prev => prev.map(block => 
+        block.id === id ? { ...block, content, meta: { ...block.meta, ...meta } } : block
+      ));
+    },
+
+    move: (id: string, direction: 'up' | 'down') => {
+      const index = blocks.findIndex(block => block.id === id);
+      if (index === -1) return;
+      
+      const newIndex = direction === 'up' ? Math.max(0, index - 1) : Math.min(blocks.length - 1, index + 1);
+      if (index === newIndex) return;
+      
+      setBlocks(prev => {
+        const newBlocks = [...prev];
+        const [movedBlock] = newBlocks.splice(index, 1);
+        newBlocks.splice(newIndex, 0, movedBlock);
+        return newBlocks;
+      });
+    }
+  };
+
+  // Template and AI generation handling
+  const createTemplateStructure = (template: keyof typeof DOCUMENT_TEMPLATES = 'business') => {
+    const sections = DOCUMENT_TEMPLATES[template];
+    return sections.map(section => createBlock('text', `# ${section}\n\nWrite your ${section.toLowerCase()} content here...`));
+  };
+
+  const handleGenerateContent = async () => {
+    if (!topic) {
+      const enteredTopic = await window.prompt('Enter a topic for AI-generated content', '');
+      if (!enteredTopic) return;
+      setTopic(enteredTopic);
+    }
+    
+    if (documentType === 'document' && !showAIGeneration) {
+      const useTemplate = window.confirm(
+        'Would you like to use a standard document structure?\n\n' +
+        DOCUMENT_TEMPLATES[documentStructure].join('\n')
+      );
+      
+      if (useTemplate) {
+        setBlocks(createTemplateStructure(documentStructure));
+        return;
       }
-    };
-
-    loadDocument();
-  }, [documentId]);
-
-  const handleBlockAdd = async (type: 'text' | 'image' | 'chart' | 'data', prompt?: string) => {
-    if (prompt) {
-      const generatedContent = await generateContent(prompt, type);
-      setContent([...content, { id: Date.now().toString(), type, content: generatedContent }]);
-    } else {
-      setContent([...content, { id: Date.now().toString(), type, content: '' }]);
     }
+    
+    setShowAIGeneration(true);
   };
 
-  const handleBlockUpdate = (blockId: string, newContent: string) => {
-    setContent(content.map(block => 
-      block.id === blockId ? { ...block, content: newContent } : block
-    ));
+  const handleAIGenerated = (generatedBlocks: Block[]) => {
+    setBlocks(prev => {
+      if (prev.length <= 1 && !prev[0].content?.trim()) {
+        return generatedBlocks;
+      }
+      return [
+        ...prev,
+        createBlock('text', '---'),
+        ...generatedBlocks
+      ];
+    });
+    setShowAIGeneration(false);
   };
 
-  const handleBlockEnhance = async (blockId: string) => {
-    const block = content.find(b => b.id === blockId);
-    if (!block) return;
-
-    const enhanced = await enhanceContent(block.content);
-    handleBlockUpdate(blockId, enhanced);
-  };
-
-  const handleTemplateApply = (template: Template) => {
-    setSelectedTemplate(template);
-    if (template.content) {
-      setContent(template.content.map(block => ({
-        ...block,
-        id: Date.now().toString()
-      })));
-    }
-  };
-
+  // Save handling with improved error handling and user feedback
   const handleSave = async () => {
-    setIsSaving(true);
     try {
-      // Save document content to Puter.js filesystem
-      const docData = {
-        id: documentId || Date.now().toString(),
+      const puter = (window as PuterWindow).puter;
+      if (!puter?.fs) {
+        await (window as any).initializePuter?.();
+        if (!puter?.fs) {
+          throw new Error('Failed to initialize storage. Please try again.');
+        }
+      }
+
+      const documentData = {
+        id: docId || uuidv4(),
         type: documentType,
-        content,
-        template: selectedTemplate,
+        title: blocks[0]?.content?.split('\n')[0]?.replace(/^#\s*/, '') || 'Untitled Document',
+        blocks: blocks.map(block => ({
+          ...block,
+          // Remove any DOM references or complex objects that might cause circular references
+          meta: block.meta ? JSON.parse(JSON.stringify(block.meta)) : undefined,
+          content: block.content || ''
+        })),
         updatedAt: new Date().toISOString()
       };
 
-      // Ensure documents directory exists
-      try {
-        await window.puter.fs.mkdir('/documents');
-      } catch (error) {
-        // Directory might already exist
-      }
+      await saveDocumentToPuter(documentData.id, documentData);
 
-      // Save the document
-      await window.puter.fs.write(
-        `/documents/${docData.id}.json`,
-        JSON.stringify(docData, null, 2)
-      );
-
-      // Call the onSave callback
-      await onSave(content);
-    } catch (error) {
-      console.error('Failed to save document:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleAIAssist = async (action: string) => {
-    const response = await handleAIAction(action, content);
-    
-    switch (action) {
-      case 'suggest_improvements':
-        window.puter.ui.alert({
-          title: 'AI Suggestions',
-          message: response.join('\n\n'),
-          submitText: 'Apply All',
-          cancelText: 'Close',
-          onSubmit: async () => {
-            const enhancedContent = await Promise.all(
-              content.map(async block => ({
-                ...block,
-                content: await enhanceContent(block.content)
-              }))
-            );
-            setContent(enhancedContent);
+      // Show success message
+      puter.ui?.alert?.({
+        title: 'Success',
+        message: 'Document saved successfully',
+        buttons: [
+          {
+            text: 'OK',
+            variant: 'primary'
           }
-        });
-        break;
+        ]
+      });
 
-      case 'generate_section':
-        if ('content' in response) {
-          const newBlock: Block = {
-            id: Date.now().toString(),
-            type: 'text',
-            content: response.content
-          };
-          setContent([...content, newBlock]);
-
-          // Add any generated visuals
-          if (response.images?.length) {
-            setContent(prev => [
-              ...prev,
-              ...response.images.map(img => ({
-                id: Date.now().toString(),
-                type: 'image',
-                content: img
-              }))
-            ]);
-          }
-          if (response.charts?.length) {
-            setContent(prev => [
-              ...prev,
-              ...response.charts.map(chart => ({
-                id: Date.now().toString(),
-                type: 'chart',
-                content: JSON.stringify(chart)
-              }))
-            ]);
-          }
-          if (response.tables?.length) {
-            setContent(prev => [
-              ...prev,
-              ...response.tables.map(table => ({
-                id: Date.now().toString(),
-                type: 'data',
-                content: JSON.stringify(table)
-              }))
-            ]);
-          }
-        }
-        break;
-
-      case 'add_visuals':
-        const { images, charts, tables } = response;
-        const newBlocks: Block[] = [
-          ...(images || []).map(img => ({
-            id: Date.now().toString(),
-            type: 'image' as const,
-            content: img
-          })),
-          ...(charts || []).map(chart => ({
-            id: Date.now().toString(),
-            type: 'chart' as const,
-            content: JSON.stringify(chart)
-          })),
-          ...(tables || []).map(table => ({
-            id: Date.now().toString(),
-            type: 'data' as const,
-            content: JSON.stringify(table)
-          }))
-        ];
-        setContent([...content, ...newBlocks]);
-        break;
-
-      case 'create_summary':
-        const summary: Block = {
-          id: Date.now().toString(),
-          type: 'text',
-          content: response as string
-        };
-        setContent([summary, ...content]);
-        break;
-
-      case 'enhance_style':
-        setContent(await Promise.all(
-          content.map(async block => ({
-            ...block,
-            content: block.type === 'text' ? 
-              await enhanceContent(block.content, 'more professional and engaging') :
-              block.content
-          }))
-        ));
-        break;
-    }
-  };
-
-  const handleTranslate = async (translatedBlocks: any[]) => {
-    setIsTranslating(true);
-    try {
-      setContent(translatedBlocks);
-    } catch (error) {
-      console.error('Translation update failed:', error);
-    } finally {
-      setIsTranslating(false);
-    }
-  };
-
-  const handleAIEnhance = async (blockId: string) => {
-    const block = content.find(b => b.id === blockId);
-    if (!block) return;
-
-    try {
-      const enhanced = await handleAIAction('enhance_style', block.content);
-      if (enhanced) {
-        setContent(content.map(b => 
-          b.id === blockId ? { ...b, content: enhanced } : b
-        ));
+      // Update URL if needed
+      if (!docId) {
+        navigate(`/documents/${documentData.id}`);
       }
     } catch (error) {
-      console.error('Enhancement failed:', error);
+      console.error('Error saving document:', error);
+      
+      const puter = (window as PuterWindow).puter;
+      // Show error message
+      puter.ui?.alert?.({
+        title: 'Save Failed',
+        message: error instanceof Error ? error.message : 'Failed to save your document.',
+        buttons: [
+          {
+            text: 'Try Again',
+            variant: 'primary',
+            onClick: handleSave
+          },
+          {
+            text: 'Cancel',
+            variant: 'secondary'
+          }
+        ]
+      });
     }
   };
 
-  const handleAIVisuals = async (blockId: string) => {
-    const block = content.find(b => b.id === blockId);
-    if (!block) return;
-
-    try {
-      const visuals = await handleAIAction('add_visuals', block.content);
-      if (visuals) {
-        const newBlocks = [];
+  // Handle text selection
+  useEffect(() => {
+    const handleSelection = () => {
+      const selection = window.getSelection();
+      const text = selection?.toString().trim();
+      
+      if (text && selection?.rangeCount) {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
         
-        if (visuals.images?.length) {
-          newBlocks.push(...visuals.images.map((img: string) => ({
-            id: Date.now().toString() + Math.random(),
-            type: 'image',
-            content: img
-          })));
-        }
-
-        if (visuals.charts?.length) {
-          newBlocks.push(...visuals.charts.map((chart: any) => ({
-            id: Date.now().toString() + Math.random(),
-            type: 'chart',
-            content: JSON.stringify(chart)
-          })));
-        }
-
-        if (visuals.tables?.length) {
-          newBlocks.push(...visuals.tables.map((table: any) => ({
-            id: Date.now().toString() + Math.random(),
-            type: 'data',
-            content: JSON.stringify(table)
-          })));
-        }
-
-        // Insert new blocks after the current block
-        const blockIndex = content.findIndex(b => b.id === blockId);
-        const updatedContent = [
-          ...content.slice(0, blockIndex + 1),
-          ...newBlocks,
-          ...content.slice(blockIndex + 1)
-        ];
-        setContent(updatedContent);
+        setSelectedText(text);
+        setAIPosition({
+          x: rect.left + (rect.width / 2),
+          y: rect.bottom + 10
+        });
+        setShowAIAssistant(true);
+      } else {
+        setShowAIAssistant(false);
       }
+    };
+
+    document.addEventListener('selectionchange', handleSelection);
+    return () => document.removeEventListener('selectionchange', handleSelection);
+  }, []);
+
+  // Handle AI actions
+  const processAIAction = async (action: string, prompt?: string) => {
+    const activeBlock = blocks.find(block => block.id === activeBlockId);
+    if (!activeBlock) return;
+
+    try {
+      let aiPrompt = '';
+      switch (action) {
+        case 'continue':
+          aiPrompt = `Continue writing after this text:\n\n${selectedText || activeBlock.content}`;
+          break;
+        case 'expand':
+          aiPrompt = `Expand and elaborate on this text:\n\n${selectedText || activeBlock.content}`;
+          break;
+        case 'improve':
+          aiPrompt = `Improve the writing style and clarity of this text:\n\n${selectedText || activeBlock.content}`;
+          break;
+        case 'summarize':
+          aiPrompt = `Summarize this text:\n\n${selectedText || activeBlock.content}`;
+          break;
+        case 'tone':
+          aiPrompt = `Rewrite this text in a more professional tone:\n\n${selectedText || activeBlock.content}`;
+          break;
+        case 'translate':
+          aiPrompt = `Translate this text to English:\n\n${selectedText || activeBlock.content}`;
+          break;
+        case 'explain':
+          aiPrompt = `Explain this concept in simple terms:\n\n${selectedText || activeBlock.content}`;
+          break;
+        case 'bullets':
+          aiPrompt = `Convert this text to bullet points:\n\n${selectedText || activeBlock.content}`;
+          break;
+        case 'custom':
+          aiPrompt = prompt || '';
+          break;
+      }
+
+      const response = await handleAIAssist(aiPrompt, action);
+      
+      if (selectedText) {
+        // Replace selected text with AI response
+        const newContent = activeBlock.content.replace(selectedText, response);
+        blockOperations.update(activeBlock.id, newContent);
+      } else {
+        // Append AI response to current block
+        blockOperations.update(activeBlock.id, `${activeBlock.content}\n\n${response}`);
+      }
+      
+      setShowAIAssistant(false);
     } catch (error) {
-      console.error('Visual generation failed:', error);
+      console.error('AI action failed:', error);
+      const puter = (window as PuterWindow).puter;
+      puter.ui?.alert?.({
+        title: 'AI Action Failed',
+        message: 'Failed to process AI action. Please try again.'
+      });
     }
   };
 
-  const handleBlockEdit = (blockId: string, newContent: string) => {
-    setContent(content.map(block =>
-      block.id === blockId ? { ...block, content: newContent } : block
-    ));
-  };
-
-  const handleBlockDelete = (blockId: string) => {
-    setContent(content.filter(block => block.id !== blockId));
-  };
-
-  const handleBlockMove = (blockId: string, direction: 'up' | 'down') => {
-    const index = content.findIndex(block => block.id === blockId);
-    if (
-      (direction === 'up' && index === 0) ||
-      (direction === 'down' && index === content.length - 1)
-    ) {
-      return;
+  // Effects
+  useEffect(() => {
+    if (initialBlocks?.length) {
+      setBlocks(initialBlocks);
+    } else if (!blocks.length) {
+      setBlocks([createBlock()]);
     }
+  }, [initialBlocks, blocks.length]);
 
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    const newContent = [...content];
-    [newContent[index], newContent[newIndex]] = [newContent[newIndex], newContent[index]];
-    setContent(newContent);
-  };
-
-  const renderBlock = (block: any) => {
-    switch (block.type) {
-      case 'text':
-        return (
-          <Card key={block.id} className="p-4 mb-4">
-            <div className="flex justify-between items-start mb-2">
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleAIEnhance(block.id)}
-                  disabled={isGenerating}
-                >
-                  Enhance
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleAIVisuals(block.id)}
-                  disabled={isGenerating}
-                >
-                  Add Visuals
-                </Button>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleBlockMove(block.id, 'up')}
-                >
-                  ↑
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleBlockMove(block.id, 'down')}
-                >
-                  ↓
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleBlockDelete(block.id)}
-                >
-                  ×
-                </Button>
-              </div>
-            </div>
-            <textarea
-              className="w-full p-2 rounded-md border bg-background resize-y"
-              value={block.content}
-              onChange={(e) => handleBlockEdit(block.id, e.target.value)}
-              rows={5}
-            />
-          </Card>
-        );
-
-      case 'image':
-        return (
-          <Card key={block.id} className="p-4 mb-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium">Image</span>
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleBlockMove(block.id, 'up')}
-                >
-                  ↑
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleBlockMove(block.id, 'down')}
-                >
-                  ↓
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleBlockDelete(block.id)}
-                >
-                  ×
-                </Button>
-              </div>
-            </div>
-            <img
-              src={block.content}
-              alt="Generated content"
-              className="max-w-full h-auto rounded-md"
-            />
-          </Card>
-        );
-
-      case 'chart':
-      case 'data':
-        return (
-          <Card key={block.id} className="p-4 mb-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium">
-                {block.type === 'chart' ? 'Chart' : 'Data Table'}
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleBlockMove(block.id, 'up')}
-                >
-                  ↑
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleBlockMove(block.id, 'down')}
-                >
-                  ↓
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleBlockDelete(block.id)}
-                >
-                  ×
-                </Button>
-              </div>
-            </div>
-            <pre className="bg-muted p-2 rounded-md overflow-x-auto">
-              {block.content}
-            </pre>
-          </Card>
-        );
-
-      default:
-        return null;
-    }
-  };
-
+  // Render
   return (
-    <div className="flex h-full">
-      <div className="w-64 border-r p-4 space-y-4">
-        <TemplateSelector
-          documentType={documentType}
-          onSelect={handleTemplateApply}
-          selectedTemplate={selectedTemplate}
-        />
-
-        <div className="space-y-2">
-          <h3 className="font-semibold text-sm">Add Content</h3>
-          <div className="grid gap-2">
-            <Button
-              variant="outline"
-              className="justify-start"
-              onClick={() => handleBlockAdd('text')}
-            >
-              <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-              Text
-            </Button>
-            <Button
-              variant="outline"
-              className="justify-start"
-              onClick={() => handleBlockAdd('image')}
-            >
-              <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21 15 16 10 5 21" />
-              </svg>
-              Image
-            </Button>
-            <Button
-              variant="outline"
-              className="justify-start"
-              onClick={() => handleBlockAdd('chart')}
-            >
-              <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="20" x2="18" y2="10" />
-                <line x1="12" y1="20" x2="12" y2="4" />
-                <line x1="6" y1="20" x2="6" y2="14" />
-              </svg>
-              Chart
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="sticky top-0 z-50 bg-background border-b p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <DocumentToolbar 
-              onSave={handleSave} 
-              onPublish={onPublish}
-              isSaving={isSaving}
-              onAIAssist={handleAIAssist}
+    <div className="document-editor relative h-full flex flex-col">
+      <DocumentToolbar 
+        documentType={documentType}
+        onSave={handleSave}
+        onAddBlock={(type) => blockOperations.add(type, blocks.length - 1)}
+        onGenerateContent={handleGenerateContent}
+        onToggleCollaboration={() => setShowCollaboration(!showCollaboration)}
+        showCollaboration={showCollaboration}
+      />
+      
+      <div ref={blocksContainerRef} className="flex-1 overflow-y-auto p-4">
+        <div className={cn(
+          'document-container mx-auto',
+          documentType === 'webpage' ? 'max-w-full' : 'max-w-3xl'
+        )}>
+          {blocks.map((block) => (
+            <ContentBlock
+              key={block.id}
+              block={block}
+              isActive={activeBlockId === block.id}
+              onChange={(content, meta) => blockOperations.update(block.id, content, meta)}
+              onDelete={() => blockOperations.delete(block.id)}
+              onMoveUp={() => blockOperations.move(block.id, 'up')}
+              onMoveDown={() => blockOperations.move(block.id, 'down')}
+              onAddAfter={(type) => blockOperations.add(type, blocks.indexOf(block))}
+              onFocus={() => setActiveBlockId(block.id)}
+              isEditing={!readOnly}
+              presentationMode={documentType === 'presentation'}
             />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleBlockAdd('text')}
-              >
-                Add Text
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleBlockAdd('image')}
-              >
-                Add Image
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleBlockAdd('chart')}
-              >
-                Add Chart
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleBlockAdd('data')}
-              >
-                Add Table
-              </Button>
+          ))}
+
+          {blocks.length === 0 && !readOnly && (
+            <div className="flex flex-col items-center justify-center min-h-[300px] border-2 border-dashed border-muted rounded-lg p-8">
+              <div className="text-4xl mb-4">📝</div>
+              <h2 className="text-xl font-medium mb-2">Start creating your content</h2>
+              <p className="text-muted-foreground mb-8">Add your first block or use AI to generate content</p>
+              <div className="flex gap-4">
+                <Button onClick={() => blockOperations.add('text', -1)}>Add Text Block</Button>
+                <Button variant="outline" onClick={handleGenerateContent}>Generate with AI</Button>
+              </div>
             </div>
-
-            <TranslationToolbar
-              blocks={content}
-              onTranslate={handleTranslate}
-              isTranslating={isTranslating}
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-8" ref={editorRef}>
-          <div className="max-w-4xl mx-auto space-y-4">
-            {content.map((block, index) => (
-              <div key={block.id} className="relative group">
-                <ContentBlock
-                  key={block.id}
-                  block={block}
-                  isSelected={selectedBlock === block.id}
-                  onSelect={() => setSelectedBlock(block.id)}
-                  onChange={(content) => handleBlockUpdate(block.id, content)}
-                  onEnhance={() => handleBlockEnhance(block.id)}
-                  documentType={documentType}
-                />
-                
-                {selectedBlock === block.id && (
-                  <div className="absolute -left-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleBlockMove(block.id, 'up')}
-                      disabled={index === 0}
-                    >
-                      ↑
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleBlockMove(block.id, 'down')}
-                      disabled={index === content.length - 1}
-                    >
-                      ↓
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleBlockDelete(block.id)}
-                    >
-                      ×
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {content.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Add some content to get started</p>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
-      <CollaborationPanel documentId={documentId} />
+      {showCollaboration && (
+        <CollaborationPanel
+          documentId={docId || ''}
+          currentUserId={user?.id || ''}
+          onClose={() => setShowCollaboration(false)}
+          onInviteCollaborator={async (email) => {
+            // Handle collaboration invite
+            window.puter?.ui?.alert?.({
+              title: 'Invite Sent',
+              message: `Invitation sent to ${email}`
+            });
+          }}
+        />
+      )}
+      
+      {showAIGeneration && (
+        <AIGeneratedContent
+          topic={topic}
+          documentType={documentType}
+          onGenerated={handleAIGenerated}
+          onCancel={() => setShowAIGeneration(false)}
+          sectionCount={5}
+          contentLength="medium"
+        />
+      )}
+
+      <AIAssistantFloating
+        isVisible={showAIAssistant && !readOnly}
+        position={aiPosition}
+        selectedText={selectedText}
+        onAction={processAIAction}
+      />
     </div>
   );
 }

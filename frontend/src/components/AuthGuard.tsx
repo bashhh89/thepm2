@@ -1,33 +1,33 @@
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
-import { useAuthStore } from '../utils/auth-store';
+import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
 
 interface AuthGuardProps {
-  children: React.ReactNode;
-  requireAdmin?: boolean;
+  requireAuth?: boolean;
+  redirectTo?: string;
 }
 
-export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requireAdmin = false }) => {
-  const location = useLocation();
-  const { isSignedIn, isLoaded } = useUser();
-  const { isAdmin } = useAuthStore();
+const AuthGuard = ({ requireAuth = true, redirectTo = '/sign-in', children }: AuthGuardProps & { children: React.ReactNode }) => {
+  const { isLoaded, isSignedIn } = useAuth();
 
   if (!isLoaded) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
-  // For admin routes, only check admin status
-  if (requireAdmin) {
-    return isAdmin ? <>{children}</> : <Navigate to="/admin/login" state={{ from: location }} replace />;
+  if (requireAuth && !isSignedIn) {
+    return <Navigate to={redirectTo} replace />;
   }
 
-  // For non-admin routes, check regular user authentication
-  if (!requireAdmin && !isSignedIn) {
-    return <Navigate to="/" state={{ from: location }} replace />;
+  if (!requireAuth && isSignedIn) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
 };
 
+export { AuthGuard };
 export default AuthGuard;

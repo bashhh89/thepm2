@@ -227,46 +227,92 @@ export const useChatStore = create<ChatState>((set, get) => {
         
         const response = await window.puter.ai.chat(
           messages,
-          false,
+          false, // testMode
           {
-            model: model,
-            stream: false
+            model: model || 'gpt-4o-mini',
+            stream: true
           }
         );
 
-        const responseContent = typeof response === 'string' ? 
-          response : 
-          response.message?.content || '';
-
-        // Add AI response
-        const assistantMessage: Message = {
-          role: 'assistant',
-          content: responseContent,
-          timestamp: new Date()
-        };
-        const allMessages = [...messagesUpdated, assistantMessage];
+        let fullAssistantResponse = '';
         
-        // Update local state with AI response
-        set(state => {
-          const updatedConversation = {
-            ...conversation,
-            messages: allMessages,
-            updatedAt: new Date()
-          };
-          
-          const newConversations = state.conversations.map(c => 
-            c.id === conversation.id ? updatedConversation : c
-          );
+        // Handle streaming response
+        if (response && Symbol.asyncIterator in response) {
+          const iterator = response[Symbol.asyncIterator]();
+          let isDone = false;
 
-          saveConversationsToStorage(userId, newConversations);
-          
-          return {
-            currentConversation: updatedConversation,
-            conversations: newConversations,
-            isSending: false
-          };
-        });
-        
+          while (!isDone) {
+            const result = await iterator.next();
+            isDone = result.done || false;
+
+            if (result.value) {
+              const chunk = result.value.text || '';
+              fullAssistantResponse += chunk;
+
+              // Update the conversation with partial response
+              set(state => {
+                const currentMessages = [...state.currentConversation!.messages];
+                const lastMessage = currentMessages[currentMessages.length - 1];
+                
+                if (lastMessage?.role === 'assistant') {
+                  lastMessage.content = fullAssistantResponse;
+                } else {
+                  currentMessages.push({
+                    role: 'assistant',
+                    content: fullAssistantResponse,
+                    timestamp: new Date()
+                  });
+                }
+
+                const updatedConversation = {
+                  ...state.currentConversation!,
+                  messages: currentMessages,
+                  updatedAt: new Date()
+                };
+
+                const newConversations = state.conversations.map(c => 
+                  c.id === conversation.id ? updatedConversation : c
+                );
+
+                saveConversationsToStorage(userId, newConversations);
+
+                return {
+                  currentConversation: updatedConversation,
+                  conversations: newConversations
+                };
+              });
+            }
+          }
+        }
+
+        // Final update with complete response
+        if (fullAssistantResponse) {
+          const allMessages = [...messagesUpdated, {
+            role: 'assistant' as const,
+            content: fullAssistantResponse,
+            timestamp: new Date()
+          }];
+
+          set(state => {
+            const updatedConversation = {
+              ...conversation,
+              messages: allMessages,
+              updatedAt: new Date()
+            };
+            
+            const newConversations = state.conversations.map(c => 
+              c.id === conversation.id ? updatedConversation : c
+            );
+
+            saveConversationsToStorage(userId, newConversations);
+            
+            return {
+              currentConversation: updatedConversation,
+              conversations: newConversations,
+              isSending: false
+            };
+          });
+        }
       } catch (error: any) {
         console.error('Error sending message:', error);
         set({ error: error.message, isSending: false });

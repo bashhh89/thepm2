@@ -49,11 +49,29 @@ A powerful, AI-driven document creation and content management platform that can
 - Interactive data tables
 - Custom visualization options
 
+### Blog System
+- AI-powered blog post creation and management
+- Persistent storage using Puter.js
+- Rich text editing with markdown support
+- Cover image generation with AI
+- Category and tag management
+- Related posts suggestions
+- SEO-friendly content structure
+- Preview and draft system
+- Social sharing functionality
+
 ### User Interface
 - Modern, responsive design
 - Dark/light theme support
 - Customizable components
 - Floating chat interface
+
+### Recent Updates
+- Added complete blog management system
+- Implemented AI-assisted content creation
+- Added persistent storage for blog posts
+- Enhanced UI/UX for content management
+- Improved navigation and dashboard integration
 
 ## Technical Stack
 
@@ -75,6 +93,11 @@ A powerful, AI-driven document creation and content management platform that can
 - Multiple AI model support
 - Streaming responses
 - Function calling capabilities
+
+### Storage
+- Puter.js for blog post storage and file management
+- Persistent data sync across sessions
+- Secure file storage with encryption
 
 ## Getting Started
 
@@ -136,6 +159,25 @@ JWT_SECRET=your-secret-key
 AI_API_KEY=your-ai-api-key
 \`\`\`
 
+## Usage
+
+### Blog Management
+1. Navigate to Dashboard > Blog Posts
+2. Create new posts with AI assistance
+3. Use the editor to customize content
+4. Preview posts before publishing
+5. Manage categories and tags
+6. Generate AI images for cover photos
+7. Share posts on social media
+
+### Content Creation
+The platform includes AI-powered tools for:
+- Title suggestions and enhancement
+- Content generation
+- Image creation
+- Category and tag suggestions
+- SEO optimization hints
+
 ## Contributing
 
 1. Fork the repository
@@ -143,6 +185,15 @@ AI_API_KEY=your-ai-api-key
 3. Commit your changes
 4. Push to the branch
 5. Create a Pull Request
+
+## Development
+
+## Roadmap
+- Enhanced analytics for blog posts
+- Automated social media scheduling
+- Advanced SEO tools integration
+- Multi-language blog support
+- Newsletter integration
 
 ## License
 

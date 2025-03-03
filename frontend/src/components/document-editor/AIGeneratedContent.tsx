@@ -4,6 +4,7 @@ import { Button } from '../Button';
 import { Card } from '../Card';
 import { useAIAssistant } from '../../hooks/useAIAssistant';
 import { cn } from '../../lib/utils';
+import { v4 as uuidv4 } from 'uuid';
 
 interface AIGeneratedContentProps {
   topic: string;
@@ -39,45 +40,43 @@ export function AIGeneratedContent({
     setIsGenerating(false);
   };
 
+  // Helper function for formatting JSON properly
+  const formatJSON = (obj: any): string => {
+    try {
+      return JSON.stringify(obj, null, 2);
+    } catch (err) {
+      console.error("Error formatting JSON:", err);
+      return JSON.stringify(obj);
+    }
+  };
+
   const generateInitialOutline = async () => {
     try {
       setIsGenerating(true);
       setError(null);
 
-      // First check if Puter.js is loaded
-      if (!window.puter?.ai) {
-        throw new Error('AI service is not available. Please try again.');
-      }
-
-      const result = await handleAIAction('generate_outline', `Create a ${sectionCount}-section outline for a ${contentLength} ${documentType} about: ${topic}`);
+      const result = await handleAIAction('generate_outline', 
+        `Create a ${sectionCount}-section outline for a ${contentLength} ${documentType} about: ${topic}`
+      );
       
       if (!result) {
-        throw new Error('Failed to generate outline. Please try again.');
+        throw new Error('Failed to generate outline');
       }
       
       let sections: string[] = [];
       
       if (typeof result === 'string') {
-        try {
-          // Try to parse as JSON first
-          const parsed = JSON.parse(result);
-          if (Array.isArray(parsed.sections)) {
-            sections = parsed.sections;
-          } else {
-            // If no sections array, split by newlines
-            sections = result.split('\n').filter(line => line.trim());
-          }
-        } catch (e) {
-          // If parsing failed, split the string into sections
-          sections = result.split('\n').filter(line => line.trim());
-        }
+        sections = result.split('\n').filter(Boolean);
       } else if (result?.sections && Array.isArray(result.sections)) {
         sections = result.sections;
       }
 
       if (sections.length === 0) {
-        throw new Error('No outline sections generated');
+        throw new Error('No sections generated');
       }
+
+      // Remove duplicates from sections
+      sections = [...new Set(sections)];
 
       setOutline(sections);
       await generateSections(sections);
@@ -92,96 +91,84 @@ export function AIGeneratedContent({
       
       for (let i = 0; i < sections.length; i++) {
         setCurrentSection(i);
-        const sectionTitle = sections[i];
         
-        const prompt = `Generate ${contentLength} content for section "${sectionTitle}" of a ${documentType} about: ${topic}. Include relevant examples, data, and explanations.`;
-        
-        const response = await handleAIAction('generate_section', prompt);
+        // Generate section content
+        const result = await handleAIAction('generate_section', 
+          `Write a ${contentLength} section about "${sections[i]}" for a ${documentType} about ${topic}`
+        );
 
-        if (!response) {
-          throw new Error('Failed to generate section content');
-        }
-
-        let sectionContent = '';
-        let images: string[] = [];
-        let charts: any[] = [];
-        let tables: any[] = [];
-
-        if (typeof response === 'string') {
-          sectionContent = response;
-        } else if (typeof response === 'object') {
-          sectionContent = response.content || '';
-          images = response.images || [];
-          charts = response.charts || [];
-          tables = response.tables || [];
-        }
-
-        // Add the main content block
-        if (sectionContent) {
-          blocks.push({
-            id: Date.now().toString() + i,
-            type: 'text',
-            content: `## ${sectionTitle}\n\n${sectionContent}`
-          });
-        }
-
-        // Add any generated images
-        if (images?.length) {
-          for (const imgPrompt of images) {
-            try {
-              const imgUrl = await window.puter.ai.generateImage({
-                prompt: imgPrompt,
-                size: '512x512'
-              });
-              if (imgUrl?.url) {
-                blocks.push({
-                  id: Date.now().toString() + i + '_img_' + Math.random(),
-                  type: 'image',
-                  content: imgUrl.url
-                });
-              }
-            } catch (imgError) {
-              console.error('Failed to generate image:', imgError);
-              // Continue with other content even if image generation fails
+        // Add section heading
+        blocks.push({
+          id: uuidv4(),
+          type: 'text',
+          content: `# ${sections[i]}`,
+          meta: {
+            style: {
+              fontSize: 'large',
+              textAlign: 'left'
             }
           }
-        }
+        });
 
-        // Add any generated charts
-        if (charts?.length) {
-          charts.forEach((chart: any, chartIndex: number) => {
-            blocks.push({
-              id: Date.now().toString() + i + '_chart_' + chartIndex,
-              type: 'chart',
-              content: JSON.stringify(chart)
-            });
+        // Add section content
+        if (result?.content) {
+          blocks.push({
+            id: uuidv4(),
+            type: 'text',
+            content: result.content,
+            meta: {
+              style: {
+                fontSize: 'normal',
+                textAlign: 'left'
+              }
+            }
           });
         }
 
-        // Add any generated tables
-        if (tables?.length) {
-          tables.forEach((table: any, tableIndex: number) => {
-            blocks.push({
-              id: Date.now().toString() + i + '_table_' + tableIndex,
-              type: 'data',
-              content: JSON.stringify(table)
-            });
-          });
+        // Add any generated visuals
+        if (result?.images?.length) {
+          blocks.push(...result.images.map((url: string) => ({
+            id: uuidv4(),
+            type: 'image' as const,
+            content: url,
+            meta: {
+              alt: `Image for ${sections[i]}`
+            }
+          })));
         }
 
-        // Update blocks after each section is generated
-        setGeneratedBlocks([...blocks]);
+        if (result?.charts?.length) {
+          blocks.push(...result.charts.map((chart: any) => ({
+            id: uuidv4(),
+            type: 'chart' as const,
+            content: formatJSON(chart),
+            meta: {
+              description: `Chart for ${sections[i]}`
+            }
+          })));
+        }
+
+        if (result?.tables?.length) {
+          blocks.push(...result.tables.map((table: any) => ({
+            id: uuidv4(),
+            type: 'data' as const,
+            content: formatJSON(table),
+            meta: {
+              caption: `Table for ${sections[i]}`
+            }
+          })));
+        }
       }
 
       setGeneratedBlocks(blocks);
       
       if (blocks.length === 0) {
-        throw new Error('No content was generated');
+        throw new Error('No content generated');
       }
+
+      setIsGenerating(false);
     } catch (error) {
       handleError(error);
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -201,89 +188,85 @@ export function AIGeneratedContent({
   };
 
   return (
-    <Card className="p-6">
+    <Card className="p-6 max-w-2xl mx-auto">
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Generating {documentType}</h2>
-          <Button variant="ghost" onClick={onCancel} disabled={isGenerating}>
-            Cancel
-          </Button>
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold">
+            Generating {documentType} Content
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Topic: {topic}
+          </p>
         </div>
 
-        {error && (
-          <div className="bg-destructive/10 text-destructive p-4 rounded-md">
-            {error}
+        {error ? (
+          <div className="space-y-4">
+            <div className="bg-destructive/10 text-destructive p-4 rounded-md">
+              {error}
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleStartOver}>
+                Try Again
+              </Button>
+              <Button variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+            </div>
           </div>
-        )}
-
-        <div className="space-y-4">
-          <h3 className="font-semibold">Outline:</h3>
-          <ul className="space-y-2">
-            {outline.map((section, index) => (
-              <li
-                key={index}
-                className={cn(
-                  "flex items-center gap-2 p-2 rounded",
-                  index === currentSection && isGenerating
-                    ? "bg-primary/10"
-                    : index < currentSection
-                    ? "text-muted-foreground"
-                    : ""
+        ) : isGenerating ? (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all duration-500"
+                  style={{
+                    width: outline.length ? 
+                      `${((currentSection + 1) / outline.length) * 100}%` : 
+                      '10%'
+                  }}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {outline.length ? (
+                  `Generating section ${currentSection + 1} of ${outline.length}: ${outline[currentSection]}`
+                ) : (
+                  'Creating outline...'
                 )}
-              >
-                {index < currentSection ? (
+              </p>
+            </div>
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent" />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="border rounded-lg divide-y">
+              {outline.map((section, index) => (
+                <div 
+                  key={index}
+                  className="p-3 flex items-center justify-between"
+                >
+                  <span>{section}</span>
                   <svg
-                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-5 h-5 text-primary"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="w-4 h-4 text-primary"
                   >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                ) : index === currentSection && isGenerating ? (
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                ) : (
-                  <div className="w-4 h-4" />
-                )}
-                {section}
-              </li>
-            ))}
-          </ul>
-
-          {isGenerating && outline.length > 0 && (
-            <div className="text-sm text-muted-foreground animate-pulse">
-              Generating content for section {currentSection + 1} of {outline.length}...
+                </div>
+              ))}
             </div>
-          )}
-        </div>
-
-        {!isGenerating && generatedBlocks.length > 0 && (
-          <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={handleStartOver}>
-              Start Over
-            </Button>
-            <Button onClick={handleContinueToEditor}>
-              Continue to Editor
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleContinueToEditor}>
+                Continue to Editor
+              </Button>
+              <Button variant="outline" onClick={handleStartOver}>
+                Generate Again
+              </Button>
+            </div>
           </div>
         )}
       </div>

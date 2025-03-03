@@ -3,12 +3,12 @@ import { SignIn } from '@clerk/clerk-react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 
-export default function Login() {
+function Login() {
   const { isSignedIn } = useUser();
   const location = useLocation();
-  const from = (location.state as any)?.from?.pathname || '/dashboard';
-
-  if (isSignedIn) {
+  const from = location.state?.from?.pathname || '/dashboard';
+  // Only redirect if user is signed in and we have a valid destination
+  if (isSignedIn && from && from !== location.pathname) {
     return <Navigate to={from} replace />;
   }
 
@@ -30,7 +30,7 @@ export default function Login() {
               footer: 'text-muted-foreground'
             }
           }}
-          redirectUrl={from}
+          fallbackRedirectUrl={from}
           routing="path"
           path="/login"
         />
@@ -38,3 +38,6 @@ export default function Login() {
     </div>
   );
 }
+
+export default Login;
+export { Login };

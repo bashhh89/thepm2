@@ -24,38 +24,67 @@ export function ChatWidget({ defaultModel = 'gpt-4o-mini' }: ChatWidgetProps) {
     { id: 'mistral-large-latest', name: 'Mistral Large' },
   ];
 
-  const handleSendMessage = async (message: string) => {
-    if (!message.trim() || isStreaming) return;
-
-    const newMessages = [
-      ...messages,
-      { role: 'user', content: message }
-    ];
-    setMessages(newMessages);
-    setIsStreaming(true);
+  const handleSendMessage = async (content: string) => {
+    if (!content.trim()) return;
 
     try {
-      let fullResponse = '';
-      const stream = await streamChat(message, {
-        model: selectedModel,
-        stream: true
-      });
-      
-      for await (const part of stream) {
-        fullResponse += part?.text || '';
-        setMessages([
-          ...newMessages,
-          { role: 'assistant', content: fullResponse }
-        ]);
+      setError(null);
+      setIsTyping(true);
+
+      // Create a new message
+      const newMessage = { role: 'user', content };
+      setMessages(prev => [...prev, newMessage]);
+
+      const response = await window.puter.ai.chat(
+        messages.concat(newMessage),
+        false,
+        { 
+          model: 'gpt-4o-mini',
+          stream: true 
+        }
+      );
+
+      let assistantResponse = '';
+
+      // Handle streaming response
+      if (response && Symbol.asyncIterator in response) {
+        const iterator = response[Symbol.asyncIterator]();
+        try {
+          while (true) {
+            const { value, done } = await iterator.next();
+            if (done) break;
+            
+            if (value?.text) {
+              assistantResponse += value.text;
+              // Update the ongoing response
+              setMessages(prev => {
+                const lastMessage = prev[prev.length - 1];
+                if (lastMessage?.role === 'assistant') {
+                  return [
+                    ...prev.slice(0, -1),
+                    { ...lastMessage, content: assistantResponse }
+                  ];
+                }
+                return [...prev, { role: 'assistant', content: assistantResponse }];
+              });
+            }
+          }
+        } catch (streamError) {
+          console.error('Stream error:', streamError);
+          setError('Lost connection to AI service. Please try again.');
+        }
+      } else {
+        // Handle non-streaming response
+        const text = typeof response === 'string' ? response : response.message?.content;
+        if (text) {
+          setMessages(prev => [...prev, { role: 'assistant', content: text }]);
+        }
       }
     } catch (error) {
       console.error('Chat error:', error);
-      setMessages([
-        ...newMessages,
-        { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }
-      ]);
+      setError(error instanceof Error ? error.message : 'Failed to communicate with AI service');
     } finally {
-      setIsStreaming(false);
+      setIsTyping(false);
     }
   };
 

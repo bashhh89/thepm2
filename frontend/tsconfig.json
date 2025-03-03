@@ -1,77 +1,48 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
+    "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ESNext"
-    ],
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": false,
     "allowSyntheticDefaultImports": true,
     "allowImportingTsExtensions": true,
-    "strict": false,
+    "strict": true,
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "isolatedModules": false,
+    "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "brain": [
-        "./src/brain"
-      ],
-      "types": [
-        "./src/brain/data-contracts.ts"
-      ],
-      "components/*": [
-        "./src/components/*"
-      ],
-      "pages/*": [
-        "./src/pages/*"
-      ],
-      "app": [
-        "./src/app"
-      ],
-      "app/auth": [
-        "./src/app/auth"
-      ],
-      "utils/*": [
-        "./src/utils/*"
-      ],
-      "@/*": [
-        "./src/*"
-      ],
-      "@/hooks/*": [
-        "./src/extensions/shadcn/hooks/*"
-      ],
-      "@/components/hooks/*": [
-        "./src/extensions/shadcn/hooks/*"
-      ],
-      "@/components/ui/*": [
-        "./src/extensions/shadcn/components/*"
-      ],
-    }
+      "brain": ["./src/brain"],
+      "types": ["./src/brain/data-contracts.ts"],
+      "components/*": ["./src/components/*"],
+      "pages/*": ["./src/pages/*"],
+      "app": ["./src/app"],
+      "app/auth": ["./src/app/auth"],
+      "utils/*": ["./src/utils/*"],
+      "@/*": ["src/*"],
+      "@/hooks/*": ["./src/extensions/shadcn/hooks/*"],
+      "@/components/hooks/*": ["./src/extensions/shadcn/hooks/*"],
+      "@/components/ui/*": ["./src/extensions/shadcn/components/*"]
+    },
+    "typeRoots": ["./node_modules/@types", "./src/types"],
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
   },
-  "include": [
-    "env.d.ts",
-    "src"
-  ],
+  "include": ["src"],
   "exclude": [
     "src/brain/Brain.ts",
     "src/brain/BrainRoute.ts",
     "src/brain/data-contracts.ts",
     "src/brain/http-client.ts"
   ],
-  "references": [
-    {
-      "path": "./tsconfig.node.json"
-    }
-  ],
+  "references": [{ "path": "./tsconfig.node.json" }],
   "ts-node": {
     "compilerOptions": {
       "module": "CommonJS"

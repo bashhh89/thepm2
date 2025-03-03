@@ -277,13 +277,16 @@ export default function DocumentCreatePage() {
       <AuthGuard>
         <div className="container mx-auto px-4 py-8">
           <DocumentToolbar
+            documentType={documentType}
             onSave={handleDocumentCreate}
-            isSaving={false}
-            onAIAssist={handleAIAssist}
+            onAddBlock={() => {}} // Empty function since handled by DocumentEditor
+            onGenerateContent={() => setShowAIGeneration(true)}
+            onToggleCollaboration={() => {}}
+            showCollaboration={false}
           />
           <DocumentEditor
             documentType={documentType}
-            initialContent={initialContent}
+            initialBlocks={initialContent}
             onSave={handleDocumentCreate}
           />
         </div>

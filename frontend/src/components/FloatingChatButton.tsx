@@ -50,74 +50,50 @@ export function FloatingChatButton() {
     setShowUserInfoForm(false);
   };
 
-  const handleSendMessage = async (message: string) => {
-    if (!message.trim() || isStreaming) return;
-
-    // Create a lead on first message
-    if (messages.length === 0) {
-      const newLeadId = createLeadFromChat(message, userInfo.name, userInfo.email);
-      setLeadId(newLeadId);
-    }
-
-    // Update lead notes with new message
-    if (leadId) {
-      const leads = JSON.parse(localStorage.getItem('leads') || '[]');
-      const updatedLeads = leads.map((lead: any) => {
-        if (lead.id === leadId) {
-          return {
-            ...lead,
-            notes: `${lead.notes}\n\nUser: ${message}`
-          };
-        }
-        return lead;
-      });
-      localStorage.setItem('leads', JSON.stringify(updatedLeads));
-    }
-
-    const newMessages = [
-      ...messages,
-      { role: 'user', content: message }
-    ];
-    setMessages(newMessages);
-    setIsStreaming(true);
-
+  const handleSendMessage = async (content: string) => {
     try {
-      let fullResponse = '';
-      const stream = await streamChat(message, {
-        model: 'gpt-4o-mini',
-        stream: true
-      });
-      
-      for await (const part of stream) {
-        fullResponse += part?.text || '';
-        setMessages([
-          ...newMessages,
-          { role: 'assistant', content: fullResponse }
-        ]);
-      }
-
-      // Update lead notes with AI response
-      if (leadId) {
-        const leads = JSON.parse(localStorage.getItem('leads') || '[]');
-        const updatedLeads = leads.map((lead: any) => {
-          if (lead.id === leadId) {
-            return {
-              ...lead,
-              notes: `${lead.notes}\n\nAI: ${fullResponse}`
-            };
+      setError(null);
+      setIsSending(true);
+  
+      const response = await window.puter.ai.chat(
+        content,
+        false, // testMode
+        { 
+          model: 'gpt-4o-mini',
+          stream: true 
+        }
+      );
+  
+      // Clear previous response
+      setResponse('');
+  
+      // Handle streaming response
+      if (response && Symbol.asyncIterator in response) {
+        const iterator = response[Symbol.asyncIterator]();
+        try {
+          while (true) {
+            const { value, done } = await iterator.next();
+            if (done) break;
+            if (value?.text) {
+              setResponse(prev => prev + value.text);
+            }
           }
-          return lead;
-        });
-        localStorage.setItem('leads', JSON.stringify(updatedLeads));
+        } catch (streamError) {
+          console.error('Stream error:', streamError);
+          setError('Lost connection to AI service. Please try again.');
+        }
+      } else {
+        // Handle non-streaming response
+        const text = typeof response === 'string' ? response : response.message?.content;
+        if (text) {
+          setResponse(text);
+        }
       }
     } catch (error) {
       console.error('Chat error:', error);
-      setMessages([
-        ...newMessages,
-        { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }
-      ]);
+      setError(error instanceof Error ? error.message : 'Failed to communicate with AI service');
     } finally {
-      setIsStreaming(false);
+      setIsSending(false);
     }
   };
 

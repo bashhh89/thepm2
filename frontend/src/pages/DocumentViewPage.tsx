@@ -103,7 +103,7 @@ export default function DocumentViewPage() {
         
         <DocumentEditor
           documentId={id}
-          initialContent={document.content}
+          initialBlocks={document.content}
           documentType={document.type}
           onSave={handleSave}
         />
