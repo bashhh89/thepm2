@@ -1,16 +1,41 @@
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '@clerk/clerk-react';
+import React, { useEffect, useState } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuthStore } from '../utils/auth-store';
+import { supabase } from '../AppWrapper';
 
 interface AuthGuardProps {
-  requireAuth?: boolean;
-  redirectTo?: string;
+  children: React.ReactNode;
+  requireAdmin?: boolean;
+  publicOnly?: boolean;
 }
 
-const AuthGuard = ({ requireAuth = true, redirectTo = '/sign-in', children }: AuthGuardProps & { children: React.ReactNode }) => {
-  const { isLoaded, isSignedIn } = useAuth();
+export default function AuthGuard({ 
+  children, 
+  requireAdmin = false,
+  publicOnly = false 
+}: AuthGuardProps) {
+  const location = useLocation();
+  const { isAdmin } = useAuthStore();
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
-  if (!isLoaded) {
+  useEffect(() => {
+    // Get current user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+      setIsLoading(false);
+    });
+
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -18,16 +43,21 @@ const AuthGuard = ({ requireAuth = true, redirectTo = '/sign-in', children }: Au
     );
   }
 
-  if (requireAuth && !isSignedIn) {
-    return <Navigate to={redirectTo} replace />;
+  // Public only routes (like sign-in) should not be accessible when authenticated
+  if (publicOnly && (isAdmin || user)) {
+    const targetPath = isAdmin ? '/admin' : '/dashboard';
+    return <Navigate to={targetPath} state={{ from: location }} replace />;
   }
 
-  if (!requireAuth && isSignedIn) {
-    return <Navigate to="/dashboard" replace />;
+  // Admin routes
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to="/" state={{ from: location }} replace />;
+  }
+
+  // Protected routes for non-admin users
+  if (!publicOnly && !isAdmin && !user) {
+    return <Navigate to="/sign-in" state={{ from: location }} replace />;
   }
 
   return <>{children}</>;
-};
-
-export { AuthGuard };
-export default AuthGuard;
+}

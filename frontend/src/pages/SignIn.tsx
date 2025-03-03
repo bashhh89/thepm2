@@ -5,28 +5,31 @@ import { Card } from '../components/Card';
 import { Input } from '../components/Input';
 import { supabase } from '../AppWrapper';
 import AuthGuard from '../components/AuthGuard';
+import { useAuthStore } from '../utils/auth-store';
 
-export default function Register() {
+export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { adminLogin } = useAuthStore();
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const { data, error } = await supabase.auth.signUp({
+      // Try admin login first
+      if (email === 'admin@qandu.co' || email === 'admin') {
+        await adminLogin(email, password);
+        navigate('/admin');
+        return;
+      }
+
+      // Regular user login
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -37,13 +40,13 @@ export default function Register() {
         navigate('/dashboard');
       }
     } catch (error: any) {
-      setError(error.message || 'Failed to sign up');
+      setError(error.message || 'Failed to sign in');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoogleSignUp = async () => {
+  const handleGoogleSignIn = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -54,7 +57,7 @@ export default function Register() {
 
       if (error) throw error;
     } catch (error: any) {
-      setError(error.message || 'Failed to sign up with Google');
+      setError(error.message || 'Failed to sign in with Google');
     }
   };
 
@@ -69,7 +72,7 @@ export default function Register() {
           <div className="relative z-20 mt-auto">
             <blockquote className="space-y-2">
               <p className="text-lg">
-                "Join our community and transform your business with AI-powered analytics."
+                "Transform your business intelligence with AI-powered analytics and insights."
               </p>
             </blockquote>
           </div>
@@ -78,10 +81,10 @@ export default function Register() {
           <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
             <div className="flex flex-col space-y-2 text-center">
               <h1 className="text-2xl font-semibold tracking-tight">
-                Create an account
+                Welcome back
               </h1>
               <p className="text-sm text-muted-foreground">
-                Get started with QanDu today
+                Enter your credentials to access your account
               </p>
             </div>
             <Card className="p-6">
@@ -89,7 +92,7 @@ export default function Register() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={handleGoogleSignUp}
+                  onClick={handleGoogleSignIn}
                   className="w-full"
                 >
                   <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
@@ -124,7 +127,7 @@ export default function Register() {
                   </div>
                 </div>
 
-                <form onSubmit={handleSignUp}>
+                <form onSubmit={handleSignIn}>
                   <div className="grid gap-4">
                     <div className="grid gap-2">
                       <Input
@@ -140,56 +143,39 @@ export default function Register() {
                       />
                       <Input
                         id="password"
-                        placeholder="Create a password"
+                        placeholder="Password"
                         type="password"
-                        autoComplete="new-password"
+                        autoComplete="current-password"
                         disabled={isLoading}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                      />
-                      <Input
-                        id="confirm-password"
-                        placeholder="Confirm your password"
-                        type="password"
-                        autoComplete="new-password"
-                        disabled={isLoading}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
                       />
                     </div>
                     {error && (
                       <div className="text-sm text-red-500">{error}</div>
                     )}
                     <Button disabled={isLoading}>
-                      {isLoading ? 'Creating account...' : 'Create Account'}
+                      {isLoading ? 'Signing in...' : 'Sign In'}
                     </Button>
-                    <p className="px-6 text-center text-sm text-muted-foreground">
-                      By clicking create account, you agree to our{' '}
-                      <Link
-                        to="/terms"
+                    <div className="text-center text-sm">
+                      <Link 
+                        to="/forgot-password"
                         className="text-primary hover:text-primary/90"
                       >
-                        Terms of Service
+                        Forgot password?
                       </Link>
-                      {' '}and{' '}
-                      <Link
-                        to="/privacy"
-                        className="text-primary hover:text-primary/90"
-                      >
-                        Privacy Policy
-                      </Link>
-                    </p>
+                    </div>
                   </div>
                 </form>
               </div>
             </Card>
             <p className="px-8 text-center text-sm text-muted-foreground">
-              Already have an account?{' '}
+              Don't have an account?{' '}
               <Link 
-                to="/sign-in" 
+                to="/sign-up" 
                 className="text-primary hover:text-primary/90"
               >
-                Sign in
+                Sign up
               </Link>
             </p>
           </div>

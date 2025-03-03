@@ -1,24 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardNav } from './DashboardNav';
 import { Button } from './Button';
 import { cn } from '../lib/utils';
-import { useClerk, useUser } from '@clerk/clerk-react';
 import { useAuthStore } from '../utils/auth-store';
+import { supabase } from '../AppWrapper';
 
 interface DashboardMainLayoutProps {
   children: React.ReactNode;
 }
 
 export function DashboardMainLayout({ children }: DashboardMainLayoutProps) {
-  const { signOut } = useClerk();
-  const { user } = useUser();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [user, setUser] = useState<any>(null);
   const adminLogout = useAuthStore(state => state.adminLogout);
+  const { isAdmin } = useAuthStore();
+
+  useEffect(() => {
+    // Get current user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
-    adminLogout();
-    if (signOut) {
-      await signOut();
+    if (isAdmin) {
+      adminLogout();
+    } else {
+      await supabase.auth.signOut();
     }
   };
 
@@ -38,96 +53,64 @@ export function DashboardMainLayout({ children }: DashboardMainLayoutProps) {
       {/* Sidebar */}
       <aside 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 bg-background border-r transition-all duration-300 ease-in-out lg:translate-x-0 lg:static",
-          sidebarOpen ? "w-64" : "w-20",
-          !sidebarOpen && "lg:w-20",
-          !sidebarOpen && "-translate-x-full lg:translate-x-0"
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-card transition-transform lg:static lg:transition-none",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between h-16 px-4 border-b">
-            {sidebarOpen ? (
-              <h1 className="text-xl font-bold">QanDu</h1>
-            ) : (
-              <h1 className="text-xl font-bold mx-auto">Q</h1>
-            )}
-            <button 
-              className="hover:bg-accent/50 p-2 rounded-md lg:hidden" 
-              onClick={toggleSidebar}
-              aria-label="Close sidebar"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 6L6 18"></path>
-                <path d="M6 6l12 12"></path>
-              </svg>
-            </button>
+        <div className="flex h-14 items-center border-b px-4">
+          <span className="font-bold">QanDu Admin</span>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto">
+          <DashboardNav collapsed={false} />
+        </div>
+        
+        <div className="border-t p-4">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">
+                {user?.email || (isAdmin ? 'Admin' : 'Guest')}
+              </p>
+              <p className="text-sm text-muted-foreground truncate">
+                {isAdmin ? 'Administrator' : 'User'}
+              </p>
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto py-4 px-3">
-            <DashboardNav collapsed={!sidebarOpen} />
-          </div>
-          <div className="border-t p-4">
-            {sidebarOpen ? (
-              <>
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-                    {user?.firstName?.[0] || user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() || 'U'}
-                  </div>
-                  <div className="truncate">
-                    <div className="font-medium truncate">{user?.fullName || user?.emailAddresses?.[0]?.emailAddress}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {user?.primaryEmailAddress?.emailAddress}
-                    </div>
-                  </div>
-                </div>
-                <Button variant="outline" className="w-full justify-start" onClick={handleLogout}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-4 w-4">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                  </svg>
-                  Logout
-                </Button>
-              </>
-            ) : (
-              <Button variant="ghost" size="icon" className="w-full h-10" onClick={handleLogout}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                  <polyline points="16 17 21 12 16 7"></polyline>
-                  <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-              </Button>
-            )}
-          </div>
+          <Button variant="outline" className="w-full" onClick={handleLogout}>
+            Log out
+          </Button>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Header with toggle menu button */}
-        <div className="sticky top-0 z-40 flex items-center gap-x-6 bg-background px-4 py-4 border-b">
-          <button
+      <main className="flex-1 overflow-y-auto">
+        <div className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:hidden">
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={toggleSidebar}
-            className="text-gray-700 hover:bg-accent/50 p-2 rounded-md"
-            aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            className="-ml-2 h-9 w-9"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {sidebarOpen ? (
-                <>
-                  <path d="M15 18l-6-6 6-6"/>
-                </>
-              ) : (
-                <>
-                  <path d="M9 18l6-6-6-6"/>
-                </>
-              )}
+            <svg
+              className="h-6 w-6"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
-          </button>
-          <div className="flex-1 text-sm font-semibold">Dashboard</div>
+            <span className="sr-only">Toggle navigation menu</span>
+          </Button>
+          <span className="font-bold lg:hidden">QanDu Admin</span>
         </div>
         
-        <div className="flex-1 overflow-y-auto">
-          {children}
-        </div>
+        <div className="p-6">{children}</div>
       </main>
     </div>
   );

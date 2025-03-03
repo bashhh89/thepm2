@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AuthGuard } from '../components/AuthGuard';
+import AuthGuard from '../components/AuthGuard';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { chatWithAI } from '../utils/puter-ai';

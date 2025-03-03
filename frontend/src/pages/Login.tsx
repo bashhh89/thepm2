@@ -1,12 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { SignIn } from '@clerk/clerk-react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 
 function Login() {
   const { isSignedIn } = useUser();
   const location = useLocation();
   const from = location.state?.from?.pathname || '/dashboard';
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    navigate('/sign-in', { replace: true });
+  }, [navigate]);
+
   // Only redirect if user is signed in and we have a valid destination
   if (isSignedIn && from && from !== location.pathname) {
     return <Navigate to={from} replace />;
@@ -41,3 +47,16 @@ function Login() {
 
 export default Login;
 export { Login };
+
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+export default function Register() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    navigate('/sign-up', { replace: true });
+  }, [navigate]);
+
+  return null;
+}

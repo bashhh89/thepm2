@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { useUser } from '@clerk/clerk-react';
 import React from 'react';
+import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { supabase } from '../AppWrapper';
 
 interface AuthStore {
   user: any | null;
@@ -11,53 +11,105 @@ interface AuthStore {
   isAdmin: boolean;
   adminLogin: (username: string, password: string) => Promise<void>;
   adminLogout: () => void;
+  updateUserProfile?: (displayName: string) => Promise<void>;
+  logOut?: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       isInitialized: false,
       isAuthenticated: false,
       isLoading: true,
       isAdmin: false,
+      
       adminLogin: async (username: string, password: string) => {
-        if (username === 'admin' && password === 'admin') {
-          console.log('Admin login successful');
-          set({ isAdmin: true, isAuthenticated: true });
-          console.log('State after admin login:', get());
+        if (username === 'admin@qandu.co' || username === 'admin') {
+          if (password === 'admin') {
+            set({ 
+              isAdmin: true, 
+              isAuthenticated: true, 
+              isLoading: false,
+              user: { email: username, role: 'admin' }
+            });
+          } else {
+            throw new Error('Invalid admin credentials');
+          }
         } else {
           throw new Error('Invalid admin credentials');
         }
       },
+      
       adminLogout: () => {
-        console.log('Admin logout');
-        set({ isAdmin: false, isAuthenticated: false });
-        console.log('State after admin logout:', get());
+        set({ 
+          isAdmin: false, 
+          isAuthenticated: false, 
+          user: null,
+          isLoading: false
+        });
+      },
+      
+      updateUserProfile: async (displayName: string) => {
+        const { data: { user }, error } = await supabase.auth.updateUser({
+          data: { display_name: displayName }
+        });
+        
+        if (error) throw error;
+        
+        set({ user });
+      },
+      
+      logOut: async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+        set({ 
+          user: null, 
+          isAuthenticated: false,
+          isLoading: false 
+        });
       }
     }),
     {
-      name: 'admin-auth-storage',
-      partialize: (state) => ({ isAdmin: state.isAdmin }),
+      name: 'auth-storage',
+      partialize: (state) => ({ 
+        isAdmin: state.isAdmin,
+        user: state.user 
+      }),
     }
   )
 );
 
-// Hook to sync Clerk state with our auth store
+// Hook to sync Supabase state with our auth store
 export const useAuthSync = () => {
-  const { user, isLoaded, isSignedIn } = useUser();
-  
   React.useEffect(() => {
-    const currentState = useAuthStore.getState();
-    console.log('Syncing auth state:', { user, isLoaded, isSignedIn, currentState });
-    
-    useAuthStore.setState({
-      user,
-      isInitialized: isLoaded,
-      isAuthenticated: currentState.isAdmin || isSignedIn || false,
-      isLoading: !isLoaded,
-      // Preserve admin state
-      isAdmin: currentState.isAdmin
+    // Get initial session
+    const initAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentState = useAuthStore.getState();
+      
+      useAuthStore.setState({
+        user: session?.user ?? null,
+        isInitialized: true,
+        isAuthenticated: currentState.isAdmin || !!session,
+        isLoading: false,
+        // Preserve admin state
+        isAdmin: currentState.isAdmin
+      });
+    };
+
+    initAuth();
+
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentState = useAuthStore.getState();
+      useAuthStore.setState({
+        user: session?.user ?? null,
+        isAuthenticated: currentState.isAdmin || !!session,
+        isLoading: false
+      });
     });
-  }, [user, isLoaded, isSignedIn]);
+
+    return () => subscription.unsubscribe();
+  }, []);
 };

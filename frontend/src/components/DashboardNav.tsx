@@ -1,87 +1,167 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
 import { cn } from '../lib/utils';
-import { FileText, MessageSquare, Users, LayoutDashboard, BarChart3, Settings, Newspaper } from 'lucide-react';
+import { 
+  FileText, 
+  MessageSquare, 
+  Users, 
+  LayoutDashboard, 
+  BarChart3, 
+  Settings, 
+  Newspaper, 
+  Briefcase,
+  Lightbulb,
+  UserCircle
+} from 'lucide-react';
+import { useAuthStore } from '../utils/auth-store';
+import { supabase } from '../AppWrapper';
 
 interface DashboardNavProps {
   collapsed?: boolean;
 }
 
 export function DashboardNav({ collapsed = false }: DashboardNavProps) {
-  const { user } = useUser();
+  const [user, setUser] = useState<any>(null);
+  const { isAdmin } = useAuthStore();
 
-  const links = [
-    {
-      title: 'Overview',
-      href: '/dashboard',
-      icon: <LayoutDashboard className="w-6 h-6" />
-    },
-    {
-      title: 'Blog Posts',
-      href: '/dashboard/blog-posts',
-      icon: <Newspaper className="w-6 h-6" />
-    },
-    {
-      title: 'Chat History',
-      href: '/dashboard/chat-history',
-      icon: <MessageSquare className="w-6 h-6" />
-    },
-    {
-      title: 'Leads',
-      href: '/dashboard/leads',
-      icon: <Users className="w-6 h-6" />
-    },
-    {
-      title: 'Documents',
-      href: '/dashboard/documents',
-      icon: <FileText className="w-6 h-6" />
-    },
-    {
-      title: 'Analytics',
-      href: '/dashboard/analytics',
-      icon: <BarChart3 className="w-6 h-6" />
-    },
-    {
-      title: 'Settings',
-      href: '/dashboard/settings',
-      icon: <Settings className="w-6 h-6" />
-    },
-  ];
+  useEffect(() => {
+    // Get current user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
 
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const baseClasses = "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground";
+  const activeClasses = "bg-accent text-accent-foreground";
+  
   return (
-    <nav className="grid gap-2">
-      {links.map((link) => (
+    <div
+      data-collapsed={collapsed}
+      className="group flex flex-col gap-4 py-2"
+    >
+      <nav className="grid gap-1 px-2">
         <NavLink
-          key={link.href}
-          to={link.href}
-          end={link.href === '/dashboard'}
+          to="/dashboard"
+          end
           className={({ isActive }) =>
-            cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent relative group',
-              isActive ? 'bg-accent text-accent-foreground' : 'transparent text-muted-foreground',
-              collapsed && 'justify-center px-2'
-            )
+            cn(baseClasses, isActive && activeClasses)
           }
         >
-          <div className={cn(
-            "min-w-[24px]",
-            collapsed && "mx-auto"
-          )}>
-            {link.icon}
-          </div>
-          {!collapsed && (
-            <span className="text-sm font-medium">
-              {link.title}
-            </span>
-          )}
-          {collapsed && (
-            <div className="absolute left-full ml-2 px-2 py-1 bg-accent text-accent-foreground rounded-md text-sm invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all whitespace-nowrap z-50">
-              {link.title}
-            </div>
-          )}
+          <LayoutDashboard className="h-4 w-4" />
+          <span>Overview</span>
         </NavLink>
-      ))}
-    </nav>
+
+        <NavLink
+          to="/dashboard/documents"
+          className={({ isActive }) =>
+            cn(baseClasses, isActive && activeClasses)
+          }
+        >
+          <FileText className="h-4 w-4" />
+          <span>Documents</span>
+        </NavLink>
+
+        <NavLink
+          to="/dashboard/blog-posts"
+          className={({ isActive }) =>
+            cn(baseClasses, isActive && activeClasses)
+          }
+        >
+          <Newspaper className="h-4 w-4" />
+          <span>Blog Posts</span>
+        </NavLink>
+
+        <NavLink
+          to="/dashboard/chat"
+          className={({ isActive }) =>
+            cn(baseClasses, isActive && activeClasses)
+          }
+        >
+          <MessageSquare className="h-4 w-4" />
+          <span>Chat</span>
+        </NavLink>
+
+        <NavLink
+          to="/dashboard/chat-history"
+          className={({ isActive }) =>
+            cn(baseClasses, isActive && activeClasses)
+          }
+        >
+          <MessageSquare className="h-4 w-4" />
+          <span>Chat History</span>
+        </NavLink>
+
+        <NavLink
+          to="/dashboard/jobs"
+          className={({ isActive }) =>
+            cn(baseClasses, isActive && activeClasses)
+          }
+        >
+          <Briefcase className="h-4 w-4" />
+          <span>Jobs</span>
+        </NavLink>
+
+        <NavLink
+          to="/dashboard/leads"
+          className={({ isActive }) =>
+            cn(baseClasses, isActive && activeClasses)
+          }
+        >
+          <Lightbulb className="h-4 w-4" />
+          <span>Leads</span>
+        </NavLink>
+
+        <NavLink
+          to="/dashboard/profile"
+          className={({ isActive }) =>
+            cn(baseClasses, isActive && activeClasses)
+          }
+        >
+          <UserCircle className="h-4 w-4" />
+          <span>Profile</span>
+        </NavLink>
+
+        {isAdmin && (
+          <>
+            <NavLink
+              to="/dashboard/analytics"
+              className={({ isActive }) =>
+                cn(baseClasses, isActive && activeClasses)
+              }
+            >
+              <BarChart3 className="h-4 w-4" />
+              <span>Analytics</span>
+            </NavLink>
+
+            <NavLink
+              to="/dashboard/users"
+              className={({ isActive }) =>
+                cn(baseClasses, isActive && activeClasses)
+              }
+            >
+              <Users className="h-4 w-4" />
+              <span>Users</span>
+            </NavLink>
+
+            <NavLink
+              to="/dashboard/settings"
+              className={({ isActive }) =>
+                cn(baseClasses, isActive && activeClasses)
+              }
+            >
+              <Settings className="h-4 w-4" />
+              <span>Settings</span>
+            </NavLink>
+          </>
+        )}
+      </nav>
+    </div>
   );
 }

@@ -4,6 +4,7 @@ import { Button } from '../Button';
 import { Card } from '../Card';
 import { useBlogStore, type BlogPost } from '../../utils/blog-store';
 import { useAuthStore } from '../../utils/auth-store';
+import { supabase } from '../../AppWrapper';
 
 interface BlogPostEditorProps {
   postId?: string; // If editing an existing post
@@ -13,7 +14,22 @@ export default function BlogPostEditor({ postId }: BlogPostEditorProps) {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuthStore();
   const { getPost, createPost, updatePost, isSaving, isInitialized } = useBlogStore();
+  const [currentUser, setCurrentUser] = useState(null);
   const isEditing = !!postId;
+
+  useEffect(() => {
+    // Get current Supabase user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setCurrentUser(user);
+    });
+
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setCurrentUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
   
   // State for the blog post
   const [post, setPost] = useState<Omit<BlogPost, 'id' | 'createdAt' | 'updatedAt'>>({
@@ -76,7 +92,7 @@ export default function BlogPostEditor({ postId }: BlogPostEditorProps) {
         await updatePost(postId, post);
         newPostId = postId;
       } else {
-        newPostId = await createPost(post);
+        newPostId = await createPost(post, currentUser);
       }
       
       // Show success message

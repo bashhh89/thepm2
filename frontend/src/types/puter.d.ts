@@ -2,6 +2,8 @@ declare global {
   interface Window {
     puter: {
       token: string;
+      config?: { apiKey?: string };
+      isReady?: boolean;
       ai: {
         chat: (
           prompt: string | Array<{ role: string; content: string }>,
@@ -15,7 +17,6 @@ declare global {
                 name: string;
                 description: string;
                 parameters: object;
-                strict: boolean;
               };
             }>;
           }
@@ -26,7 +27,7 @@ declare global {
         transcribeAudio: (options: { audio: string }) => Promise<{ text: string }>;
         print: (text: string) => void;
       };
-      fs: {
+      fs?: {
         write: (path: string, content: any) => Promise<void>;
         mkdir: (path: string) => Promise<void>;
         readdir: (path: string) => Promise<string[]>;
