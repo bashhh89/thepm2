@@ -3,6 +3,8 @@ import cors from 'cors';
 import path from 'path';
 import jobsRouter from './routes/jobs';
 import brandingRouter from './routes/branding';
+import applicationsRouter from './routes/applications';
+import uploadRouter from './routes/upload';
 
 const app = express();
 
@@ -16,6 +18,8 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Routes
 app.use(jobsRouter);
 app.use(brandingRouter);
+app.use(applicationsRouter);
+app.use(uploadRouter);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

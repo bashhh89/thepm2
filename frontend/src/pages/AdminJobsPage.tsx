@@ -41,6 +41,20 @@ interface BrandingContent {
   category: 'team' | 'about' | 'vision' | 'perks' | 'stories';
 }
 
+interface Application {
+  id: string;
+  jobId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  resumeUrl: string;
+  coverLetter?: string;
+  status: 'pending' | 'reviewed' | 'shortlisted' | 'rejected';
+  notes?: string;
+  createdAt: string;
+  job: Job;
+}
+
 export default function AdminJobsPage() {
   const [activeTab, setActiveTab] = useState('jobs');
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -55,17 +69,28 @@ export default function AdminJobsPage() {
   const [isEditingJob, setIsEditingJob] = useState<string | null>(null);
   const [jobImageType, setJobImageType] = useState<'upload' | 'url' | 'ai' | null>(null);
   const [jobImageUrl, setJobImageUrl] = useState('');
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<Application['status']>('pending');
+  const [selectedJobFilter, setSelectedJobFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchJobs();
     fetchBrandingContent();
+    fetchApplications();
   }, []);
 
   const fetchJobs = async () => {
     try {
       const response = await fetch('/api/jobs');
+      if (!response.ok) {
+        throw new Error('Failed to fetch jobs');
+      }
       const data = await response.json();
-      setJobs(data);
+      setJobs(data.map((job: Job) => ({
+        ...job,
+        requirements: JSON.parse(job.requirements || '[]'),
+        benefits: JSON.parse(job.benefits || '[]')
+      })));
     } catch (error) {
       console.error('Error fetching jobs:', error);
       toast.error('Failed to fetch jobs');
@@ -80,6 +105,20 @@ export default function AdminJobsPage() {
     } catch (error) {
       console.error('Error fetching branding content:', error);
       toast.error('Failed to fetch branding content');
+    }
+  };
+
+  const fetchApplications = async () => {
+    try {
+      const response = await fetch('/api/applications');
+      if (!response.ok) {
+        throw new Error('Failed to fetch applications');
+      }
+      const data = await response.json();
+      setApplications(data);
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+      toast.error('Failed to fetch applications');
     }
   };
 
@@ -124,8 +163,8 @@ export default function AdminJobsPage() {
       const jobData = {
         ...newJob,
         type: newJob.type || 'Full-time',
-        requirements: newJob.requirements?.filter(r => r.trim()) || [],
-        benefits: newJob.benefits?.filter(b => b.trim()) || [],
+        requirements: JSON.stringify(newJob.requirements?.filter(r => r.trim()) || []),
+        benefits: JSON.stringify(newJob.benefits?.filter(b => b.trim()) || []),
         experience: newJob.experience || 'Entry Level',
         bannerImage: newJob.bannerImage || null,
       };
@@ -250,6 +289,62 @@ export default function AdminJobsPage() {
     }
   };
 
+  const handleUpdateApplicationStatus = async (applicationId: string, newStatus: Application['status']) => {
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update application status');
+      }
+
+      setApplications(applications.map(app => 
+        app.id === applicationId ? { ...app, status: newStatus } : app
+      ));
+      toast.success('Application status updated');
+    } catch (error) {
+      console.error('Error updating application status:', error);
+      toast.error('Failed to update application status');
+    }
+  };
+
+  const handleUpdateApplicationNotes = async (applicationId: string, notes: string) => {
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/notes`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update application notes');
+      }
+
+      setApplications(applications.map(app => 
+        app.id === applicationId ? { ...app, notes } : app
+      ));
+      toast.success('Notes updated');
+    } catch (error) {
+      console.error('Error updating application notes:', error);
+      toast.error('Failed to update notes');
+    }
+  };
+
+  const filteredApplications = applications.filter(app => {
+    const matchesStatus = selectedStatus === app.status;
+    const matchesJob = selectedJobFilter === 'all' || app.jobId === selectedJobFilter;
+    return matchesStatus && matchesJob;
+  });
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="flex justify-between items-center mb-8">
@@ -259,6 +354,7 @@ export default function AdminJobsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-8">
           <TabsTrigger value="jobs">Job Postings</TabsTrigger>
+          <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="branding">Employment Branding</TabsTrigger>
         </TabsList>
 
@@ -453,6 +549,106 @@ export default function AdminJobsPage() {
                   </div>
                 </Card>
               ))}
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="applications">
+          <Card className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold">Manage Applications</h2>
+              <div className="flex gap-4">
+                <select
+                  className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={selectedJobFilter}
+                  onChange={(e) => setSelectedJobFilter(e.target.value)}
+                >
+                  <option value="all">All Jobs</option>
+                  {jobs.map(job => (
+                    <option key={job.id} value={job.id}>{job.title}</option>
+                  ))}
+                </select>
+                <select
+                  className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value as Application['status'])}
+                >
+                  <option value="pending">Pending</option>
+                  <option value="reviewed">Reviewed</option>
+                  <option value="shortlisted">Shortlisted</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {filteredApplications.map(application => (
+                <Card key={application.id} className="p-4">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="text-lg font-medium">{application.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Applied for: {application.job.title}
+                        </p>
+                        <div className="flex gap-2 mt-1 text-sm">
+                          <a href={`mailto:${application.email}`} className="text-primary hover:underline">
+                            {application.email}
+                          </a>
+                          {application.phone && (
+                            <span className="text-muted-foreground">• {application.phone}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <select
+                          className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          value={application.status}
+                          onChange={(e) => handleUpdateApplicationStatus(application.id, e.target.value as Application['status'])}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="reviewed">Reviewed</option>
+                          <option value="shortlisted">Shortlisted</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Resume</h4>
+                        <Button variant="outline" className="w-full" onClick={() => window.open(application.resumeUrl, '_blank')}>
+                          View Resume
+                        </Button>
+                      </div>
+                      {application.coverLetter && (
+                        <div>
+                          <h4 className="text-sm font-medium mb-2">Cover Letter</h4>
+                          <div className="text-sm text-muted-foreground max-h-32 overflow-y-auto">
+                            {application.coverLetter}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Recruiter Notes</h4>
+                      <Textarea
+                        placeholder="Add notes about this candidate..."
+                        value={application.notes || ''}
+                        onChange={(e) => handleUpdateApplicationNotes(application.id, e.target.value)}
+                        className="min-h-[100px]"
+                      />
+                    </div>
+                  </div>
+                </Card>
+              ))}
+
+              {filteredApplications.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No applications found for the selected filters.
+                </div>
+              )}
             </div>
           </Card>
         </TabsContent>

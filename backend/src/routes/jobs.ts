@@ -13,17 +13,31 @@ const jobSchema = z.object({
   type: z.string().min(1),
   experience: z.string().min(1),
   description: z.string().min(1),
-  bannerImage: z.string().nullable(),
-  requirements: z.array(z.string()),
-  benefits: z.array(z.string()),
+  bannerImage: z.string().nullable().optional(),
+  requirements: z.string().transform((str) => {
+    try {
+      return JSON.stringify(JSON.parse(str));
+    } catch {
+      return JSON.stringify([]);
+    }
+  }),
+  benefits: z.string().transform((str) => {
+    try {
+      return JSON.stringify(JSON.parse(str));
+    } catch {
+      return JSON.stringify([]);
+    }
+  }),
 });
 
 // Get all jobs
 router.get('/api/jobs', async (req, res) => {
   try {
+    console.log('Fetching jobs...');
     const jobs = await prisma.job.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { postedDate: 'desc' },
     });
+    console.log('Jobs fetched successfully:', jobs);
     res.json(jobs);
   } catch (error) {
     console.error('Error fetching jobs:', error);
@@ -94,4 +108,4 @@ router.delete('/api/jobs/:id', authenticateToken, isAdmin, async (req, res) => {
   }
 });
 
-export default router; 
+export default router;

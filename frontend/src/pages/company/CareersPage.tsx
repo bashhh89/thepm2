@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { ArrowUpRight, Building2, MapPin, Clock } from 'lucide-react';
+import { ArrowUpRight, Building2, MapPin, Clock, X } from 'lucide-react';
+import { ChatApplicationForm } from '../../components/ChatApplicationForm';
 
 interface Job {
   id: string;
@@ -11,8 +12,9 @@ interface Job {
   type: string;
   experience: string;
   description: string;
-  requirements: string[];
-  benefits: string[];
+  bannerImage?: string;
+  requirements: string; // JSON string
+  benefits: string; // JSON string
 }
 
 interface BrandingContent {
@@ -26,6 +28,7 @@ interface BrandingContent {
 export default function CareersPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [brandingContent, setBrandingContent] = useState<BrandingContent[]>([]);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   // TODO: Replace with actual API calls
   useEffect(() => {
@@ -33,8 +36,15 @@ export default function CareersPage() {
     const fetchJobs = async () => {
       try {
         const response = await fetch('/api/jobs');
+        if (!response.ok) {
+          throw new Error('Failed to fetch jobs');
+        }
         const data = await response.json();
-        setJobs(data);
+        setJobs(data.map((job: Job) => ({
+          ...job,
+          requirements: JSON.parse(job.requirements || '[]') as string[],
+          benefits: JSON.parse(job.benefits || '[]') as string[]
+        })));
       } catch (error) {
         console.error('Error fetching jobs:', error);
       }
@@ -127,7 +137,10 @@ export default function CareersPage() {
                         </span>
                       </div>
                     </div>
-                    <Button className="flex items-center gap-2 whitespace-nowrap">
+                    <Button 
+                      className="flex items-center gap-2 whitespace-nowrap"
+                      onClick={() => setSelectedJob(job)}
+                    >
                       Apply Now
                       <ArrowUpRight className="w-4 h-4" />
                     </Button>
@@ -161,6 +174,26 @@ export default function CareersPage() {
                 </div>
               </Card>
             ))}
+            {selectedJob && (
+              <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="relative w-full max-w-2xl">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="absolute right-0 top-0 -mt-12 z-50"
+                    onClick={() => setSelectedJob(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <ChatApplicationForm
+                    jobId={selectedJob.id}
+                    jobTitle={selectedJob.title}
+                    onSuccess={() => setSelectedJob(null)}
+                    onCancel={() => setSelectedJob(null)}
+                  />
+                </div>
+              </div>
+            )}
             {jobs.length === 0 && (
               <Card className="p-6 text-center text-muted-foreground">
                 No open positions at the moment. Please check back later.
@@ -198,4 +231,4 @@ export default function CareersPage() {
       </section>
     </div>
   );
-} 
+}

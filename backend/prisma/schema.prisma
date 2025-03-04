@@ -6,34 +6,48 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model Job {
-  id           String   @id @default(cuid())
+  id           String        @id @default(uuid())
   title        String
   department   String
   location     String
   type         String
   experience   String
   description  String
-  bannerImage  String?  // URL for the job banner image
-  requirements String[]
-  benefits     String[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  requirements String
+  benefits     String
+  bannerImage  String?
+  postedDate   DateTime     @default(now())
+  applications Application[]
 }
 
 model BrandingContent {
   id          String   @id @default(cuid())
+  type        String
   title       String
+  content     String
   subtitle    String?
   description String?
-  type        String   // 'image' | 'video' | 'text'
-  content     String
-  category    String   // 'team' | 'about' | 'vision' | 'perks' | 'stories'
-  order       Int
+  category    String
+  order       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Application {
+  id          String   @id @default(uuid())
+  jobId       String
+  name        String
+  email       String
+  phone       String?
+  resumeUrl   String
+  coverLetter String?
+  status      String   @default("pending")
+  notes       String?
+  createdAt   DateTime @default(now())
+  job         Job      @relation(fields: [jobId], references: [id])
 } 

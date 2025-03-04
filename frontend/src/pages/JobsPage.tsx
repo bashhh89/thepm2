@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Input } from '../components/Input';
-import { Plus, Search, Building2, MapPin, Briefcase, Clock, Users, ArrowUpRight } from 'lucide-react';
+import { Plus, Search, Building2, MapPin, Briefcase, Clock, Users, ArrowUpRight, X } from 'lucide-react';
+import { ChatApplicationForm } from '../components/ChatApplicationForm';
 
 interface Job {
   id: string;
@@ -21,31 +22,29 @@ export default function JobsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All');
   const [selectedLocation, setSelectedLocation] = useState('All');
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [jobs, setJobs] = useState<Job[]>([]);
 
-  // Mock data - in real app, this would come from an API
-  const jobs: Job[] = [
-    {
-      id: '1',
-      title: 'Senior Full Stack Developer',
-      department: 'Engineering',
-      location: 'Remote',
-      type: 'Full-time',
-      experience: '5+ years',
-      postedDate: '2024-02-15',
-      description: 'We are looking for a Senior Full Stack Developer to join our growing team...',
-      requirements: [
-        'Strong experience with React and Node.js',
-        'Experience with cloud platforms (AWS/Azure/GCP)',
-        'Understanding of CI/CD principles'
-      ],
-      benefits: [
-        'Competitive salary',
-        'Remote work options',
-        'Health insurance'
-      ]
-    },
-    // Add more job listings as needed
-  ];
+  useEffect(() => {
+    fetchJobs();
+  }, []);
+
+  const fetchJobs = async () => {
+    try {
+      const response = await fetch('/api/jobs');
+      if (!response.ok) {
+        throw new Error('Failed to fetch jobs');
+      }
+      const data = await response.json();
+      setJobs(data.map((job: Job) => ({
+        ...job,
+        requirements: JSON.parse(job.requirements || '[]'),
+        benefits: JSON.parse(job.benefits || '[]')
+      })));
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+    }
+  };
 
   const departments = ['All', 'Engineering', 'Design', 'Marketing', 'Sales', 'Customer Support'];
   const locations = ['All', 'Remote', 'New York', 'London', 'Berlin', 'Singapore'];
@@ -58,6 +57,14 @@ export default function JobsPage() {
     return matchesSearch && matchesDepartment && matchesLocation;
   });
 
+  const handleApply = (job: Job) => {
+    setSelectedJob(job);
+  };
+
+  const handleApplicationSuccess = () => {
+    setSelectedJob(null);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="flex justify-between items-start mb-8">
@@ -65,10 +72,6 @@ export default function JobsPage() {
           <h1 className="text-3xl font-bold tracking-tight mb-2">Job Board</h1>
           <p className="text-muted-foreground">Find your next opportunity to make an impact</p>
         </div>
-        <Button className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Post Job
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -132,6 +135,27 @@ export default function JobsPage() {
           </div>
 
           <div className="space-y-4">
+            {selectedJob ? (
+              <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="relative w-full max-w-2xl">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="absolute right-0 top-0 -mt-12 z-50"
+                    onClick={() => setSelectedJob(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <ChatApplicationForm
+                    jobId={selectedJob.id}
+                    jobTitle={selectedJob.title}
+                    onSuccess={handleApplicationSuccess}
+                    onCancel={() => setSelectedJob(null)}
+                  />
+                </div>
+              </div>
+            ) : null}
+
             {filteredJobs.map(job => (
               <Card key={job.id} className="p-6 hover:shadow-md transition-shadow">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -157,9 +181,37 @@ export default function JobsPage() {
                         {job.experience}
                       </span>
                     </div>
+                    <div className="mt-4">
+                      <h4 className="font-medium mb-2">Job Description</h4>
+                      <p className="text-sm text-muted-foreground">{job.description}</p>
+                    </div>
+                    {job.requirements.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="font-medium mb-2">Requirements</h4>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground">
+                          {job.requirements.map((req, index) => (
+                            <li key={index}>{req}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {job.benefits.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="font-medium mb-2">Benefits</h4>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground">
+                          {job.benefits.map((benefit, index) => (
+                            <li key={index}>{benefit}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
-                  <Button className="flex items-center gap-2 whitespace-nowrap">
-                    Apply Now
+                  <Button
+                    className="flex items-center gap-2 whitespace-nowrap hover:bg-primary/90 transition-colors"
+                    onClick={() => handleApply(job)}
+                    type="button"
+                  >
+                    <span>Apply Now</span>
                     <ArrowUpRight className="w-4 h-4" />
                   </Button>
                 </div>
