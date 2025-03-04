@@ -4,7 +4,6 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://vzqythwfrmjakhvmopyf.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cXl0aHdmcm1qYWtodm1vcHlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEwMTkwMDQsImV4cCI6MjA1NjU5NTAwNH0.QZRgjjtxLlXsH-6U_bGDb62TfZvtkyIycM1LPapjZ28';
-
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Interface definitions
@@ -52,15 +51,28 @@ const validatePost = (post: Omit<BlogPost, 'id' | 'createdAt' | 'updatedAt'>) =>
   return true;
 };
 
+// Initialize the store
 export const useBlogStore = create<BlogState>((set, get) => {
+  // Load posts on store creation
+  const initializeStore = async () => {
+    if (!get().isInitialized) {
+      await get().loadPosts();
+    }
+  };
+  
+  // Call initialize immediately
+  initializeStore();
+
   return {
+    // Initial state
     posts: [],
-    isLoading: false,
+    isLoading: true,
     error: null,
     isSaving: false,
     isInitialized: false,
 
     loadPosts: async () => {
+      if (get().isInitialized) return;
       set({ isLoading: true, error: null });
       
       try {
@@ -104,7 +116,8 @@ export const useBlogStore = create<BlogState>((set, get) => {
         set({ 
           error: `Failed to load posts: ${error.message}`,
           isLoading: false,
-          isInitialized: true
+          isInitialized: true,
+          posts: [] // Ensure posts is always an array even on error
         });
       }
     },

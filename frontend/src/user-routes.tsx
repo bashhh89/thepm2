@@ -6,7 +6,6 @@ import { DashboardMainLayout } from "./components/DashboardMainLayout";
 import AuthGuard from "./components/AuthGuard";
 
 const App = lazy(() => import("./pages/App.tsx"));
-const Analytics = lazy(() => import("./pages/AnalyticsPage.tsx"));
 const BlogPage = lazy(() => import("./pages/BlogPage.tsx"));
 const BlogPostsPage = lazy(() => import("./pages/BlogPostsPage.tsx"));
 const BlogPostEditorPage = lazy(() => import("./pages/blog/BlogPostEditorPage.tsx"));
@@ -18,6 +17,8 @@ const DocumentsPage = lazy(() => import("./pages/DocumentsPage.tsx"));
 const DocumentCreatePage = lazy(() => import("./pages/create/DocumentCreatePage.tsx"));
 const DocumentViewPage = lazy(() => import("./pages/DocumentViewPage.tsx"));
 const JobsPage = lazy(() => import("./pages/JobsPage.tsx"));
+const AdminJobsPage = lazy(() => import("./pages/AdminJobsPage.tsx"));
+const CareersPage = lazy(() => import("./pages/company/CareersPage.tsx"));
 const LeadsPage = lazy(() => import("./pages/LeadsPage.tsx"));
 const Login = lazy(() => import("./pages/Login.tsx"));
 const Profile = lazy(() => import("./pages/Profile.tsx"));
@@ -57,6 +58,10 @@ export const userRoutes: RouteObject[] = [
     path: "/blog/:id", 
     element: <SuspenseWrapper><BlogPostDetailPage /></SuspenseWrapper>
   },
+  {
+    path: "/pages/company/careers",
+    element: <SuspenseWrapper><CareersPage /></SuspenseWrapper>
+  },
   { 
     path: "/dashboard",
     element: (
@@ -70,7 +75,6 @@ export const userRoutes: RouteObject[] = [
     ),
     children: [
       { index: true, element: <SuspenseWrapper><Dashboard /></SuspenseWrapper> },
-      { path: "analytics", element: <SuspenseWrapper><Analytics /></SuspenseWrapper> },
       { path: "blog", element: <SuspenseWrapper><BlogPage /></SuspenseWrapper> },
       { path: "blog-posts", element: <SuspenseWrapper><BlogPostsPage /></SuspenseWrapper> },
       { path: "blog-posts/new", element: <SuspenseWrapper><BlogPostEditorPage /></SuspenseWrapper> },
@@ -80,11 +84,11 @@ export const userRoutes: RouteObject[] = [
       { path: "documents", element: <SuspenseWrapper><DocumentsPage /></SuspenseWrapper> },
       { path: "documents/create", element: <SuspenseWrapper><DocumentCreatePage /></SuspenseWrapper> },
       { path: "documents/:id", element: <SuspenseWrapper><DocumentViewPage /></SuspenseWrapper> },
-      { path: "jobs", element: <SuspenseWrapper><JobsPage /></SuspenseWrapper> },
+      { path: "jobs", element: <SuspenseWrapper><AdminJobsPage /></SuspenseWrapper> },
       { path: "leads", element: <SuspenseWrapper><LeadsPage /></SuspenseWrapper> },
       { path: "profile", element: <SuspenseWrapper><Profile /></SuspenseWrapper> },
-      { path: "settings", element: <SuspenseWrapper><SettingsPage /></SuspenseWrapper> },
-    ],
+      { path: "settings", element: <SuspenseWrapper><SettingsPage /></SuspenseWrapper> }
+    ]
   },
   { 
     path: "/admin/login", 

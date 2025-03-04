@@ -56,14 +56,9 @@ export function DashboardNav({ collapsed = false }: DashboardNavProps) {
       items: [
         {
           icon: <LayoutDashboard className="h-4 w-4" />,
-          title: "Overview",
+          title: "Overview & Analytics",
           to: "/dashboard",
           end: true
-        },
-        {
-          icon: <BarChart3 className="h-4 w-4" />,
-          title: "Analytics",
-          to: "/dashboard/analytics"
         }
       ]
     },

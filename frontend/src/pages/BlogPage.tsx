@@ -1,210 +1,206 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import AuthGuard from '../components/AuthGuard';
-import { Card } from '../components/Card';
+import { Link } from 'react-router-dom';
 import { Button } from '../components/Button';
-import { supabase } from '../AppWrapper';
-
-interface BlogPost {
-  id: string;
-  title: string;
-  excerpt: string;
-  coverImage?: string;
-  author: {
-    name: string;
-    avatar?: string;
-  };
-  createdAt: string;
-  tags: string[];
-}
+import { Card } from '../components/Card';
+import { useBlogStore } from '../utils/blog-store';
+import { useAuthStore } from '../utils/auth-store';
+import { NavigationHeader } from '../components/NavigationHeader';
+import Footer from '../components/Footer';
 
 export default function BlogPage() {
-  const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const navigate = useNavigate();
+  const { posts, isLoading, loadPosts } = useBlogStore();
+  const { isAuthenticated } = useAuthStore();
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [showCategoryMenu, setShowCategoryMenu] = useState(false);
 
+  // Load posts and extract categories on mount
   useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        // Replace this with your actual data fetching logic
-        const { data, error } = await supabase
-          .from('blog_posts')
-          .select('*')
-          .order('created_at', { ascending: false });
+    loadPosts();
+  }, [loadPosts]);
 
-        if (error) throw error;
+  // Extract categories whenever posts change
+  useEffect(() => {
+    const allCategories = Array.from(
+      new Set(posts.flatMap(post => post.categories))
+    ).filter(Boolean);
+    setCategories(['All', ...allCategories]);
+  }, [posts]);
 
-        // Transform the data to match our BlogPost interface
-        const transformedPosts = data.map(post => ({
-          id: post.id,
-          title: post.title,
-          excerpt: post.excerpt || post.content?.substring(0, 150) + '...',
-          coverImage: post.cover_image,
-          author: {
-            name: post.author_name || 'Anonymous',
-            avatar: post.author_avatar
-          },
-          createdAt: new Date(post.created_at).toLocaleDateString(),
-          tags: post.tags || []
-        }));
+  // Filter posts by category
+  const filterPostsByCategory = (category: string) => {
+    setActiveCategory(category === 'All' ? null : category);
+    setShowCategoryMenu(false);
+  };
 
-        setPosts(transformedPosts);
-      } catch (err) {
-        console.error('Error fetching blog posts:', err);
-        setError('Failed to load blog posts. Please try again later.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Get filtered and sorted posts
+  const getFilteredPosts = () => {
+    const publishedPosts = posts.filter(post => post.status === 'published');
+    if (!activeCategory || activeCategory === 'All') {
+      return publishedPosts;
+    }
+    return publishedPosts.filter(post => post.categories.includes(activeCategory));
+  };
 
-    fetchPosts();
-  }, []);
-
-  // Get unique tags from all posts
-  const allTags = Array.from(new Set(posts.flatMap(post => post.tags)));
-
-  // Filter posts by selected tag
-  const filteredPosts = selectedTag
-    ? posts.filter(post => post.tags.includes(selectedTag))
-    : posts;
+  const publishedPosts = getFilteredPosts();
+  const featuredPosts = publishedPosts.slice(0, 3); // Show 3 featured posts
+  const recentPosts = publishedPosts.slice(3); // Rest of the posts
 
   return (
-    <AuthGuard>
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-3xl font-bold">Blog</h1>
-              <p className="text-muted-foreground mt-2">
-                Latest articles and updates
-              </p>
-            </div>
-            <Button onClick={() => navigate('/dashboard/blog/new')}>
-              Create Post
-            </Button>
-          </div>
-
-          {error && (
-            <div className="bg-destructive/15 text-destructive p-4 rounded-lg mb-6">
-              {error}
-            </div>
-          )}
-
-          {/* Tags filter */}
-          <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-            <Button
-              variant={selectedTag === null ? "default" : "outline"}
-              onClick={() => setSelectedTag(null)}
-              size="sm"
-            >
-              All
-            </Button>
-            {allTags.map(tag => (
-              <Button
-                key={tag}
-                variant={selectedTag === tag ? "default" : "outline"}
-                onClick={() => setSelectedTag(tag)}
-                size="sm"
-              >
-                {tag}
-              </Button>
-            ))}
-          </div>
-
-          {isLoading ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3].map(i => (
-                <Card key={i} className="p-4">
-                  <div className="animate-pulse">
-                    <div className="h-48 bg-muted rounded-lg mb-4" />
-                    <div className="h-6 bg-muted rounded w-3/4 mb-2" />
-                    <div className="h-4 bg-muted rounded w-1/2" />
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredPosts.map(post => (
-                <Card
-                  key={post.id}
-                  className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/dashboard/blog/${post.id}`)}
+    <div className="min-h-screen flex flex-col bg-background">
+      <NavigationHeader
+        isAuthenticated={isAuthenticated}
+        onSignIn={() => window.location.href = '/sign-in'}
+        onSignUp={() => window.location.href = '/sign-up'}
+        onLogout={() => window.location.href = '/sign-out'}
+      />
+      
+      <main className="flex-grow pt-24">
+        <div className="container mx-auto px-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-12">
+              <div>
+                <h1 className="text-4xl font-bold mb-2">QanDu Blog</h1>
+                <p className="text-xl text-muted-foreground">Latest updates, guides, and industry insights</p>
+              </div>
+              <div className="relative">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowCategoryMenu(!showCategoryMenu)}
+                  className="min-w-[160px] justify-between"
                 >
-                  {post.coverImage && (
-                    <div className="aspect-video relative">
-                      <img
-                        src={post.coverImage}
-                        alt={post.title}
-                        className="object-cover w-full h-full"
-                      />
-                    </div>
-                  )}
-                  <div className="p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      {post.author.avatar ? (
-                        <img
-                          src={post.author.avatar}
-                          alt={post.author.name}
-                          className="w-8 h-8 rounded-full"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                          {post.author.name[0]}
-                        </div>
-                      )}
-                      <div>
-                        <div className="text-sm font-medium">
-                          {post.author.name}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {post.createdAt}
-                        </div>
-                      </div>
-                    </div>
-                    <h2 className="text-xl font-semibold mb-2 line-clamp-2">
-                      {post.title}
-                    </h2>
-                    <p className="text-muted-foreground mb-4 line-clamp-3">
-                      {post.excerpt}
-                    </p>
-                    <div className="flex gap-2">
-                      {post.tags.map(tag => (
-                        <span
-                          key={tag}
-                          className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedTag(tag);
-                          }}
+                  {activeCategory || 'All Categories'}
+                  <span className="ml-2">▼</span>
+                </Button>
+                {showCategoryMenu && (
+                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-card border z-10">
+                    <div className="py-1" role="menu">
+                      {categories.map((category) => (
+                        <button
+                          key={category}
+                          className="block w-full px-4 py-2 text-sm hover:bg-accent text-left"
+                          onClick={() => filterPostsByCategory(category)}
                         >
-                          {tag}
-                        </span>
+                          {category}
+                        </button>
                       ))}
                     </div>
                   </div>
-                </Card>
-              ))}
+                )}
+              </div>
             </div>
-          )}
 
-          {!isLoading && filteredPosts.length === 0 && (
-            <div className="text-center py-12">
-              <h2 className="text-xl font-semibold mb-2">No posts found</h2>
-              <p className="text-muted-foreground mb-4">
-                {selectedTag
-                  ? `No posts found with tag "${selectedTag}"`
-                  : "Start creating your first blog post"}
-              </p>
-              <Button onClick={() => navigate('/dashboard/blog/new')}>
-                Create Your First Post
-              </Button>
-            </div>
-          )}
+            {isLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+              </div>
+            ) : (
+              <>
+                {/* Featured Posts Grid */}
+                {featuredPosts.length > 0 && (
+                  <div className="grid md:grid-cols-3 gap-6 mb-12">
+                    {featuredPosts.map((post, index) => (
+                      <Link key={post.id} to={`/blog/${post.id}`} className="group">
+                        <Card className="h-full overflow-hidden hover:shadow-lg transition-shadow duration-200">
+                          <div className="aspect-video bg-muted relative overflow-hidden">
+                            {post.coverImage && (
+                              <img 
+                                src={post.coverImage} 
+                                alt={post.title}
+                                className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                              />
+                            )}
+                          </div>
+                          <div className="p-6">
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {post.categories.map((category, catIndex) => (
+                                <span 
+                                  key={catIndex}
+                                  className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full"
+                                >
+                                  {category}
+                                </span>
+                              ))}
+                            </div>
+                            <h2 className="text-xl font-semibold mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+                              {post.title}
+                            </h2>
+                            <p className="text-muted-foreground line-clamp-2 mb-4">
+                              {post.excerpt}
+                            </p>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">
+                                {new Date(post.publishDate).toLocaleDateString()}
+                              </span>
+                              <span className="text-sm font-medium text-primary">Read more →</span>
+                            </div>
+                          </div>
+                        </Card>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+
+                {/* Recent Posts List */}
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {recentPosts.map((post) => (
+                    <Link key={post.id} to={`/blog/${post.id}`} className="group">
+                      <Card className="h-full overflow-hidden hover:shadow-lg transition-shadow duration-200">
+                        <div className="aspect-video bg-muted relative overflow-hidden">
+                          {post.coverImage && (
+                            <img 
+                              src={post.coverImage} 
+                              alt={post.title}
+                              className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                            />
+                          )}
+                        </div>
+                        <div className="p-4">
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {post.categories.map((category, index) => (
+                              <span 
+                                key={index}
+                                className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full"
+                              >
+                                {category}
+                              </span>
+                            ))}
+                          </div>
+                          <h3 className="text-lg font-semibold mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+                            {post.title}
+                          </h3>
+                          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                            {post.excerpt}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">
+                              {new Date(post.publishDate).toLocaleDateString()}
+                            </span>
+                            <span className="text-sm font-medium text-primary">Read more →</span>
+                          </div>
+                        </div>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+
+                {publishedPosts.length === 0 && (
+                  <div className="text-center py-12">
+                    <h2 className="text-2xl font-bold mb-4">No Posts Found</h2>
+                    <p className="text-muted-foreground">
+                      {activeCategory 
+                        ? `No articles found in the ${activeCategory} category.` 
+                        : 'No published articles available yet.'}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </div>
-    </AuthGuard>
+      </main>
+      
+      <Footer />
+    </div>
   );
 }

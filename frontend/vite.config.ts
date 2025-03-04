@@ -125,6 +125,14 @@ export default defineConfig({
                     });
                 },
                 rewrite: (path) => path.replace(/^\/api\/puter/, ''),
+            },
+            '/api': {
+                target: 'http://localhost:3000',
+                changeOrigin: true,
+            },
+            '/uploads': {
+                target: 'http://localhost:3000',
+                changeOrigin: true,
             }
         },
     },

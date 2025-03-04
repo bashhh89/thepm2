@@ -64,7 +64,7 @@ export default function BlogPostEditor({ postId }: BlogPostEditorProps) {
   }, [postId, isEditing, getPost]);
 
   // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, action: 'draft' | 'publish' = 'draft') => {
     e.preventDefault();
     
     if (!isInitialized) {
@@ -87,20 +87,26 @@ export default function BlogPostEditor({ postId }: BlogPostEditorProps) {
         return;
       }
 
+      // Set the status based on the action
+      const updatedPost = {
+        ...post,
+        status: action === 'publish' ? 'published' : 'draft'
+      };
+
       let newPostId;
       if (isEditing && postId) {
-        await updatePost(postId, post);
+        await updatePost(postId, updatedPost);
         newPostId = postId;
       } else {
-        newPostId = await createPost(post, currentUser);
+        newPostId = await createPost(updatedPost, currentUser);
       }
-      
+
       // Show success message
-      const action = post.status === 'published' ? 'published' : 'saved as draft';
-      window.alert(`Post successfully ${action}!`);
+      const actionText = action === 'publish' ? 'published' : 'saved as draft';
+      window.alert(`Post successfully ${actionText}!`);
       
       // Navigate based on status
-      if (post.status === 'published') {
+      if (action === 'publish') {
         navigate(`/blog/${newPostId}`);
       } else {
         navigate('/dashboard/blog-posts');
@@ -706,16 +712,10 @@ export default function BlogPostEditor({ postId }: BlogPostEditorProps) {
                 </div>
 
                 <div className="flex justify-end gap-4 pt-4">
-                  <Button type="button" variant="outline" onClick={() => {
-                    setPost(prev => ({ ...prev, status: 'draft' }));
-                    handleSubmit(new Event('click') as any);
-                  }}>
+                  <Button type="button" variant="outline" onClick={(e) => handleSubmit(e, 'draft')}>
                     Save as Draft
                   </Button>
-                  <Button type="button" onClick={() => {
-                    setPost(prev => ({ ...prev, status: 'published' }));
-                    handleSubmit(new Event('click') as any);
-                  }}>
+                  <Button type="button" variant="default" onClick={(e) => handleSubmit(e, 'publish')}>
                     Publish
                   </Button>
                 </div>
