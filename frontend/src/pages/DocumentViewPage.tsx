@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { DocumentEditor } from '../components/document-editor/DocumentEditor';
-import { AuthGuard } from '../components/AuthGuard';
+import AuthGuard from '../components/AuthGuard';
 import { Button } from '../components/Button';
 import { Document } from '../types/documents';
 

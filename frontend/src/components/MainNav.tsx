@@ -36,14 +36,16 @@ export function MainNav() {
   const currentPath = location.pathname;
 
   return (
-    <nav className="flex items-center space-x-6 overflow-x-auto">
+    <nav className="hidden md:flex items-center space-x-8">
       {mainNavItems.map((item) => (
         <Link
           key={item.href}
           to={item.href}
           className={cn(
-            "relative text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
-            "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-primary after:transition-transform",
+            "relative py-2 text-sm font-medium transition-colors hover:text-foreground whitespace-nowrap",
+            "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-primary",
+            "after:transition-transform after:duration-200",
+            "hover:after:scale-x-100",
             currentPath === item.href
               ? "text-foreground after:scale-x-100"
               : "text-muted-foreground after:scale-x-0"

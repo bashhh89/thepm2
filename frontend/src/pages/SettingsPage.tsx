@@ -1,5 +1,5 @@
 import React from 'react';
-import { AuthGuard } from '../components/AuthGuard';
+import AuthGuard from '../components/AuthGuard';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 

@@ -11,7 +11,7 @@ import { Block, DocumentType } from '../../types/documents';
 import { cn } from '../../lib/utils';
 import { saveDocumentToPuter } from '../../utils/api';
 import { AIAssistantFloating } from './AIAssistantFloating';
-import { useUser } from "@clerk/clerk-react";
+import { supabase } from '../../AppWrapper';
 import type { PuterWindow } from '../../types/puter';
 
 // Constants
@@ -47,14 +47,30 @@ export function DocumentEditor({
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [aiPosition, setAIPosition] = useState({ x: 0, y: 0 });
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Hooks
-  const { user } = useUser();
   const { handleAIAssist, isGenerating } = useAIAssistant();
   const blocksContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { id } = useParams();
   const docId = documentId || id;
+
+  // Get current user from Supabase
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setCurrentUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Block management functions
   const createBlock = (type: Block['type'] = 'text', content = ''): Block => ({
@@ -357,7 +373,7 @@ export function DocumentEditor({
       {showCollaboration && (
         <CollaborationPanel
           documentId={docId || ''}
-          currentUserId={user?.id || ''}
+          currentUserId={currentUser?.id || ''}
           onClose={() => setShowCollaboration(false)}
           onInviteCollaborator={async (email) => {
             // Handle collaboration invite

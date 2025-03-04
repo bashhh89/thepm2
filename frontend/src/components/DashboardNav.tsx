@@ -59,6 +59,11 @@ export function DashboardNav({ collapsed = false }: DashboardNavProps) {
           title: "Overview",
           to: "/dashboard",
           end: true
+        },
+        {
+          icon: <BarChart3 className="h-4 w-4" />,
+          title: "Analytics",
+          to: "/dashboard/analytics"
         }
       ]
     },
@@ -124,11 +129,6 @@ export function DashboardNav({ collapsed = false }: DashboardNavProps) {
     navSections.push({
       title: "Admin",
       items: [
-        {
-          icon: <BarChart3 className="h-4 w-4" />,
-          title: "Analytics",
-          to: "/dashboard/analytics"
-        },
         {
           icon: <Users className="h-4 w-4" />,
           title: "Users",
