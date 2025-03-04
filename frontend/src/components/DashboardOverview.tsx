@@ -3,6 +3,7 @@ import { DashboardCard } from './DashboardCard';
 import { useNavigate } from 'react-router-dom';
 import { chatWithAI } from '../utils/puter-ai';
 import { Card } from './Card';
+import { Button } from './Button';
 
 export function DashboardOverview() {
   const navigate = useNavigate();
