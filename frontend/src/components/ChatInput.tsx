@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from './Button';
+import { cn } from '../lib/utils';
+import { Send } from 'lucide-react';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
@@ -26,18 +28,17 @@ export function ChatInput({ onSendMessage, isDisabled = false, placeholder = 'Ty
     }
   };
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = '0';
       const scrollHeight = textareaRef.current.scrollHeight;
-      textareaRef.current.style.height = `${scrollHeight}px`;
+      textareaRef.current.style.height = `${Math.min(scrollHeight, 200)}px`;
     }
   }, [message]);
 
   return (
-    <form onSubmit={handleSubmit} className="border-t p-4">
-      <div className="flex items-end rounded-lg border bg-background overflow-hidden">
+    <form onSubmit={handleSubmit} className="relative">
+      <div className="relative flex items-end rounded-lg border bg-card shadow-sm">
         <textarea
           ref={textareaRef}
           value={message}
@@ -46,24 +47,45 @@ export function ChatInput({ onSendMessage, isDisabled = false, placeholder = 'Ty
           placeholder={placeholder}
           disabled={isDisabled}
           rows={1}
-          className="flex-1 p-3 bg-transparent resize-none max-h-[200px] focus:outline-none disabled:opacity-50"
+          className={cn(
+            "flex-1 resize-none px-4 py-3 max-h-[200px]",
+            "bg-transparent text-foreground placeholder:text-muted-foreground",
+            "focus:outline-none disabled:opacity-50",
+            "scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-primary/10 hover:scrollbar-thumb-primary/20"
+          )}
+          style={{ scrollbarGutter: 'stable' }}
         />
-        <Button
-          type="submit"
-          disabled={!message.trim() || isDisabled}
-          className="m-1 px-3 h-10 rounded-md"
-        >
-          <span className="sr-only">Send message</span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="w-5 h-5"
+        <div className="flex items-center px-3 py-2">
+          <Button
+            type="submit"
+            size="sm"
+            disabled={!message.trim() || isDisabled}
+            className={cn(
+              "rounded-full p-2 h-9 w-9",
+              "transition-all duration-200",
+              message.trim() && !isDisabled 
+                ? "bg-primary text-primary-foreground opacity-100 translate-y-0"
+                : "opacity-50 translate-y-1"
+            )}
           >
-            <path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95 28.896 28.896 0 0015.293-7.154.75.75 0 000-1.115A28.897 28.897 0 003.105 2.289z" />
-          </svg>
-        </Button>
+            <Send className="h-4 w-4" />
+            <span className="sr-only">Send message</span>
+          </Button>
+        </div>
       </div>
+      
+      {isDisabled && (
+        <div className="absolute inset-0 backdrop-blur-[1px] bg-background/50 rounded-lg flex items-center justify-center animate-in">
+          <div className="flex items-center gap-2 text-sm text-foreground/80">
+            <div className="flex space-x-1">
+              <div className="h-2 w-2 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="h-2 w-2 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="h-2 w-2 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: '600ms' }} />
+            </div>
+            <span>AI is thinking...</span>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

@@ -4,6 +4,7 @@ import { Button } from './Button';
 import { cn } from '../lib/utils';
 import { useAuthStore } from '../utils/auth-store';
 import { supabase } from '../AppWrapper';
+import { ChevronLeft, ChevronRight, Menu } from 'lucide-react';
 
 interface DashboardMainLayoutProps {
   children: React.ReactNode;
@@ -11,18 +12,17 @@ interface DashboardMainLayoutProps {
 
 export function DashboardMainLayout({ children }: DashboardMainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [user, setUser] = useState<any>(null);
   const adminLogout = useAuthStore(state => state.adminLogout);
   const { isAdmin } = useAuthStore();
 
   useEffect(() => {
-    // Get current user
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
     });
 
-    // Subscribe to auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setUser(session?.user ?? null);
     });
 
@@ -38,6 +38,7 @@ export function DashboardMainLayout({ children }: DashboardMainLayoutProps) {
   };
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const toggleCollapsed = () => setSidebarCollapsed(!sidebarCollapsed);
 
   return (
     <div className="flex min-h-screen max-h-screen overflow-hidden bg-background">
@@ -53,37 +54,82 @@ export function DashboardMainLayout({ children }: DashboardMainLayoutProps) {
       {/* Sidebar */}
       <aside 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-card transition-transform lg:static lg:transition-none",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-y-0 left-0 z-50 flex lg:static",
+          "transition-all duration-300 ease-in-out",
+          sidebarCollapsed ? "w-[64px]" : "w-64",
+          !sidebarOpen && "lg:w-[64px]",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="flex h-14 items-center border-b px-4">
-          <span className="font-bold">QanDu Admin</span>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto">
-          <DashboardNav collapsed={false} />
-        </div>
-        
-        <div className="border-t p-4">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
-                {user?.email || (isAdmin ? 'Admin' : 'Guest')}
-              </p>
-              <p className="text-sm text-muted-foreground truncate">
-                {isAdmin ? 'Administrator' : 'User'}
-              </p>
-            </div>
+        <div className={cn(
+          "flex flex-col flex-1 border-r bg-card",
+          "transition-all duration-300 ease-in-out"
+        )}>
+          <div className="flex h-14 items-center border-b px-4 justify-between">
+            <span className={cn(
+              "font-bold transition-all duration-300",
+              sidebarCollapsed && "opacity-0 lg:hidden"
+            )}>
+              {isAdmin ? 'QanDu Admin' : 'QanDu'}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden lg:flex w-8 h-8 p-0"
+              onClick={toggleCollapsed}
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </Button>
           </div>
-          <Button variant="outline" className="w-full" onClick={handleLogout}>
-            Log out
-          </Button>
+          
+          <div className="flex-1 overflow-y-auto">
+            <DashboardNav collapsed={sidebarCollapsed} />
+          </div>
+          
+          <div className="border-t p-4">
+            <div className={cn(
+              "flex items-center gap-4 mb-4 transition-all duration-300",
+              sidebarCollapsed && "justify-center"
+            )}>
+              <div className="flex-1 min-w-0">
+                <p className={cn(
+                  "text-sm font-medium truncate transition-all duration-300",
+                  sidebarCollapsed && "hidden"
+                )}>
+                  {user?.email || (isAdmin ? 'Admin' : 'Guest')}
+                </p>
+                <p className={cn(
+                  "text-sm text-muted-foreground truncate transition-all duration-300",
+                  sidebarCollapsed && "hidden"
+                )}>
+                  {isAdmin ? 'Administrator' : 'User'}
+                </p>
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              className={cn(
+                "w-full transition-all duration-300",
+                sidebarCollapsed && "px-2"
+              )} 
+              onClick={handleLogout}
+            >
+              {sidebarCollapsed ? '→' : 'Log out'}
+            </Button>
+          </div>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className={cn(
+        "flex-1 overflow-y-auto transition-all duration-300 ease-in-out",
+        sidebarCollapsed && "lg:pl-[64px]",
+        !sidebarOpen && "lg:pl-[64px]"
+      )}>
         <div className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:hidden">
           <Button
             variant="ghost"
@@ -91,23 +137,10 @@ export function DashboardMainLayout({ children }: DashboardMainLayoutProps) {
             onClick={toggleSidebar}
             className="-ml-2 h-9 w-9"
           >
-            <svg
-              className="h-6 w-6"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
+            <Menu className="h-6 w-6" />
             <span className="sr-only">Toggle navigation menu</span>
           </Button>
-          <span className="font-bold lg:hidden">QanDu Admin</span>
+          <span className="font-bold">{isAdmin ? 'QanDu Admin' : 'QanDu'}</span>
         </div>
         
         <div className="p-6">{children}</div>
