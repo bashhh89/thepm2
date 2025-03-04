@@ -62,6 +62,28 @@ declare global {
     }
 }
 
+// Available models for Puter.ai
+export const AVAILABLE_MODELS = {
+    DEFAULT: 'gpt-4o-mini',
+    GPT4_MINI: 'gpt-4o-mini',
+    GPT4: 'gpt-4o',
+    O3_MINI: 'o3-mini',
+    O1_MINI: 'o1-mini',
+    CLAUDE: 'claude-3-5-sonnet',
+    DEEPSEEK_CHAT: 'deepseek-chat',
+    DEEPSEEK_REASONER: 'deepseek-reasoner',
+    GEMINI_2: 'gemini-2.0-flash',
+    GEMINI_1_5: 'gemini-1.5-flash',
+    LLAMA_8B: 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+    LLAMA_70B: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+    LLAMA_405B: 'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo',
+    MISTRAL: 'mistral-large-latest',
+    PIXTRAL: 'pixtral-large-latest',
+    CODESTRAL: 'codestral-latest',
+    GEMMA: 'google/gemma-2-27b-it',
+    GROK: 'grok-beta'
+};
+
 interface ChatOptions {
     model?: string;
     stream?: boolean;
@@ -100,27 +122,6 @@ export const ensurePuterScriptLoaded = (): Promise<void> => {
         script.onerror = () => reject();
         document.head.appendChild(script);
     });
-};
-
-// Update the list of available models
-const AVAILABLE_MODELS = {
-    DEFAULT: 'gpt-4o-mini',
-    GPT4O: 'gpt-4o',
-    O3MINI: 'o3-mini',
-    O1MINI: 'o1-mini',
-    CLAUDE: 'claude-3-5-sonnet',
-    DEEPSEEK_CHAT: 'deepseek-chat',
-    DEEPSEEK_REASONER: 'deepseek-reasoner',
-    GEMINI_20: 'gemini-2.0-flash',
-    GEMINI_15: 'gemini-1.5-flash',
-    LLAMA_8B: 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
-    LLAMA_70B: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
-    LLAMA_405B: 'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo',
-    MISTRAL: 'mistral-large-latest',
-    PIXTRAL: 'pixtral-large-latest',
-    CODESTRAL: 'codestral-latest',
-    GEMMA: 'google/gemma-2-27b-it',
-    GROK: 'grok-beta'
 };
 
 // Update the chatWithAI function to handle both streaming and non-streaming cases
