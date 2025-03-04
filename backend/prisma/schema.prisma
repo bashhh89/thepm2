@@ -10,44 +10,30 @@ datasource db {
   url      = "file:./dev.db"
 }
 
-model Job {
-  id           String        @id @default(uuid())
-  title        String
-  department   String
-  location     String
-  type         String
-  experience   String
-  description  String
-  requirements String
-  benefits     String
-  bannerImage  String?
-  postedDate   DateTime     @default(now())
-  applications Application[]
+model Company {
+  id              String   @id @default(uuid())
+  name            String
+  logo            String?
+  description     String?
+  website         String?
+  industry        String?
+  size            String?  // e.g., "1-10", "11-50", "51-200", etc.
+  founded         Int?
+  headquarters    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model BrandingContent {
-  id          String   @id @default(cuid())
-  type        String
-  title       String
-  content     String
-  subtitle    String?
-  description String?
-  category    String
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  type             String   // 'image', 'video', 'text', 'image_prompt'
+  title            String
+  content          String
+  order            Int
+  generatedImageUrl String? 
+  subtitle         String?
+  description      String?
+  category         String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
-
-model Application {
-  id          String   @id @default(uuid())
-  jobId       String
-  name        String
-  email       String
-  phone       String?
-  resumeUrl   String
-  coverLetter String?
-  status      String   @default("pending")
-  notes       String?
-  createdAt   DateTime @default(now())
-  job         Job      @relation(fields: [jobId], references: [id])
-} 

@@ -1,9 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import jobsRouter from './routes/jobs';
 import brandingRouter from './routes/branding';
-import applicationsRouter from './routes/applications';
 import uploadRouter from './routes/upload';
 
 const app = express();
@@ -16,9 +14,7 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes
-app.use(jobsRouter);
 app.use(brandingRouter);
-app.use(applicationsRouter);
 app.use(uploadRouter);
 
 // Error handling middleware
@@ -27,4 +23,4 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-export default app; 
+export default app;

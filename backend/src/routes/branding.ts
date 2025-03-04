@@ -35,13 +35,11 @@ const upload = multer({
 
 // Branding content schema validation
 const brandingContentSchema = z.object({
+  type: z.enum(['image', 'video', 'text', 'image_prompt']),
   title: z.string().min(1),
-  subtitle: z.string().optional(),
-  description: z.string().optional(),
-  type: z.enum(['image', 'video', 'text']),
   content: z.string().min(1),
-  category: z.enum(['team', 'about', 'vision', 'perks', 'stories']),
   order: z.number().int().min(0),
+  generatedImageUrl: z.string().url().optional(),
 });
 
 // Get all branding content
@@ -58,31 +56,19 @@ router.get('/api/branding-content', async (req, res) => {
 });
 
 // Create new branding content (admin only)
-router.post('/api/branding-content', authenticateToken, isAdmin, upload.single('file'), async (req, res) => {
+router.post('/api/branding-content', authenticateToken, isAdmin, async (req, res) => {
   try {
-    const { title, type, content, category, order, subtitle, description } = req.body;
-    let contentUrl = content;
-
-    // If a file was uploaded, use its path as the content
-    if (req.file) {
-      contentUrl = `/uploads/${req.file.filename}`;
-    }
-
-    const contentData = brandingContentSchema.parse({
-      title,
-      subtitle,
-      description,
-      type,
-      content: contentUrl,
-      category,
-      order: parseInt(order),
-    });
-
-    const brandingContent = await prisma.brandingContent.create({
-      data: contentData,
-    });
-
-    res.status(201).json(brandingContent);
+    const contentArray = z.array(brandingContentSchema).parse(req.body);
+    
+    const content = await prisma.$transaction(
+      contentArray.map(item => 
+        prisma.brandingContent.create({
+          data: item
+        })
+      )
+    );
+    
+    res.status(201).json(content);
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: error.errors });
@@ -94,31 +80,17 @@ router.post('/api/branding-content', authenticateToken, isAdmin, upload.single('
 });
 
 // Update branding content (admin only)
-router.put('/api/branding-content/:id', authenticateToken, isAdmin, upload.single('file'), async (req, res) => {
+router.patch('/api/branding-content/:id', authenticateToken, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, type, content, order } = req.body;
-    let contentUrl = content;
+    const updateData = brandingContentSchema.partial().parse(req.body);
 
-    // If a file was uploaded, use its path as the content
-    if (req.file) {
-      contentUrl = `/uploads/${req.file.filename}`;
-      // TODO: Delete old file if it exists
-    }
-
-    const contentData = brandingContentSchema.parse({
-      title,
-      type,
-      content: contentUrl,
-      order: parseInt(order),
-    });
-
-    const brandingContent = await prisma.brandingContent.update({
+    const content = await prisma.brandingContent.update({
       where: { id },
-      data: contentData,
+      data: updateData,
     });
 
-    res.json(brandingContent);
+    res.json(content);
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: error.errors });
@@ -154,4 +126,4 @@ router.delete('/api/branding-content/:id', authenticateToken, isAdmin, async (re
   }
 });
 
-export default router; 
+export default router;
