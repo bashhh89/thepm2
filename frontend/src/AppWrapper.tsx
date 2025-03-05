@@ -7,14 +7,10 @@ import { DEFAULT_THEME } from "./constants/default-theme";
 import { FloatingChatButton } from "./components/FloatingChatButton";
 import { startTransition, useEffect, useState } from "react";
 import { PipelineProvider } from "./contexts/PipelineContext";
-import { createClient } from '@supabase/supabase-js';
 import { useAuthSync } from './utils/auth-store';
+import { supabase } from './lib/supabase';
 
-const supabaseUrl = 'https://vzqythwfrmjakhvmopyf.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cXl0aHdmcm1qYWtodm1vcHlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEwMTkwMDQsImV4cCI6MjA1NjU5NTAwNH0.QZRgjjtxLlXsH-6U_bGDb62TfZvtkyIycM1LPapjZ28';
-
-// Initialize the Supabase client
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export { supabase };
 
 function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
   return (
@@ -66,6 +62,7 @@ const AppContent = () => {
   );
 };
 
+
 export const AppWrapper = () => {
   return (
     <ThemeProvider defaultTheme={DEFAULT_THEME}>
@@ -87,3 +84,5 @@ export const AppWrapper = () => {
     </ThemeProvider>
   );
 };
+
+export default AppWrapper;

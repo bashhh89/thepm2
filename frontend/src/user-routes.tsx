@@ -4,6 +4,8 @@ import { RouteObject, Outlet } from "react-router-dom";
 import { SuspenseWrapper } from "./components/SuspenseWrapper";
 import { DashboardMainLayout } from "./components/DashboardMainLayout";
 import AuthGuard from "./components/AuthGuard";
+import { AdminJobApplications } from './components/AdminJobApplications';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const App = lazy(() => import("./pages/App.tsx"));
 const BlogPage = lazy(() => import("./pages/BlogPage.tsx"));
@@ -16,9 +18,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const DocumentsPage = lazy(() => import("./pages/DocumentsPage.tsx"));
 const DocumentCreatePage = lazy(() => import("./pages/create/DocumentCreatePage.tsx"));
 const DocumentViewPage = lazy(() => import("./pages/DocumentViewPage.tsx"));
-const JobsPage = lazy(() => import("./pages/JobsPage.tsx"));
-const AdminJobsPage = lazy(() => import("./pages/AdminJobsPage.tsx"));
-const CareersPage = lazy(() => import("./pages/company/CareersPage.tsx"));
+const JobsPage = lazy(() => import("./pages/JobsPage.tsx")); // Add Jobs page import
 const LeadsPage = lazy(() => import("./pages/LeadsPage.tsx"));
 const Login = lazy(() => import("./pages/Login.tsx"));
 const Profile = lazy(() => import("./pages/Profile.tsx"));
@@ -28,6 +28,8 @@ const AdminLogin = lazy(() => import("./pages/AdminLogin.tsx"));
 const AdminDashboard = lazy(() => import("./components/AdminDashboard.tsx"));
 const SignIn = lazy(() => import("./pages/SignIn.tsx"));
 const SignUp = lazy(() => import("./pages/Register.tsx"));
+const CareersPage = lazy(() => import("./pages/company/CareersPage.tsx"));
+const ApplicantsPage = lazy(() => import("./pages/ApplicantsPage.tsx")); // Add Applicants page import
 
 export const userRoutes: RouteObject[] = [
   { 
@@ -43,14 +45,6 @@ export const userRoutes: RouteObject[] = [
     element: <SuspenseWrapper><AuthGuard publicOnly><SignUp /></AuthGuard></SuspenseWrapper>
   },
   { 
-    path: "/login", 
-    element: <SuspenseWrapper><Login /></SuspenseWrapper>
-  },
-  { 
-    path: "/register", 
-    element: <SuspenseWrapper><Register /></SuspenseWrapper>
-  },
-  { 
     path: "/blog", 
     element: <SuspenseWrapper><BlogPage /></SuspenseWrapper>
   },
@@ -58,20 +52,16 @@ export const userRoutes: RouteObject[] = [
     path: "/blog/:id", 
     element: <SuspenseWrapper><BlogPostDetailPage /></SuspenseWrapper>
   },
-  {
-    path: "/pages/company/careers",
-    element: <SuspenseWrapper><CareersPage /></SuspenseWrapper>
-  },
   { 
     path: "/dashboard",
     element: (
-      <SuspenseWrapper>
-        <AuthGuard>
+      <AuthGuard>
+        <SuspenseWrapper>
           <DashboardMainLayout>
             <Outlet />
           </DashboardMainLayout>
-        </AuthGuard>
-      </SuspenseWrapper>
+        </SuspenseWrapper>
+      </AuthGuard>
     ),
     children: [
       { index: true, element: <SuspenseWrapper><Dashboard /></SuspenseWrapper> },
@@ -84,11 +74,28 @@ export const userRoutes: RouteObject[] = [
       { path: "documents", element: <SuspenseWrapper><DocumentsPage /></SuspenseWrapper> },
       { path: "documents/create", element: <SuspenseWrapper><DocumentCreatePage /></SuspenseWrapper> },
       { path: "documents/:id", element: <SuspenseWrapper><DocumentViewPage /></SuspenseWrapper> },
-      { path: "jobs", element: <SuspenseWrapper><AdminJobsPage /></SuspenseWrapper> },
+      { path: "jobs", element: <SuspenseWrapper><JobsPage /></SuspenseWrapper> }, // Add Jobs page route
       { path: "leads", element: <SuspenseWrapper><LeadsPage /></SuspenseWrapper> },
       { path: "profile", element: <SuspenseWrapper><Profile /></SuspenseWrapper> },
-      { path: "settings", element: <SuspenseWrapper><SettingsPage /></SuspenseWrapper> }
+      { path: "settings", element: <SuspenseWrapper><SettingsPage /></SuspenseWrapper> },
+      { path: "applicants", element: <SuspenseWrapper><ApplicantsPage /></SuspenseWrapper> } // Add Applicants page route
     ]
+  },
+  { 
+    path: "/careers", 
+    element: (
+      <ErrorBoundary>
+        <SuspenseWrapper><CareersPage /></SuspenseWrapper>
+      </ErrorBoundary>
+    )
+  },
+  { 
+    path: "/careers/culture", 
+    element: <SuspenseWrapper><CareersPage /></SuspenseWrapper>
+  },
+  { 
+    path: "/careers/benefits", 
+    element: <SuspenseWrapper><CareersPage /></SuspenseWrapper>
   },
   { 
     path: "/admin/login", 
@@ -96,6 +103,12 @@ export const userRoutes: RouteObject[] = [
   },
   { 
     path: "/admin", 
-    element: <SuspenseWrapper><AuthGuard requireAdmin><AdminDashboard /></AuthGuard></SuspenseWrapper>
+    element: <SuspenseWrapper><AuthGuard requireAdmin><AdminDashboard /></AuthGuard></SuspenseWrapper>,
+    children: [
+      {
+        path: "applications",
+        element: <SuspenseWrapper><AdminJobApplications /></SuspenseWrapper>
+      }
+    ]
   }
 ];

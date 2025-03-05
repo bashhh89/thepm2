@@ -1,244 +1,451 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from './Button';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card } from './Card';
-import { Loader2 } from 'lucide-react';
+import { Button } from './Button';
+import { Input } from './Input';
+import { Send, Loader2, Upload } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
+
+interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string | { type: string; text: string };
+  timestamp: Date;
+}
 
 interface ChatApplicationFormProps {
   jobId: string;
   jobTitle: string;
   onSuccess?: () => void;
   onCancel?: () => void;
+  initialData?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
 }
 
-interface Message {
-  role: 'system' | 'assistant' | 'user' | 'function';
-  content: string;
+interface ApplicationData {
+  jobId: string | null;
+  name: string;
+  email: string;
+  phone: string;
+  resumeUrl: string;
+  coverLetter: string;
 }
 
-interface FileUploadResponse {
-  fileUrl: string;
-}
-
-export function ChatApplicationForm({ jobId, jobTitle, onSuccess, onCancel }: ChatApplicationFormProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [currentAnswer, setCurrentAnswer] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [applicationData, setApplicationData] = useState<any>({
-    jobId,
-    name: '',
-    email: '',
-    phone: '',
-    resumeUrl: '',
-    coverLetter: '',
-  });
-  const [currentStep, setCurrentStep] = useState(0);
+export function ChatApplicationForm({ 
+  jobId, 
+  jobTitle, 
+  onSuccess, 
+  onCancel,
+  initialData 
+}: ChatApplicationFormProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [currentMessage, setCurrentMessage] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [applicationData, setApplicationData] = useState<ApplicationData>({
+    jobId: jobId,
+    name: initialData?.name || '',
+    email: initialData?.email || '',
+    phone: initialData?.phone || '',
+    resumeUrl: '',
+    coverLetter: ''
+  });
 
-  // Initialize chat on component mount
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    startChat();
+    startConversation();
   }, []);
-  
-  const startChat = async () => {
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const startConversation = async () => {
+    const initialMessage: ChatMessage = {
+      role: 'assistant',
+      content: `Hi there! 👋 I'm Lilai, your AI recruiting assistant for the ${jobTitle} position at QanDu. I'll help guide you through the application process. Let's start with your name!`,
+      timestamp: new Date()
+    };
+    setMessages([initialMessage]);
+  };
+
+  const handleUserMessage = async (message: string) => {
+    if (!message.trim() || isProcessing) return;
+
+    setIsProcessing(true);
+    const userMessage = { 
+      role: 'user', 
+      content: message, 
+      timestamp: new Date() 
+    };
+    setMessages(prev => [...prev, userMessage]);
+
     try {
-      const systemPrompt = `You are a friendly and professional AI recruiter assistant. Your role is to help candidates apply for the ${jobTitle} position. Be conversational, encouraging, and helpful throughout the process. Ask one question at a time, and provide relevant context or tips when appropriate.`;
-      const initialMessage = `Hi there! 👋 I'm your AI recruiting assistant, and I'm here to help you apply for the ${jobTitle} position. I'll guide you through the application process in a conversational way. Let's start with your name - what should I call you?`;
+      if (!window.puter?.ai) {
+        throw new Error('Puter AI not initialized');
+      }
+
+      // Prepare conversation history for context
+      const conversationHistory = messages.map(msg => ({
+        role: msg.role,
+        content: typeof msg.content === 'string' ? msg.content : msg.content.text
+      }));
+
+      // Add user's current message
+      conversationHistory.push({
+        role: 'user',
+        content: message
+      });
+
+      // Build system prompt with application context
+      const systemPrompt = `You are Lilai, a friendly and professional AI recruiting assistant for ${jobTitle} position.
+      Current application progress:
+      - Name: ${applicationData.name || 'Not provided'}
+      - Email: ${applicationData.email || 'Not provided'}
+      - Phone: ${applicationData.phone || 'Not provided'}
+      - Resume: ${applicationData.resumeUrl ? 'Uploaded' : 'Not uploaded'}
+      - Cover Letter: ${applicationData.coverLetter ? 'Provided' : 'Not provided'}
+
+      Your goal is to:
+      1. Guide the candidate through the application process naturally and professionally
+      2. Collect required information (name, email, phone) through conversation
+      3. Encourage resume upload when basic info is collected
+      4. Be helpful and informative about the position
+      5. Keep the conversation engaging and professional
       
+      Remember:
+      - Stay focused on collecting missing information
+      - Be encouraging and supportive
+      - Use natural conversational transitions
+      - Keep responses concise but friendly
+      - Guide towards completing the application`;
+
+      // Call Puter AI with full context
       const response = await window.puter.ai.chat([
         { role: 'system', content: systemPrompt },
-        { role: 'assistant', content: initialMessage }
-      ]);
-  
-      setMessages([
-        { role: 'assistant', content: initialMessage }
-      ]);
-    } catch (error) {
-      console.error('Error starting chat:', error);
-      toast.error('Failed to start the application process. Please try again.');
-    }
-  };
-  
-  const handleSubmit = async () => {
-    if (!currentAnswer.trim()) return;
-  
-    setIsSubmitting(true);
-    const userMessage = { role: 'user' as const, content: currentAnswer };
-    setMessages(prev => [...prev, userMessage]);
-    setCurrentAnswer('');
-  
-    try {
-      let nextQuestion = '';
-      const currentMessages = [...messages, userMessage];
-  
-      // Process the answer based on the current step
-      switch (currentStep) {
-        case 0: // Name
-          setApplicationData(prev => ({ ...prev, name: currentAnswer }));
-          nextQuestion = `Nice to meet you, ${currentAnswer}! 😊 Could you please share your email address? I'll use this to keep you updated about your application.`;
-          break;
-        case 1: // Email
-          setApplicationData(prev => ({ ...prev, email: currentAnswer }));
-          nextQuestion = "Thanks for that! Now, could you share your phone number? This is optional, but it helps if the hiring team needs to reach you quickly.";
-          break;
-        case 2: // Phone
-          setApplicationData(prev => ({ ...prev, phone: currentAnswer }));
-          nextQuestion = `Great! Now comes the interesting part - I'd love to hear why you're interested in the ${jobTitle} position and what makes you a great fit. Feel free to share your relevant experience and what excites you about this role. This will form your cover letter.`;
-          break;
-        case 3: // Cover Letter
-          setApplicationData(prev => ({ ...prev, coverLetter: currentAnswer }));
-          nextQuestion = "That's fantastic! 🌟 Last but not least, I'll need your resume. You can either paste a link to your resume (PDF or Word document), or simply type 'upload' to upload a file directly.";
-          break;
-        case 4: // Resume
-          if (currentAnswer.toLowerCase() === 'upload') {
-            await handleFileUpload();
-          } else {
-            setApplicationData(prev => ({ ...prev, resumeUrl: currentAnswer }));
-          }
-          nextQuestion = "Perfect! I've got all the information needed for your application. Would you like me to submit it now? (yes/no) 📝";
-          break;
-        case 5: // Confirmation
-          if (currentAnswer.toLowerCase() === 'yes') {
-            await submitApplication();
-            nextQuestion = "🎉 Wonderful news! Your application has been submitted successfully! I wish you the best of luck with your application. The hiring team will review it and get back to you soon!";
-          } else {
-            nextQuestion = "No problem at all! Feel free to start over whenever you're ready. Good luck with your job search! 😊";
-          }
-          break;
+        ...conversationHistory
+      ], false, {
+        model: 'claude-3-5-sonnet',
+        stream: false
+      });
+
+      const aiMessage = {
+        role: 'assistant',
+        content: typeof response.message.content === 'string' ? 
+          response.message.content : 
+          response.message.content.text || 'I apologize, but I encountered an error processing your message.',
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+      updateApplicationDataFromMessage(message, 
+        typeof response.message.content === 'string' ? 
+          response.message.content : 
+          response.message.content.text || ''
+      );
+
+      // Check if we should encourage resume upload
+      if (applicationData.name && 
+          applicationData.email && 
+          !applicationData.resumeUrl && 
+          !messages.some(m => m.content.toString().includes('upload your resume'))) {
+        setTimeout(() => {
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: "I see you've provided your basic information. Would you like to upload your resume now? It's an important part of your application.",
+            timestamp: new Date()
+          }]);
+        }, 1000);
       }
-  
-      const aiResponse = await window.puter.ai.chat([
-        ...currentMessages,
-        { role: 'assistant', content: nextQuestion }
-      ]);
-  
-      setMessages(prev => [...prev, { role: 'assistant', content: nextQuestion }]);
-      setCurrentStep(prev => prev + 1);
+
     } catch (error) {
-      console.error('Error processing answer:', error);
-      toast.error('Failed to process your answer. Please try again.');
+      console.error('Error processing message:', error);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'I apologize, but I encountered an error. Please try again or contact support if the issue persists.',
+        timestamp: new Date()
+      }]);
     } finally {
-      setIsSubmitting(false);
+      setIsProcessing(false);
     }
   };
-  const handleFileUpload = async () => {
+
+  const updateApplicationDataFromMessage = (userMessage: string, aiResponse: string) => {
+    // Extract email with better pattern matching
+    const emailRegex = /[\w.-]+@[\w.-]+\.\w+/;
+    const emailMatch = userMessage.match(emailRegex);
+    if (emailMatch && !applicationData.email) {
+      setApplicationData(prev => ({ ...prev, email: emailMatch[0] }));
+      return; // Stop processing if we found an email
+    }
+
+    // Extract phone number with better pattern matching
+    const phoneRegex = /(?:\+\d{1,3}[-. ]?)?\(?\d{3}\)?[-. ]?\d{3}[-. ]?\d{4}/;
+    const phoneMatch = userMessage.match(phoneRegex);
+    if (phoneMatch && !applicationData.phone) {
+      setApplicationData(prev => ({ ...prev, phone: phoneMatch[0].replace(/[-. ]/g, '') }));
+      return; // Stop processing if we found a phone number
+    }
+
+    // Extract name with smarter validation
+    if (!applicationData.name && 
+        userMessage.length < 50 && 
+        !emailRegex.test(userMessage) &&
+        !phoneRegex.test(userMessage) &&
+        !userMessage.includes('http') &&
+        /^[A-Za-z\s\-']+$/.test(userMessage.trim())) {
+      setApplicationData(prev => ({ ...prev, name: userMessage.trim() }));
+      return; // Stop processing if we found a name
+    }
+
+    // Extract cover letter with better detection
+    if (userMessage.length > 100 && 
+        !applicationData.coverLetter &&
+        !userMessage.includes('http') &&
+        (aiResponse.toLowerCase().includes('cover letter') || 
+         userMessage.toLowerCase().includes('dear') ||
+         userMessage.toLowerCase().includes('sincerely') ||
+         userMessage.toLowerCase().includes('experience'))) {
+      setApplicationData(prev => ({ ...prev, coverLetter: userMessage }));
+    }
+  };
+
+  const getNextPrompt = () => {
+    if (!applicationData.name) {
+      return "What's your name?";
+    }
+    if (!applicationData.email) {
+      return `Nice to meet you, ${applicationData.name}! Could you please share your email address?`;
+    }
+    if (!applicationData.phone) {
+      return "Great! And what's the best phone number to reach you at?";
+    }
+    if (!applicationData.resumeUrl) {
+      return "Would you like to upload your resume now? It's an important part of your application.";
+    }
+    if (!applicationData.coverLetter) {
+      return "Would you like to tell me a bit about why you're interested in this position? This will serve as your cover letter.";
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    const nextPrompt = getNextPrompt();
+    if (nextPrompt && messages.length > 0 && messages[messages.length - 1].role !== 'assistant') {
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: nextPrompt,
+          timestamp: new Date()
+        }]);
+      }, 1000);
+    }
+  }, [applicationData, messages]);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
     setIsUploading(true);
     try {
-      // Create a file input element
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  
-      // Handle file selection
-      input.onchange = async (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (!file) return;
-  
-        // Check file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          toast.error('Resume file size must be less than 5MB');
-          return;
-        }
-  
-        const formData = new FormData();
-        formData.append('file', file);
-  
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-  
-        if (!response.ok) {
-          throw new Error('Failed to upload resume');
-        }
-  
-        const { fileUrl } = await response.json() as FileUploadResponse;
-        setApplicationData(prev => ({ ...prev, resumeUrl: fileUrl }));
-        setMessages(prev => [...prev, { role: 'system', content: 'Resume uploaded successfully!' }]);
-      };
-  
-      input.click();
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `uploads/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('applications')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('applications')
+        .getPublicUrl(filePath);
+
+      setApplicationData(prev => ({
+        ...prev,
+        resumeUrl: publicUrl
+      }));
+
+      setMessages(prev => [...prev, {
+        role: 'system',
+        content: '✅ Resume uploaded successfully!',
+        timestamp: new Date()
+      }]);
+
     } catch (error) {
       console.error('Error uploading file:', error);
-      toast.error('Failed to upload resume. Please try again.');
+      setMessages(prev => [...prev, {
+        role: 'system',
+        content: '❌ Failed to upload resume. Please try again.',
+        timestamp: new Date()
+      }]);
     } finally {
       setIsUploading(false);
     }
   };
-  
-  const submitApplication = async () => {
+
+  const handleSubmitApplication = async () => {
+    if (!applicationData.jobId || !applicationData.resumeUrl) {
+      toast.error('Please provide your resume before submitting.');
+      return;
+    }
+
     try {
-      const response = await fetch('/api/applications', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(applicationData),
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to submit application');
-      }
-  
+      const { error } = await supabase
+        .from('applications')
+        .insert({
+          job_id: applicationData.jobId,
+          user_name: applicationData.name,
+          application_data: applicationData,
+          conversation_history: messages,
+        });
+
+      if (error) throw error;
+
       toast.success('Application submitted successfully!');
       onSuccess?.();
+
     } catch (error) {
       console.error('Error submitting application:', error);
       toast.error('Failed to submit application. Please try again.');
     }
   };
-  
+
   return (
-    <Card className="p-6">
-      <div className="space-y-6">
-        <div className="space-y-4">
-          {messages.map((message, index) => (
+    <div className="space-y-4">
+      {/* Chat Messages */}
+      <div className="h-[400px] overflow-y-auto border rounded-lg p-4 space-y-4">
+        {messages.map((message, index) => (
+          <div
+            key={index}
+            className={cn(
+              "flex",
+              message.role === 'user' ? "justify-end" : "justify-start"
+            )}
+          >
             <div
-              key={index}
-              className={`flex ${
-                message.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
+              className={cn(
+                "max-w-[80%] rounded-lg p-3",
+                message.role === 'user' 
+                  ? "bg-primary text-primary-foreground ml-auto"
+                  : "bg-muted"
+              )}
             >
-              <div
-                className={`max-w-[80%] rounded-lg p-3 ${
-                  message.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
-                }`}
-              >
-                {message.content}
-              </div>
+              <p className="text-sm whitespace-pre-wrap">
+                {typeof message.content === 'string' 
+                  ? message.content 
+                  : message.content.text}
+              </p>
+              {message.timestamp && (
+                <span className="text-xs opacity-70 mt-1 block">
+                  {message.timestamp.toLocaleTimeString()}
+                </span>
+              )}
             </div>
-          ))}
-        </div>
-  
-        <div className="flex gap-4">
-          <input
-            type="text"
-            value={currentAnswer}
-            onChange={(e) => setCurrentAnswer(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
-            placeholder="Type your answer..."
-            className="flex-1 rounded-md border bg-background px-3 py-2"
-            disabled={isSubmitting || isUploading}
+          </div>
+        ))}
+        {isProcessing && (
+          <div className="flex justify-start">
+            <div className="bg-muted rounded-lg p-3">
+              <Loader2 className="w-4 h-4 animate-spin" />
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Message Input */}
+      <div className="space-y-4">
+        <div className="flex gap-2">
+          <Input
+            value={currentMessage}
+            onChange={(e) => setCurrentMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && currentMessage.trim()) {
+                e.preventDefault();
+                handleUserMessage(currentMessage);
+                setCurrentMessage('');
+              }
+            }}
+            placeholder="Type your message..."
+            disabled={isProcessing}
           />
           <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting || isUploading || !currentAnswer.trim()}
+            disabled={!currentMessage.trim() || isProcessing}
+            onClick={() => {
+              handleUserMessage(currentMessage);
+              setCurrentMessage('');
+            }}
           >
-            {isSubmitting || isUploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              'Send'
-            )}
+            <Send className="w-4 h-4" />
           </Button>
-          {onCancel && (
+        </div>
+
+        {/* File Upload */}
+        {(applicationData.name && applicationData.email && !applicationData.resumeUrl) && (
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              onClick={() => document.getElementById('resume')?.click()}
+              disabled={isUploading}
+            >
+              {isUploading ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Upload className="w-4 h-4 mr-2" />
+              )}
+              Upload Resume
+            </Button>
+            <input
+              id="resume"
+              type="file"
+              className="hidden"
+              accept=".pdf,.doc,.docx"
+              onChange={handleFileUpload}
+            />
+          </div>
+        )}
+
+        {/* Submit Application */}
+        {applicationData.resumeUrl && (
+          <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-          )}
-        </div>
+            <Button onClick={handleSubmitApplication}>
+              Submit Application
+            </Button>
+          </div>
+        )}
       </div>
-    </Card>
+
+      {/* Progress Indicator */}
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>
+          {applicationData.name ? '✓' : '○'} Name
+        </span>
+        <span>
+          {applicationData.email ? '✓' : '○'} Email
+        </span>
+        <span>
+          {applicationData.phone ? '✓' : '○'} Phone
+        </span>
+        <span>
+          {applicationData.resumeUrl ? '✓' : '○'} Resume
+        </span>
+        <span>
+          {applicationData.coverLetter ? '✓' : '○'} Cover Letter
+        </span>
+      </div>
+    </div>
   );
 }

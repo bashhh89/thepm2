@@ -35,11 +35,6 @@ export default function FeaturesSection() {
       icon: <Globe className="w-6 h-6" />
     },
     {
-      title: "Job Management",
-      description: "AI-powered job listing generation and application tracking in one seamless interface.",
-      icon: <Briefcase className="w-6 h-6" />
-    },
-    {
       title: "Advanced Settings",
       description: "Comprehensive controls for AI providers, model selection, and language preferences.",
       icon: <Settings className="w-6 h-6" />

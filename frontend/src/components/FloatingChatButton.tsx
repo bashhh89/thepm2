@@ -15,6 +15,22 @@ export function FloatingChatButton() {
   const [userInfo, setUserInfo] = useState({ name: '', email: '' });
   const { pipelines, currentPipelineId } = usePipeline();
   const [leadId, setLeadId] = useState<string | null>(null);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [applicationData, setApplicationData] = useState<{
+    jobId: string | null;
+    name: string;
+    email: string;
+    phone: string;
+    resumeUrl: string;
+    coverLetter: string;
+  }>({
+    jobId: null,
+    name: '',
+    email: '',
+    phone: '',
+    resumeUrl: '',
+    coverLetter: ''
+  });
 
   const createLeadFromChat = (message: string, name: string, email: string) => {
     // Find default pipeline and its first stage
@@ -45,55 +61,163 @@ export function FloatingChatButton() {
     return newLeadId;
   };
 
-  const handleUserInfoSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUserInfoSubmit = async () => {
+    if (!userInfo.name || !userInfo.email) return;
+    
     setShowUserInfoForm(false);
+    setMessages(prev => [
+      ...prev,
+      {
+        role: 'assistant',
+        content: `Hi ${userInfo.name}! 👋 I'm here to help you explore our job opportunities and assist with your application. Would you like to:
+1. View open positions
+2. Get help with your application
+3. Learn more about our company`
+      }
+    ]);
+    setApplicationData(prev => ({
+      ...prev,
+      name: userInfo.name,
+      email: userInfo.email
+    }));
   };
 
-  const handleSendMessage = async (content: string) => {
-    try {
-      setError(null);
-      setIsSending(true);
-  
-      const response = await window.puter.ai.chat(
-        content,
-        false, // testMode
-        { 
-          model: 'gpt-4o-mini',
-          stream: true 
-        }
-      );
-  
-      // Clear previous response
-      setResponse('');
-  
-      // Handle streaming response
-      if (response && Symbol.asyncIterator in response) {
-        const iterator = response[Symbol.asyncIterator]();
-        try {
-          while (true) {
-            const { value, done } = await iterator.next();
-            if (done) break;
-            if (value?.text) {
-              setResponse(prev => prev + value.text);
-            }
-          }
-        } catch (streamError) {
-          console.error('Stream error:', streamError);
-          setError('Lost connection to AI service. Please try again.');
-        }
-      } else {
-        // Handle non-streaming response
-        const text = typeof response === 'string' ? response : response.message?.content;
-        if (text) {
-          setResponse(text);
-        }
+  const handleJobSelection = async (job: Job) => {
+    setSelectedJob(job);
+    setApplicationData(prev => ({
+      ...prev,
+      jobId: job.id
+    }));
+    setMessages(prev => [
+      ...prev,
+      {
+        role: 'assistant',
+        content: `Great choice! Let's get started with your application for ${job.title}. 
+        
+Would you like to:
+1. Start the application now
+2. Learn more about the role first
+3. Save for later`
       }
+    ]);
+  };
+
+  const handleUserMessage = async (message: string) => {
+    setIsStreaming(true);
+    setMessages(prev => [...prev, { role: 'user', content: message }]);
+
+    try {
+      const prompt = `You are a helpful AI recruiter assistant. Current context:
+      User: ${userInfo.name}
+      Selected Job: ${selectedJob?.title || 'None'}
+      Application Progress: ${Object.entries(applicationData)
+        .filter(([key, value]) => value && key !== 'jobId')
+        .map(([key]) => key)
+        .join(', ')}
+
+      Previous messages: ${messages.map(m => `${m.role}: ${m.content}`).join('\n')}
+      User message: ${message}
+
+      Respond naturally and helpfully. If they're asking about jobs, provide relevant information. 
+      If they're applying, guide them through the process step by step.`;
+
+      const response = await window.puter.ai.chat(prompt, false, {
+        model: 'gpt-4o-mini',
+        stream: false
+      });
+
+      setMessages(prev => [...prev, { role: 'assistant', content: response.message.content }]);
     } catch (error) {
-      console.error('Chat error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to communicate with AI service');
+      console.error('Error processing message:', error);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: 'I apologize, but I encountered an error. Please try again or contact support if the issue persists.'
+        }
+      ]);
     } finally {
-      setIsSending(false);
+      setIsStreaming(false);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+
+      const { fileUrl } = await response.json();
+      setApplicationData(prev => ({
+        ...prev,
+        resumeUrl: fileUrl
+      }));
+
+      setMessages(prev => [
+        ...prev,
+        { role: 'system', content: '✅ Resume uploaded successfully!' }
+      ]);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      setMessages(prev => [
+        ...prev,
+        { role: 'system', content: '❌ Failed to upload resume. Please try again.' }
+      ]);
+    }
+  };
+
+  const submitApplication = async () => {
+    if (!applicationData.jobId || !applicationData.resumeUrl) {
+      setMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: 'Please provide your resume before submitting the application.' }
+      ]);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(applicationData),
+      });
+
+      if (!response.ok) throw new Error('Application submission failed');
+
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `🎉 Congratulations! Your application has been submitted successfully. 
+          We'll review it and get back to you soon. Is there anything else I can help you with?`
+        }
+      ]);
+
+      // Reset application data but keep user info
+      setApplicationData({
+        jobId: null,
+        name: userInfo.name,
+        email: userInfo.email,
+        phone: '',
+        resumeUrl: '',
+        coverLetter: ''
+      });
+      setSelectedJob(null);
+    } catch (error) {
+      console.error('Error submitting application:', error);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: 'I apologize, but there was an error submitting your application. Please try again or contact support.'
+        }
+      ]);
     }
   };
 
@@ -273,7 +397,7 @@ export function FloatingChatButton() {
 
       <div className="p-4 border-t">
         <ChatInput
-          onSendMessage={handleSendMessage}
+          onSendMessage={handleUserMessage}
           isDisabled={isStreaming}
           placeholder="Type your message..."
         />

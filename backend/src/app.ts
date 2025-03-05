@@ -3,6 +3,8 @@ import cors from 'cors';
 import path from 'path';
 import brandingRouter from './routes/branding';
 import uploadRouter from './routes/upload';
+import applicationsRouter from './routes/applications';
+import jobsRouter from './routes/jobs';
 
 const app = express();
 
@@ -16,10 +18,13 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Routes
 app.use(brandingRouter);
 app.use(uploadRouter);
+app.use('/api/applications', applicationsRouter);
+app.use('/api/jobs', jobsRouter);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err.stack);
+  console.error('Error occurred:', err.message);
+  console.error('Request details:', req.method, req.url, req.body);
   res.status(500).json({ error: 'Something went wrong!' });
 });
 

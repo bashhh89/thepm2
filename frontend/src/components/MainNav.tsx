@@ -25,6 +25,11 @@ const mainNavItems: NavItem[] = [
     description: "Explore our features",
   },
   {
+    title: "Careers",
+    href: "/careers",
+    description: "Join our team",
+  },
+  {
     title: "Pricing",
     href: "/pricing",
     description: "View our pricing plans",

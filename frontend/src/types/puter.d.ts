@@ -1,60 +1,62 @@
+interface PuterConfig {
+  apiKey: string;
+  apiHost: string;
+  debug: boolean;
+  modules: string[];
+  onInit: () => void;
+  onError: (error: unknown) => void;
+}
+
+interface PuterAIResponse {
+  message: {
+    content: string | { type: string; text: string };
+    tool_calls?: Array<{
+      id: string;
+      function: {
+        name: string;
+        arguments: string;
+      };
+    }>;
+  };
+}
+
+interface PuterAIOptions {
+  model?: string;
+  stream?: boolean;
+  tools?: Array<{
+    type: 'function';
+    function: {
+      name: string;
+      description: string;
+      parameters: {
+        type: string;
+        properties: Record<string, any>;
+        required?: string[];
+      };
+      strict?: boolean;
+    };
+  }>;
+}
+
+interface PuterAI {
+  chat(
+    prompt: string | Array<{ role: string; content: string }>,
+    testMode?: boolean,
+    options?: PuterAIOptions
+  ): Promise<PuterAIResponse>;
+}
+
+interface Puter {
+  config?: PuterConfig;
+  isReady?: boolean;
+  ai: PuterAI;
+  print: (text: string) => void;
+}
+
 declare global {
   interface Window {
-    puter: {
-      token: string;
-      config?: { apiKey?: string };
-      isReady?: boolean;
-      ai: {
-        chat: (
-          prompt: string | Array<{ role: string; content: string }>,
-          testMode?: boolean,
-          options?: {
-            model?: string;
-            stream?: boolean;
-            tools?: Array<{
-              type: "function";
-              function: {
-                name: string;
-                description: string;
-                parameters: object;
-              };
-            }>;
-          }
-        ) => Promise<any>;
-        generateImage: (options: { prompt: string; size: string }) => Promise<{ url: string }>;
-        analyzeImage: (options: { image: string }) => Promise<{ description: string }>;
-        generateSpeech: (options: { text: string; voice: string }) => Promise<{ url: string }>;
-        transcribeAudio: (options: { audio: string }) => Promise<{ text: string }>;
-        print: (text: string) => void;
-      };
-      fs?: {
-        write: (path: string, content: any) => Promise<void>;
-        mkdir: (path: string) => Promise<void>;
-        readdir: (path: string) => Promise<string[]>;
-        readFile: (path: string) => Promise<any>;
-        delete: (path: string) => Promise<void>;
-        exists: (path: string) => Promise<boolean>;
-      };
-      ui: {
-        toast: (options: {
-          message: string;
-          type?: 'success' | 'error' | 'warning' | 'info';
-          duration?: number;
-        }) => void;
-        alert: (options: {
-          title: string;
-          message: string;
-          buttons?: Array<{
-            text: string;
-            variant?: 'primary' | 'secondary' | 'danger';
-            onClick?: () => void;
-          }>;
-        }) => Promise<void>;
-        confirm: (options: { title: string; message: string }) => Promise<boolean>;
-        prompt: (options: { title: string; message: string }) => Promise<string | null>;
-      };
-    };
+    puter?: Puter;
   }
 }
 
-export {};
+export type { Puter, PuterConfig, PuterAI, PuterAIResponse };

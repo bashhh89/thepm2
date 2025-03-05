@@ -11,23 +11,15 @@ dotenv.load_dotenv()
 
 from databutton_app.mw.auth_mw import AuthConfig, get_authorized_user
 
-app = FastAPI()
-
-# Setup CORS
-setup_cors(app)
-
-# Include the blog router
-app.include_router(blog_router)
-
 def get_router_config() -> dict:
     try:
         cfg = json.loads(open("routers.json").read())
     except:
-        return False
+        return {"routers": {}}  # Return default config if file not found
     return cfg
 
 def is_auth_disabled(router_config: dict, name: str) -> bool:
-    return router_config["routers"][name]["disableAuth"]
+    return router_config.get("routers", {}).get(name, {}).get("disableAuth", False)
 
 def import_api_routers() -> APIRouter:
     routes = APIRouter(prefix="/routes")
@@ -61,17 +53,19 @@ def import_api_routers() -> APIRouter:
 
     return routes
 
-# Include API routes
-app.include_router(import_api_routers())
-
 def create_app() -> FastAPI:
     app = FastAPI()
-
+    
     # Setup CORS
     setup_cors(app)
-
+    
+    # Include the blog router
+    app.include_router(blog_router)
+    
+    # Include API routes
     app.include_router(import_api_routers())
-
+    
     return app
 
+# Create the single app instance
 app = create_app()

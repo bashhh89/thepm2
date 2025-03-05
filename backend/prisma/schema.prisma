@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DB_URL")
 }
 
 model Company {
@@ -30,10 +30,97 @@ model BrandingContent {
   title            String
   content          String
   order            Int
-  generatedImageUrl String? 
+  generatedImageUrl String?
   subtitle         String?
   description      String?
   category         String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model Job {
+  id                    String      @id @default(uuid()) @db.Uuid
+  createdAt             DateTime    @default(now()) @map("created_at")
+  updatedAt             DateTime    @updatedAt
+  title                 String
+  description           String?
+  department            String
+  location              String
+  type                  String               // full-time, part-time, contract
+  experience            String               // entry, mid, senior, lead, etc.
+  requirements          String?
+  benefits              String?              // JSON array of benefits
+  salary                Json?                // { min: number, max: number, currency: string }
+  skills                Json?                // Array of { name: string, level: string }
+  status                String               @default("active") // active, filled, draft, archived
+  remotePolicy          String?              // remote, hybrid, on-site
+  workSchedule          String?
+  employmentType        String               // full-time, part-time, contract
+  teamSize              Int?
+  reportsTo             String?
+  applicationDeadline   DateTime?
+  aiGeneratedDescription  String?            @map("ai_generated_description")
+  trainingData          String?            @map("training_data")
+  careerPageContentId   String?             @map("career_page_content_id") @db.Uuid
+  careerPageContent     CareerPageContent?  @relation(fields: [careerPageContentId], references: [id])
+  aiSuggestions         Json?               @map("ai_suggestions") // Store AI-generated improvement suggestions
+  sourceData            Json?               @map("source_data")   // Store original data used to generate the job
+  keywordsTags          String[]            @default([])         // For improved searchability
+  applications          Application[]
+
+  @@index([createdAt])
+}
+
+model CareerPageContent {
+  id                  String      @id @default(uuid()) @db.Uuid
+  createdAt           DateTime    @default(now()) @map("created_at")
+  sectionType         String      @map("section_type")
+  content             Json?
+  aiGeneratedContent  Json?       @map("ai_generated_content")
+  jobs                Job[]
+  teamMembers         TeamMember[]
+
+  @@map("career_page_content")
+}
+
+model TeamMember {
+  id                  String      @id @default(uuid()) @db.Uuid
+  createdAt           DateTime    @default(now()) @map("created_at")
+  careerPageContentId String?     @map("career_page_content_id") @db.Uuid
+  careerPageContent   CareerPageContent? @relation(fields: [careerPageContentId], references: [id])
+  name                String
+  title               String?
+  bio                 String?
+  imageUrl            String?     @map("image_url")
+
+  @@map("team_members")
+}
+
+model Application {
+  id                   String      @id @default(uuid()) @db.Uuid
+  createdAt            DateTime    @default(now()) @map("created_at")
+  jobId                String?     @map("job_id") @db.Uuid
+  job                  Job?        @relation(fields: [jobId], references: [id])
+  userName             String?     @map("user_name")
+  conversationHistory  Json?       @map("conversation_history")
+  applicationData      Json?       @map("application_data")
+  feedback             String?
+  adminDashboardViewed Boolean     @default(false) @map("admin_dashboard_viewed")
+
+  @@map("applications")
+  @@index([jobId])
+  @@index([createdAt])
+}
+
+model JobApplication {
+  id          String   @id @default(cuid())
+  jobId       String
+  job         Job      @relation(fields: [jobId], references: [id])
+  userName    String
+  applicationData Json
+  conversationHistory Json
+  feedback    String?
+  adminDashboardViewed Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

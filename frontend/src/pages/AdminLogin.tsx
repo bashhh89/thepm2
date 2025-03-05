@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../utils/auth-store';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/Card';
 import { Button } from '../components/Button';
+import { Input } from '../components/Input';
 import AuthGuard from '../components/AuthGuard';
 
 export default function AdminLogin() {
@@ -12,7 +13,11 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
   
   const navigate = useNavigate();
+  const location = useLocation();
   const { adminLogin } = useAuthStore();
+
+  // Get the return URL if one was specified
+  const from = location.state?.from || '/admin';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +26,8 @@ export default function AdminLogin() {
     
     try {
       await adminLogin(username, password);
-      navigate('/admin');
+      // Redirect to the originally requested URL or admin dashboard
+      navigate(from, { replace: true });
     } catch (err: any) {
       setError(err.message || 'Invalid admin credentials');
     } finally {
@@ -31,10 +37,12 @@ export default function AdminLogin() {
 
   return (
     <AuthGuard publicOnly>
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gradient-to-br from-background via-purple-900/10 to-background flex items-center justify-center px-4">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Admin Portal</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-purple-600">
+              Admin Portal
+            </CardTitle>
             <CardDescription className="text-center">
               Secure access for system administrators
             </CardDescription>
@@ -50,12 +58,11 @@ export default function AdminLogin() {
                 <label htmlFor="username" className="text-sm font-medium leading-none">
                   Username
                 </label>
-                <input
+                <Input
                   id="username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="Enter your username"
                   required
                 />
@@ -64,12 +71,11 @@ export default function AdminLogin() {
                 <label htmlFor="password" className="text-sm font-medium leading-none">
                   Password
                 </label>
-                <input
+                <Input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="Enter your password"
                   required
                 />
@@ -86,8 +92,8 @@ export default function AdminLogin() {
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="flex flex-col">
-            <div className="text-sm text-center text-muted-foreground">
+          <CardFooter>
+            <div className="text-sm text-center text-muted-foreground w-full">
               This is a restricted area for system administrators only.
             </div>
           </CardFooter>

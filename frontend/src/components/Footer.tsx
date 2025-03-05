@@ -27,8 +27,8 @@ export default function Footer() {
             <h4 className="font-medium mb-4">Company</h4>
             <ul className="space-y-2">
               <li><Link to="/pages/company/about" className="text-muted-foreground hover:text-foreground">About Us</Link></li>
-              <li><Link to="/pages/company/careers" className="text-muted-foreground hover:text-foreground">Careers</Link></li>
               <li><Link to="/pages/company/contact" className="text-muted-foreground hover:text-foreground">Contact</Link></li>
+              <li><Link to="/careers" className="text-muted-foreground hover:text-foreground">Careers</Link></li>
               <li><Link to="/pages/company/partners" className="text-muted-foreground hover:text-foreground">Partners</Link></li>
             </ul>
           </div>

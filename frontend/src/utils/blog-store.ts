@@ -3,281 +3,123 @@ import { useAuthStore } from './auth-store';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://vzqythwfrmjakhvmopyf.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cXl0aHdmcm1qYWtodm1vcHlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEwMTkwMDQsImV4cCI6MjA1NjU5NTAwNH0.QZRgjjtxLlXsH-6U_bGDb62TfZvtkyIycM1LPapjZ28';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFybW1panZicnh5dmJwZ25pa2xiIiwicm9zZSI6ImFub24iLCJpYXQiOjE3NDEwNTg2MjYsImV4cCI6MjA1NjYzNDYyNn0.4LwYrfKrbn0WFb6wrwFnN_DgeThUJPDNzZ1miR2erxg'; // New key
 
-// Interface definitions
-export interface BlogPost {
+export const supabase = createClient(supabaseUrl, supabaseKey);
+
+interface Post {
   id: string;
   title: string;
-  excerpt: string;
+  slug: string;
   content: string;
-  coverImage: string;
-  coverImageType: 'url' | 'upload' | 'generate';
+  excerpt?: string;
   author: string;
-  publishDate: string;
-  status: 'draft' | 'published';
   categories: string[];
   tags: string[];
+  status: 'draft' | 'published' | 'archived';
+  publishedAt?: string;
+  featuredImage?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-interface BlogState {
-  posts: BlogPost[];
+interface BlogStore {
+  posts: Post[];
   isLoading: boolean;
   error: string | null;
-  isSaving: boolean;
-  isInitialized: boolean;
-  
   loadPosts: () => Promise<void>;
-  createPost: (post: Omit<BlogPost, 'id' | 'createdAt' | 'updatedAt'>, user: any) => Promise<string>;
-  updatePost: (id: string, post: Partial<BlogPost>) => Promise<void>;
+  createPost: (post: Omit<Post, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Post>;
+  updatePost: (id: string, post: Partial<Post>) => Promise<Post>;
   deletePost: (id: string) => Promise<void>;
-  getPost: (id: string) => BlogPost | undefined;
 }
 
-// Validation function
-const validatePost = (post: Omit<BlogPost, 'id' | 'createdAt' | 'updatedAt'>) => {
-  if (!post.title.trim()) {
-    throw new Error('Title is required');
+const initializeStore = async (set: any) => {
+  try {
+    const { data: posts, error } = await supabase
+      .from('posts')
+      .select('*')
+      .order('createdAt', { ascending: false });
+
+    if (error) throw error;
+
+    set({ posts: posts || [], isLoading: false });
+  } catch (error: any) {
+    set({ error: error.message, isLoading: false });
   }
-  if (!post.content.trim()) {
-    throw new Error('Content is required');
-  }
-  if (!post.excerpt.trim()) {
-    throw new Error('Excerpt is required');
-  }
-  return true;
 };
 
-// Initialize the store
-export const useBlogStore = create<BlogState>((set, get) => {
-  // Load posts on store creation
-  const initializeStore = async () => {
-    if (!get().isInitialized) {
-      await get().loadPosts();
+export const useBlogStore = create<BlogStore>((set, get) => ({
+  posts: [],
+  isLoading: true,
+  error: null,
+
+  loadPosts: async () => {
+    set({ isLoading: true, error: null });
+    await initializeStore(set);
+  },
+
+  createPost: async (post) => {
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .insert([{
+          ...post,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      set((state) => ({
+        posts: [data, ...state.posts]
+      }));
+
+      return data;
+    } catch (error: any) {
+      throw new Error(error.message);
     }
-  };
-  
-  // Call initialize immediately
-  initializeStore();
+  },
 
-  return {
-    // Initial state
-    posts: [],
-    isLoading: true,
-    error: null,
-    isSaving: false,
-    isInitialized: false,
+  updatePost: async (id, post) => {
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .update({
+          ...post,
+          updatedAt: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
 
-    loadPosts: async () => {
-      if (get().isInitialized) return;
-      set({ isLoading: true, error: null });
-      
-      try {
-        const { data, error } = await supabase
-          .from('posts')
-          .select('*')
-          .order('updated_at', { ascending: false });
+      if (error) throw error;
 
-        if (error) {
-          console.error('Supabase error:', error);
-          throw new Error(error.message);
-        }
+      set((state) => ({
+        posts: state.posts.map((p) => (p.id === id ? data : p))
+      }));
 
-        if (!data) {
-          throw new Error('No data returned from Supabase');
-        }
-
-        const transformedPosts = data.map(post => ({
-          id: post.id,
-          title: post.title,
-          excerpt: post.excerpt,
-          content: post.content,
-          coverImage: post.cover_image,
-          coverImageType: post.cover_image_type,
-          author: post.author,
-          publishDate: post.publish_date,
-          status: post.status,
-          categories: post.categories || [],
-          tags: post.tags || [],
-          createdAt: post.created_at,
-          updatedAt: post.updated_at
-        }));
-
-        set({ 
-          posts: transformedPosts,
-          isLoading: false,
-          isInitialized: true
-        });
-      } catch (error: any) {
-        console.error('Error loading posts:', error);
-        set({ 
-          error: `Failed to load posts: ${error.message}`,
-          isLoading: false,
-          isInitialized: true,
-          posts: [] // Ensure posts is always an array even on error
-        });
-      }
-    },
-
-    createPost: async (postData, user) => {
-      set({ isSaving: true, error: null });
-      
-      try {
-        validatePost(postData);
-        
-        if (!user?.id) {
-          throw new Error('User must be logged in to create posts');
-        }
-
-        const now = new Date().toISOString();
-        const post = {
-          title: postData.title,
-          excerpt: postData.excerpt,
-          content: postData.content,
-          cover_image: postData.coverImage,
-          cover_image_type: postData.coverImageType,
-          author: postData.author,
-          publish_date: postData.publishDate,
-          status: postData.status,
-          categories: postData.categories,
-          tags: postData.tags,
-          created_at: now,
-          updated_at: now,
-          user_id: user.id
-        };
-        
-        const { data, error } = await supabase
-          .from('posts')
-          .insert([post])
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Supabase error:', error);
-          throw new Error(error.message);
-        }
-
-        if (!data) {
-          throw new Error('No data returned after creating post');
-        }
-
-        const newPost = {
-          id: data.id,
-          title: data.title,
-          excerpt: data.excerpt,
-          content: data.content,
-          coverImage: data.cover_image,
-          coverImageType: data.cover_image_type,
-          author: data.author,
-          publishDate: data.publish_date,
-          status: data.status,
-          categories: data.categories || [],
-          tags: data.tags || [],
-          createdAt: data.created_at,
-          updatedAt: data.updated_at
-        };
-        
-        set(state => ({
-          posts: [newPost, ...state.posts],
-          isSaving: false
-        }));
-        
-        return newPost.id;
-      } catch (error: any) {
-        console.error('Error creating post:', error);
-        set({ error: error.message, isSaving: false });
-        throw error;
-      }
-    },
-
-    updatePost: async (id, updates) => {
-      set({ isSaving: true, error: null });
-      
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          throw new Error('User must be logged in to update posts');
-        }
-
-        const currentPost = get().posts.find(p => p.id === id);
-        if (!currentPost) {
-          throw new Error('Post not found');
-        }
-        
-        const updatedPost = {
-          title: updates.title,
-          excerpt: updates.excerpt,
-          content: updates.content,
-          cover_image: updates.coverImage,
-          cover_image_type: updates.coverImageType,
-          author: updates.author,
-          publish_date: updates.publishDate,
-          status: updates.status,
-          categories: updates.categories,
-          tags: updates.tags,
-          updated_at: new Date().toISOString()
-        };
-
-        validatePost({ ...currentPost, ...updates });
-        
-        const { error } = await supabase
-          .from('posts')
-          .update(updatedPost)
-          .eq('id', id)
-          .eq('user_id', user.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-        
-        set(state => ({
-          posts: state.posts.map(p => p.id === id ? {
-            ...p,
-            ...updates,
-            updatedAt: updatedPost.updated_at
-          } : p),
-          isSaving: false
-        }));
-      } catch (error: any) {
-        console.error('Error updating post:', error);
-        set({ error: error.message, isSaving: false });
-        throw error;
-      }
-    },
-
-    deletePost: async (id) => {
-      set({ isSaving: true, error: null });
-      
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          throw new Error('User must be logged in to delete posts');
-        }
-
-        const { error } = await supabase
-          .from('posts')
-          .delete()
-          .eq('id', id)
-          .eq('user_id', user.id);
-
-        if (error) throw error;
-        
-        set(state => ({
-          posts: state.posts.filter(p => p.id !== id),
-          isSaving: false
-        }));
-      } catch (error: any) {
-        console.error('Error deleting post:', error);
-        set({ error: error.message, isSaving: false });
-        throw error;
-      }
-    },
-
-    getPost: (id) => {
-      return get().posts.find(p => p.id === id);
+      return data;
+    } catch (error: any) {
+      throw new Error(error.message);
     }
-  };
-});
+  },
+
+  deletePost: async (id) => {
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      set((state) => ({
+        posts: state.posts.filter((p) => p.id !== id)
+      }));
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+}));

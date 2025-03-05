@@ -6,14 +6,13 @@ import {
   MessageSquare, 
   Users, 
   LayoutDashboard, 
-  BarChart3, 
   Settings, 
   Newspaper, 
-  Briefcase,
   Lightbulb,
   UserCircle,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Briefcase
 } from 'lucide-react';
 import { useAuthStore } from '../utils/auth-store';
 
@@ -96,14 +95,29 @@ export function DashboardNav({ collapsed = false }: DashboardNavProps) {
       title: "Management",
       items: [
         {
-          icon: <Briefcase className="h-4 w-4" />,
-          title: "Jobs",
-          to: "/dashboard/jobs"
-        },
-        {
           icon: <Lightbulb className="h-4 w-4" />,
           title: "Leads",
           to: "/dashboard/leads"
+        },
+        {
+          icon: <Briefcase className="h-4 w-4" />,
+          title: "Jobs",
+          to: "/dashboard/jobs" // Added link to Jobs page
+        }
+      ]
+    },
+    {
+      title: "Jobs Management",
+      items: [
+        {
+          icon: <Briefcase className="h-4 w-4" />,
+          title: "Job Listings",
+          to: "/dashboard/jobs"
+        },
+        {
+          icon: <Users className="h-4 w-4" />,
+          title: "Applications",
+          to: "/dashboard/applicants"
         }
       ]
     },
@@ -127,12 +141,17 @@ export function DashboardNav({ collapsed = false }: DashboardNavProps) {
         {
           icon: <Users className="h-4 w-4" />,
           title: "Users",
-          to: "/dashboard/users"
+          to: "/admin/users"
+        },
+        {
+          icon: <Briefcase className="h-4 w-4" />,
+          title: "Job Applications",
+          to: "/admin/applications"
         },
         {
           icon: <Settings className="h-4 w-4" />,
           title: "Settings",
-          to: "/dashboard/settings"
+          to: "/admin/settings"
         }
       ]
     });

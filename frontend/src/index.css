@@ -47,6 +47,98 @@
     --input: 250 20% 16%;
     --ring: 250 95% 65%;
   }
+
+  @media (forced-colors: active) {
+    :root {
+      --background: Canvas;
+      --foreground: CanvasText;
+      --card: Canvas;
+      --card-foreground: CanvasText;
+      --popover: Canvas;
+      --popover-foreground: CanvasText;
+      --primary: Highlight;
+      --primary-foreground: HighlightText;
+      --secondary: Canvas;
+      --secondary-foreground: CanvasText;
+      --muted: Canvas;
+      --muted-foreground: GrayText;
+      --accent: Canvas;
+      --accent-foreground: CanvasText;
+      --destructive: LinkText;
+      --destructive-foreground: Canvas;
+      --border: ButtonBorder;
+      --input: ButtonBorder;
+      --ring: Highlight;
+    }
+
+    * {
+      forced-color-adjust: none;
+    }
+
+    .border,
+    .outline,
+    [class*="border-"] {
+      border-color: ButtonBorder !important;
+    }
+
+    .bg-accent\/50,
+    .bg-background\/80,
+    [class*="bg-opacity-"] {
+      background-color: Canvas !important;
+      border: 1px solid ButtonBorder !important;
+    }
+
+    button,
+    [role="button"],
+    .button,
+    .btn {
+      border: 1px solid ButtonBorder !important;
+      background-color: ButtonFace !important;
+      color: ButtonText !important;
+    }
+
+    button:hover,
+    [role="button"]:hover,
+    .button:hover,
+    .btn:hover {
+      background-color: Highlight !important;
+      color: HighlightText !important;
+    }
+
+    .text-muted-foreground,
+    [class*="text-opacity-"] {
+      color: GrayText !important;
+    }
+
+    :focus-visible {
+      outline: 2px solid Highlight !important;
+      outline-offset: 2px !important;
+      -webkit-focus-ring-color: Highlight !important;
+    }
+
+    input,
+    textarea,
+    select {
+      border-color: ButtonBorder !important;
+      background-color: Field !important;
+      color: FieldText !important;
+    }
+
+    :disabled,
+    [aria-disabled="true"] {
+      color: GrayText !important;
+      border-color: GrayText !important;
+      background-color: Canvas !important;
+    }
+
+    a {
+      color: LinkText !important;
+    }
+
+    a:hover {
+      color: Highlight !important;
+    }
+  }
 }
 
 @layer base {
@@ -65,12 +157,10 @@
     @apply text-muted-foreground;
   }
   
-  /* Enhanced focus states */
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 
-  /* Scrollbar styling */
   ::-webkit-scrollbar {
     @apply w-2 h-2;
   }
@@ -86,12 +176,11 @@
 
 @layer utilities {
   .scrollbar-hide {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    scrollbar-width: none;
   }
   
   .scrollbar-hide::-webkit-scrollbar {
-    display: none; /* Chrome, Safari and Opera */
+    display: none;
   }
 
   .animate-in {
@@ -140,7 +229,6 @@
   }
 }
 
-/* Animations */
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -157,10 +245,40 @@
   }
 }
 
+@keyframes slideLeft {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideRight {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .animate-fade-in {
   animation: fade-in 0.2s ease-out;
 }
 
 .animate-slide-in {
   animation: slide-in-bottom 0.3s ease-out;
+}
+
+.animate-slideLeft {
+  animation: slideLeft 0.3s ease-out;
+}
+
+.animate-slideRight {
+  animation: slideRight 0.3s ease-out;
 }

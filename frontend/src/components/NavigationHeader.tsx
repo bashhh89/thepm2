@@ -80,17 +80,33 @@ const menuItems: MenuItem[] = [
         label: 'Contact',
         href: '/pages/company/contact',
         description: 'Get in touch with us'
-      },
-      {
-        label: 'Careers',
-        href: '/pages/company/careers',
-        description: 'Join our team'
       }
     ]
   },
   {
     label: 'Pricing',
     href: '/pages/pricing/plans'
+  },
+  {
+    label: 'Careers',
+    href: '/careers',
+    items: [
+      {
+        label: 'Open Positions',
+        href: '/careers',
+        description: 'Browse available job opportunities'
+      },
+      {
+        label: 'Life at QanDu',
+        href: '/careers/culture',
+        description: 'Learn about our culture and values'
+      },
+      {
+        label: 'Benefits & Perks',
+        href: '/careers/benefits',
+        description: 'Discover what we offer'
+      }
+    ]
   }
 ];
 

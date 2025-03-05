@@ -1,12 +1,20 @@
 """Usage:
 
-from app.env import Mode, mode, PUTER_API_KEY
+from app.env import Mode, mode, PUTER_API_KEY, logger
 
 if mode == Mode.PROD:
     print("Running in deployed service")
 else:
     print("Running in development workspace")
 """
+
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(handler)
 
 import os
 from enum import Enum
@@ -36,5 +44,6 @@ def setup_cors(app: FastAPI):
 __all__ = [
     "Mode",
     "mode",
-    "PUTER_API_KEY"
+    "PUTER_API_KEY",
+    "logger"
 ]

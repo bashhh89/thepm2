@@ -8,27 +8,9 @@
 
     <title>QanDu - Business Intelligence Platform</title>
 
-    <!-- Puter.js Configuration -->
-    <script>
-      // Prevent custom element registration and disable dialogs
-      window.PUTER_DISABLE_ELEMENTS = true;
-      window.PUTER_DISABLE_DIALOGS = true;
-      
-      // Initialize Puter.js configuration
-      window.puter = window.puter || {};
-      window.puter.config = {
-        apiHost: 'https://api.puter.com',
-        debug: false,
-        modules: ['fs', 'ai'],
-        onInit: function() {
-          window.puter.isReady = true;
-          window.dispatchEvent(new Event('puterready'));
-        }
-      };
-    </script>
-    
-    <!-- Load Puter.js with defer -->
+    <!-- Load Puter.js -->
     <script src="https://js.puter.com/v2/" defer></script>
+    <script src="https://js.puter.com/v2/"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

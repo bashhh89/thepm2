@@ -37,23 +37,16 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
-  afterSignInUrl?: string
-  afterSignUpUrl?: string
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, afterSignInUrl, afterSignUpUrl, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
-    const buttonProps = {
-      ...props,
-      ...(afterSignInUrl ? { 'data-after-sign-in-url': afterSignInUrl } : {}),
-      ...(afterSignUpUrl ? { 'data-after-sign-up-url': afterSignUpUrl } : {})
-    }
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
-        {...buttonProps}
+        {...props}
       />
     )
   }

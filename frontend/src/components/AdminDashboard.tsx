@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardCard } from './DashboardCard';
 import { useNavigate } from 'react-router-dom';
 import { Card } from './Card';
 import { Button } from './Button';
 import { ChevronDown, ChevronRight, Users, Settings, BarChart3, Bell, Shield, Database, Server, Code } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useAuthStore } from '../utils/auth-store';
 
 interface MenuSection {
   title: string;
@@ -19,7 +20,15 @@ interface MenuSection {
 
 export function AdminDashboard() {
   const navigate = useNavigate();
+  const { isAdmin, isAuthenticated, isLoading } = useAuthStore();
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['system', 'users']));
+
+  useEffect(() => {
+    // Redirect non-admin users to dashboard
+    if (!isLoading && (!isAuthenticated || !isAdmin)) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAdmin, isAuthenticated, isLoading, navigate]);
 
   const menuSections: MenuSection[] = [
     {
@@ -99,6 +108,18 @@ export function AdminDashboard() {
       return next;
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !isAdmin) {
+    return null; // Let the useEffect handle redirection
+  }
 
   return (
     <div className="min-h-screen bg-background">
