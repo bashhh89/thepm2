@@ -8,14 +8,33 @@ const router = express.Router();
 
 // Application schema validation
 const applicationSchema = z.object({
-  jobId: z.string(),
-  name: z.string().min(1),
-  email: z.string().email(),
-  phone: z.string().optional(),
-  resumeUrl: z.string().url(),
-  coverLetter: z.string().optional(),
-  status: z.enum(['pending', 'reviewed', 'shortlisted', 'rejected']).default('pending'),
-  notes: z.string().optional(),
+  job_id: z.string(),
+  user_name: z.string(),
+  status: z.enum(['pending', 'reviewing', 'approved', 'rejected']).default('pending'),
+  application_data: z.object({
+    name: z.string(),
+    email: z.string().email(),
+    phone: z.string(),
+    resumeUrl: z.string().url(),
+    coverLetter: z.string().optional(),
+    analysis: z.object({
+      score: z.number(),
+      totalApplicants: z.number(),
+      strengths: z.array(z.string()),
+      improvements: z.array(z.string()),
+      matchingJobs: z.array(z.object({
+        title: z.string(),
+        department: z.string(),
+        matchScore: z.number()
+      })),
+      keyQualifications: z.array(z.string())
+    }).optional()
+  }),
+  conversation_history: z.array(z.object({
+    role: z.enum(['user', 'assistant', 'system']),
+    content: z.string(),
+    timestamp: z.string()
+  }))
 });
 
 // Get all applications (admin only)
@@ -39,24 +58,17 @@ router.get('/api/applications', authenticateToken, isAdmin, async (req, res) => 
 // Create a new application
 router.post('/api/applications', async (req, res) => {
   try {
-    const applicationData = applicationSchema.parse(req.body);
+    const validatedData = applicationSchema.parse(req.body);
     
-    // Check if job exists
-    const job = await prisma.job.findUnique({
-      where: { id: applicationData.jobId },
-    });
-
-    if (!job) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
-
     const application = await prisma.application.create({
-      data: applicationData,
-      include: {
-        job: true,
-      },
+      data: {
+        ...validatedData,
+        admin_dashboard_viewed: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
     });
-    
+
     res.status(201).json(application);
   } catch (error) {
     if (error instanceof z.ZodError) {

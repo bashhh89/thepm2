@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import { ChatApplicationAssistant } from '../../components/ChatApplicationAssistant';
 import { supabase, handleSupabaseError } from '../../lib/supabase';
+import { initializeStorage } from '../../lib/storage';
 
 interface Job {
   id: string;
@@ -70,6 +71,11 @@ export default function CareersPage() {
 
   useEffect(() => {
     fetchContent();
+    // Initialize storage for resume uploads
+    initializeStorage().catch(error => {
+      console.error('Failed to initialize storage:', error);
+      toast.error('Failed to initialize file storage. Resume uploads may not work.');
+    });
   }, []);
 
   useEffect(() => {

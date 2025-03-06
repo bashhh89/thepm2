@@ -5,11 +5,13 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 
 interface Props {
   children: React.ReactNode;
+  fallback?: React.ReactNode;
 }
 
 interface State {
   hasError: boolean;
   error?: Error;
+  errorInfo?: React.ErrorInfo;
 }
 
 export class ErrorBoundary extends React.Component<Props, State> {
@@ -24,12 +26,24 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Error caught by boundary:', error, errorInfo);
+    this.setState({ errorInfo });
+  }
+
+  private getErrorMessage(error: Error): string {
+    if (error.message.includes('storage') || error.message.includes('bucket')) {
+      return 'Unable to access file storage. Please try again later or contact support if the issue persists.';
+    }
+    return error.message || 'An unexpected error occurred';
   }
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
       return (
-        <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="min-h-[400px] flex items-center justify-center p-4">
           <Card className="w-full max-w-lg p-6">
             <div className="space-y-4 text-center">
               <div className="flex justify-center">
@@ -37,7 +51,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
               </div>
               <h1 className="text-2xl font-bold">Something went wrong</h1>
               <p className="text-muted-foreground">
-                {this.state.error?.message || 'An unexpected error occurred'}
+                {this.state.error && this.getErrorMessage(this.state.error)}
               </p>
               <div className="flex justify-center gap-4">
                 <Button 
@@ -46,7 +60,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                   className="flex items-center gap-2"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  Reload page
+                  Try again
                 </Button>
                 <Button 
                   onClick={() => window.history.back()}

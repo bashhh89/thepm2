@@ -3,7 +3,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Textarea } from '../components/Textarea';
 import { Card } from '../components/Card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/Dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../components/Dialog';
 import { Label } from '../components/Label';
 import { Wand2, Briefcase, Building2, MapPin, Clock, Loader2, X, Search, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
@@ -29,6 +29,16 @@ interface AIGenerationState {
   description: boolean;
   requirements: boolean;
   benefits: boolean;
+}
+
+// Update the type definitions at the top of the file
+interface PuterAIResponse {
+  message?: {
+    content: string | any;
+    tool_calls?: any[];
+  };
+  text?: string;
+  content?: string | Record<string, any>;
 }
 
 export default function JobsPage() {
@@ -75,7 +85,7 @@ export default function JobsPage() {
 
   const fetchJobs = async () => {
     try {
-      const { data, error } = await supabase
+      const { error, data } = await supabase
         .from('jobs')
         .select('*')
         .order('created_at', { ascending: false });
@@ -217,79 +227,244 @@ export default function JobsPage() {
       let prompt = '';
       switch (field) {
         case 'title':
-          prompt = `Suggest a professional job title based on these details:
-          Department: ${newJob.department || 'Not specified'}
-          Experience: ${newJob.experience || 'Not specified'}
-          Description: ${newJob.description || 'Not specified'}
-          Return just the job title as plain text.`;
+          prompt = `Suggest 3 professional job titles for a ${newJob.title || 'new'} position.
+          FORMAT YOUR RESPONSE EXACTLY LIKE THIS JSON ARRAY:
+          
+          ["First Job Title", "Second Job Title", "Third Job Title"]
+          
+          Do not return anything other than this JSON array format.`;
           break;
         case 'description':
-          prompt = `Create a comprehensive job description for a ${newJob.title} position.
-          The description should be detailed, professional, and engaging.
-          Include role overview, main responsibilities, and what success looks like.
-          Department: ${newJob.department || 'Not specified'}
-          Experience: ${newJob.experience || 'Not specified'}
-          Return the description as a paragraph of text.`;
+          prompt = `Create a job description for ${newJob.title || 'this'} position.
+          Include sections for:
+          - Overview
+          - Key Responsibilities
+          - What We're Looking For
+          
+          Return as plain text without any JSON formatting or code blocks.
+          Do not include any section headers or other formatting.`;
           break;
         case 'requirements':
-          prompt = `List 5-7 key requirements for a ${newJob.title} position.
-          Include skills, qualifications, and experience needed.
-          Department: ${newJob.department || 'Not specified'}
-          Experience level: ${newJob.experience || 'Not specified'}
-          Return as a JSON array of strings, each being a separate requirement.`;
+          prompt = `List 5-7 key requirements for ${newJob.title || 'this'} position.
+          FORMAT YOUR RESPONSE EXACTLY LIKE THIS JSON ARRAY:
+          
+          [
+            "First specific requirement",
+            "Second specific requirement",
+            "Third specific requirement"
+          ]
+          
+          Do not return anything other than this JSON array format.`;
           break;
         case 'benefits':
-          prompt = `List 5-7 attractive benefits for a ${newJob.title} position.
-          Include compelling perks that would attract quality candidates.
-          Return as a JSON array of strings, each being a separate benefit.`;
+          prompt = `List 5-7 competitive benefits for ${newJob.title || 'this'} position.
+          FORMAT YOUR RESPONSE EXACTLY LIKE THIS JSON ARRAY:
+          
+          [
+            "First specific benefit",
+            "Second specific benefit",
+            "Third specific benefit"
+          ]
+          
+          Do not return anything other than this JSON array format.`;
           break;
       }
 
-      if (!window.puter?.ai) {
-        console.error('Puter AI not initialized');
-        return;
+      if (typeof window === 'undefined' || !window.puter?.ai) {
+        throw new Error('Puter AI not initialized');
       }
 
-      if (!window.puter?.ai) {
-        console.error('Puter AI not initialized');
-        return;
-      }
+      console.log('Sending prompt to AI:', prompt);
 
       const response = await window.puter.ai.chat(prompt, false, {
-        model: 'gpt-4o-mini',
+        model: 'claude-3-5-sonnet',
         stream: false
       });
 
-      let content = response.message.content;
+      console.log('Raw AI response:', response);
 
-      // Parse JSON for arrays if needed
-      if (field === 'requirements' || field === 'benefits') {
-        try {
-          const parsed = JSON.parse(content);
-          content = Array.isArray(parsed) ? parsed : [content];
-        } catch {
-          content = [content];
+      // Extract content from the response with improved object handling
+      let content = '';
+      
+      if (typeof response === 'string') {
+        content = response;
+      } else if (response && typeof response === 'object') {
+        // Handle message.content object or string
+        if (response.message && typeof response.message === 'object') {
+          if (typeof response.message.content === 'string') {
+            content = response.message.content;
+          } else if (response.message.content && typeof response.message.content === 'object') {
+            // If content is an object (like a direct array), stringify it properly
+            content = JSON.stringify(response.message.content);
+          }
+        } 
+        // Handle text property
+        else if ('text' in response && response.text) {
+          content = String(response.text);
+        }
+        // Handle content property
+        else if ('content' in response) {
+          if (typeof response.content === 'string') {
+            content = response.content;
+          } else if (response.content && typeof response.content === 'object') {
+            // If content is a direct array or object, stringify it properly
+            content = JSON.stringify(response.content);
+          }
         }
       }
 
-      // Update the form
-      setNewJob(prev => {
-        if (field === 'requirements' || field === 'benefits') {
-          return { ...prev, [field]: content };
+      // If content is still not set, try to stringify the entire response as a last resort
+      if (!content && response) {
+        try {
+          content = JSON.stringify(response);
+        } catch (e) {
+          console.error('Failed to stringify response:', e);
         }
-        return { ...prev, [field]: content };
-      });
+      }
 
-      toast.success(`Generated ${field} successfully!`);
-    } catch (error) {
+      if (!content || content === 'undefined' || content === '[object Object]') {
+        console.error('Invalid content extracted:', content);
+        throw new Error('Failed to extract valid content from AI response');
+      }
+
+      console.log('Extracted content:', content);
+
+      // Clean and normalize the content
+      content = content.replace(/```json\n?|```\n?/g, '').trim();
+      
+      console.log('Cleaned content:', content);
+
+      try {
+        switch (field) {
+          case 'title': {
+            // For title, parse the JSON array directly or extract from text
+            let titles: string[] = [];
+            
+            try {
+              // First try direct JSON parse
+          const parsed = JSON.parse(content);
+              if (Array.isArray(parsed)) {
+                titles = parsed.map(t => String(t));
+              } else if (typeof parsed === 'object' && parsed !== null) {
+                // If parsed is an object but not array, check if it has values we can use
+                const values = Object.values(parsed);
+                if (values.length > 0 && values.every(v => typeof v === 'string')) {
+                  titles = values;
+                }
+              }
+            } catch (e) {
+              console.log('Direct JSON parse failed, trying to extract array:', e);
+              
+              // Try to extract array from text
+              const arrayMatch = content.match(/\[([\s\S]*?)\]/);
+              if (arrayMatch) {
+                try {
+                  titles = JSON.parse(arrayMatch[0]);
+                } catch (e) {
+                  // If JSON parse fails, split by commas
+                  titles = arrayMatch[1]
+                    .split(',')
+                    .map(t => t.trim().replace(/^["']|["']$/g, ''))
+                    .filter(Boolean);
+                }
+              }
+              
+              // If still no titles, split by lines
+              if (titles.length === 0) {
+                titles = content
+                  .split('\n')
+                  .map(line => line.trim().replace(/^[-*\d.\s]+/, '').trim())
+                  .filter(Boolean);
+              }
+            }
+            
+            if (titles.length > 0) {
+              setNewJob(prev => ({ ...prev, title: titles[0] }));
+              if (titles.length > 1) {
+                toast.success(`Alternative titles: ${titles.slice(1).join(', ')}`);
+              }
+            } else {
+              throw new Error('No valid titles found in response');
+            }
+            break;
+          }
+          case 'description': {
+            // For description, use the content directly
+            const description = content
+              .replace(/```[a-z]*\n|```/g, '')
+              .replace(/[\r\n]+/g, '\n')
+              .trim();
+              
+            if (!description) {
+              throw new Error('Empty description in response');
+            }
+            setNewJob(prev => ({ ...prev, description }));
+            break;
+          }
+          case 'requirements':
+          case 'benefits': {
+            // For requirements and benefits, parse the JSON array
+            let items: string[] = [];
+            
+            try {
+              // First try direct JSON parse
+              const parsed = JSON.parse(content);
+              if (Array.isArray(parsed)) {
+                items = parsed.map(item => String(item));
+              } else if (typeof parsed === 'object' && parsed !== null) {
+                // Handle object with values
+                const values = Object.values(parsed);
+                if (values.length > 0) {
+                  items = values.map(v => String(v));
+                }
+              }
+            } catch (e) {
+              console.log('JSON parse failed, trying to extract array:', e);
+              
+              // Try to extract array from text
+              const arrayMatch = content.match(/\[([\s\S]*?)\]/);
+              if (arrayMatch) {
+                try {
+                  items = JSON.parse(arrayMatch[0]);
+                } catch (e) {
+                  // If JSON parse fails, split by lines or commas
+                  items = arrayMatch[1]
+                    .split(/[,\n]/)
+                    .map(item => item.trim().replace(/^["']|["']$/g, '').replace(/^[-*•\d.\s]+/, ''))
+                    .filter(Boolean);
+                }
+              } else {
+                // If no array found, split by lines
+                items = content
+                  .split('\n')
+                  .map(line => line.trim().replace(/^[-*•\d.\s]+/, '').trim())
+                  .filter(Boolean);
+              }
+            }
+            
+            if (items.length > 0) {
+              setNewJob(prev => ({ ...prev, [field]: items }));
+            } else {
+              throw new Error(`No valid ${field} found in response`);
+            }
+            break;
+          }
+        }
+        toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} generated successfully!`);
+      } catch (e) {
+        console.error(`Error processing ${field}:`, e);
+        throw new Error(`Failed to process AI response for ${field}: ${e.message}`);
+      }
+    } catch (error: unknown) {
       console.error(`Error generating ${field}:`, error);
-      toast.error(`Failed to generate ${field}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Failed to generate ${field}: ${errorMessage}`);
     } finally {
       setIsGeneratingAI(prev => ({ ...prev, [field]: false }));
     }
   };
 
-  // Add full job generation function
+  // Also fix the generateFullJob function to handle Puter.js response format correctly
   const generateFullJob = async () => {
     if (!newJob.department || !newJob.experience) {
       toast.error('Please select a department and experience level first');
@@ -298,58 +473,126 @@ export default function JobsPage() {
 
     setIsCreating(true);
     try {
-      const prompt = `Create a complete job posting for a position with these details:
+      const prompt = `Create a complete job posting with these details:
       Department: ${newJob.department}
       Experience Level: ${newJob.experience}
       Location: ${newJob.location || 'Remote'}
       
-      Return as JSON with this format:
+      FORMAT YOUR RESPONSE EXACTLY LIKE THIS JSON, replacing the placeholders with appropriate content:
+
       {
-        "title": "Job title",
-        "description": "Detailed job description",
-        "requirements": ["Array of 5-7 specific requirements"],
-        "benefits": ["Array of 5-7 attractive benefits"]
-      }`;
-
-      if (!window.puter?.ai) {
-        console.error('Puter AI not initialized');
-        return;
+        "title": "Actual Professional Job Title",
+        "description": "Actual job description with sections for Overview, Responsibilities, and Requirements.",
+        "requirements": [
+          "Actual requirement 1",
+          "Actual requirement 2",
+          "Actual requirement 3"
+        ],
+        "benefits": [
+          "Actual benefit 1",
+          "Actual benefit 2",
+          "Actual benefit 3"
+        ]
       }
 
-      if (!window.puter?.ai) {
-        console.error('Puter AI not initialized');
-        return;
+      Do not return anything other than this JSON format.`;
+
+      if (typeof window === 'undefined' || !window.puter?.ai) {
+        throw new Error('Puter AI not initialized');
       }
+
+      console.log('Sending full job prompt to AI:', prompt);
 
       const response = await window.puter.ai.chat(prompt, false, {
-        model: 'gpt-4o-mini',
+        model: 'claude-3-5-sonnet',
         stream: false
       });
 
-      // Clean the response content to ensure valid JSON
-      let content = response.message.content;
-      // Remove markdown code blocks if present
-      if (content.includes('```json')) {
-        content = content.replace(/```json\n|```/g, '');
-      } else if (content.includes('```')) {
-        content = content.replace(/```\n|```/g, '');
-      }
-      // Trim whitespace
-      content = content.trim();
+      console.log('Raw full job AI response:', response);
+
+      // Extract content from the response with improved object handling
+      let result = '';
       
-      const generated = JSON.parse(content);
+      if (typeof response === 'string') {
+        result = response;
+      } else if (response && typeof response === 'object') {
+        // Handle message.content object or string
+        if (response.message && typeof response.message === 'object') {
+          if (typeof response.message.content === 'string') {
+            result = response.message.content;
+          } else if (response.message.content && typeof response.message.content === 'object') {
+            // If content is an object, stringify it properly
+            result = JSON.stringify(response.message.content);
+          }
+        } 
+        // Handle text property
+        else if ('text' in response && response.text) {
+          result = String(response.text);
+        }
+        // Handle content property
+        else if ('content' in response) {
+          if (typeof response.content === 'string') {
+            result = response.content;
+          } else if (response.content && typeof response.content === 'object') {
+            // If content is a direct object, stringify it properly
+            result = JSON.stringify(response.content);
+          }
+        }
+      }
+
+      // If result is still not set, try to stringify the entire response as a last resort
+      if (!result && response) {
+        try {
+          result = JSON.stringify(response);
+        } catch (e) {
+          console.error('Failed to stringify response:', e);
+        }
+      }
+
+      if (!result || result === 'undefined' || result === '[object Object]') {
+        console.error('Invalid content extracted:', result);
+        throw new Error('Failed to extract valid content from AI response');
+      }
+
+      console.log('Extracted full job content:', result);
+
+      // Clean the content and extract JSON
+      result = result.replace(/```json\n?|```\n?/g, '').trim();
+      
+      console.log('Cleaned full job content:', result);
+      
+      // Try to find a JSON object in the response
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        result = jsonMatch[0];
+      }
+
+      let generated;
+      try {
+        generated = JSON.parse(result);
+      } catch (e) {
+        console.error('Failed to parse JSON:', e);
+        throw new Error('Invalid JSON format in AI response. Please try again.');
+      }
+
+      if (!generated || typeof generated !== 'object') {
+        throw new Error('Invalid data structure in AI response');
+      }
+
+      // Update job details with generated content
       setNewJob(prev => ({
         ...prev,
-        title: generated.title,
-        description: generated.description,
-        requirements: Array.isArray(generated.requirements) ? generated.requirements : [],
-        benefits: Array.isArray(generated.benefits) ? generated.benefits : []
+        title: generated.title || prev.title,
+        description: generated.description || prev.description,
+        requirements: Array.isArray(generated.requirements) ? generated.requirements : prev.requirements,
+        benefits: Array.isArray(generated.benefits) ? generated.benefits : prev.benefits
       }));
 
       toast.success('Job details generated successfully!');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error generating job:', error);
-      toast.error('Failed to generate job details');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Failed to generate job details: ${errorMessage}`);
     } finally {
       setIsCreating(false);
     }
@@ -358,7 +601,7 @@ export default function JobsPage() {
   // Add test job creation function
   const createTestJob = async () => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('jobs')
         .insert([{
           title: 'Test Software Engineer',
@@ -374,12 +617,10 @@ export default function JobsPage() {
           remote_policy: 'remote',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        }])
-        .select();
+        }]);
 
       if (error) throw error;
       
-      console.log('Test job created:', data);
       toast.success('Test job created successfully!');
       fetchJobs();
     } catch (error) {
@@ -695,6 +936,9 @@ export default function JobsPage() {
               <Wand2 className="w-5 h-5 text-primary" />
               {editingJob ? 'Edit Job Posting' : 'Create New Job Posting'}
             </DialogTitle>
+            <DialogDescription>
+              {editingJob ? 'Update the details of this job posting.' : 'Create a new job posting with the details below.'}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 py-4">
@@ -945,9 +1189,12 @@ export default function JobsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Job Posting</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. The job posting will be permanently removed.
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <p>Are you sure you want to delete "{jobToDelete?.title}"? This action cannot be undone.</p>
+            <p>Are you sure you want to delete "{jobToDelete?.title}"?</p>
           </div>
           <DialogFooter>
             <Button

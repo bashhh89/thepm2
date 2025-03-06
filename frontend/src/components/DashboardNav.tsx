@@ -107,21 +107,6 @@ export function DashboardNav({ collapsed = false }: DashboardNavProps) {
       ]
     },
     {
-      title: "Jobs Management",
-      items: [
-        {
-          icon: <Briefcase className="h-4 w-4" />,
-          title: "Job Listings",
-          to: "/dashboard/jobs"
-        },
-        {
-          icon: <Users className="h-4 w-4" />,
-          title: "Applications",
-          to: "/dashboard/applicants"
-        }
-      ]
-    },
-    {
       title: "Settings",
       items: [
         {
