@@ -6,7 +6,7 @@ import { ChatMessages } from '../components/ChatMessages';
 import { ChatInput } from '../components/ChatInput';
 import { Card } from '../components/Card';
 import { AVAILABLE_MODELS } from '../utils/puter-ai';
-import { Folder, Settings, Plus, Edit2, Trash2, Save, Menu, X, ChevronRight, ChevronDown, ChevronLeft, Bot, Pencil } from 'lucide-react';
+import { Folder, Settings, Plus, Edit2, Trash2, Save, Menu, X, ChevronRight, ChevronDown, ChevronLeft, Bot, Pencil, Upload, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import {
   Dialog,
@@ -18,6 +18,8 @@ import {
 } from '../components/ui/Dialog';
 import { Label } from '../components/ui/Label';
 import { Textarea } from '../components/ui/Textarea';
+import { toast } from 'sonner';
+import type { StreamResponseChunk } from '../types/puter';
 
 interface ChatFolder {
   id: string;
@@ -38,11 +40,11 @@ interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
-}
-
-interface StreamResponseChunk {
-  text?: string;
-  done?: boolean;
+  attachment?: {
+    url: string;
+    type: string;
+    name: string;
+  };
 }
 
 interface Agent {
@@ -52,6 +54,37 @@ interface Agent {
   description: string;
   createdAt: Date;
 }
+
+interface SuggestedResponse {
+  text: string;
+  action: () => void;
+}
+
+interface StreamResponseChunk {
+  text?: string;
+  done?: boolean;
+}
+
+interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+// Move suggested responses outside component to prevent re-renders
+const DEFAULT_SUGGESTED_RESPONSES: SuggestedResponse[] = [
+  {
+    text: "Tell me more about that",
+    action: () => {} // Will be updated in component
+  },
+  {
+    text: "Can you explain differently?",
+    action: () => {} // Will be updated in component
+  },
+  {
+    text: "What are the next steps?",
+    action: () => {} // Will be updated in component
+  }
+];
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -92,8 +125,43 @@ export default function Chat() {
     prompt: '',
     description: ''
   });
+  const [isUploading, setIsUploading] = useState<string | null>(null);
+  const [fileUploadState, setFileUploadState] = useState<{
+    isUploading: boolean;
+    fileName: string | null;
+    progress: number;
+  }>({
+    isUploading: false,
+    fileName: null,
+    progress: 0
+  });
 
   const navigate = useNavigate();
+
+  // Load messages from current chat if it exists
+  useEffect(() => {
+    if (currentChat) {
+      const folder = folders.find(f => f.chats.some(c => c.id === currentChat));
+      const chat = folder?.chats.find(c => c.id === currentChat);
+      if (chat) {
+        setMessages(chat.messages);
+      }
+    }
+  }, [currentChat, folders]);
+
+  // Save messages to current chat
+  useEffect(() => {
+    if (currentChat && messages.length > 0) {
+      setFolders(folders.map(f => ({
+        ...f,
+        chats: f.chats.map(c => 
+          c.id === currentChat 
+            ? { ...c, messages }
+            : c
+        )
+      })));
+    }
+  }, [messages]);
 
   // Save folders to localStorage whenever they change
   useEffect(() => {
@@ -177,8 +245,8 @@ export default function Chat() {
     }
   };
 
-  const handleSendMessage = async (content: string) => {
-    if (!content.trim() || isStreaming) return;
+  const handleSendMessage = async (content: string, attachment?: { url: string; type: string; name: string }) => {
+    if ((!content.trim() && !attachment) || isStreaming) return;
 
     // Create new chat if none selected
     if (!currentChat) {
@@ -188,45 +256,37 @@ export default function Chat() {
     const newMessage: Message = {
       role: 'user',
       content,
-      timestamp: new Date()
+      timestamp: new Date(),
+      attachment
     };
 
     setMessages(prev => [...prev, newMessage]);
     setIsStreaming(true);
 
     try {
-      const messagesToSend = [
-        ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
-        ...messages,
-        newMessage
+      let systemContext = systemPrompt;
+      
+      // If there's an attachment, add context about it
+      if (attachment) {
+        systemContext += `\n\nThe user has uploaded a file named "${attachment.name}" of type "${attachment.type}". The file is available at ${attachment.url}. Please analyze its contents when generating your response.`;
+      }
+
+      const messagesToSend: ChatMessage[] = [
+        ...(systemContext ? [{ role: 'system', content: systemContext }] : []),
+        ...messages.map(m => ({ role: m.role, content: m.content })),
+        { role: 'user', content }
       ];
 
-      const response = await window.puter.ai.chat(
-        messagesToSend,
-        false,
-        { 
-          model: selectedModel,
-          stream: true
-        }
-      ) as AsyncIterable<StreamResponseChunk>;
-
-      let fullResponse = '';
+      const response = await window.puter.ai.chat(messagesToSend);
       
-      if (response && typeof response === 'object' && Symbol.asyncIterator in response) {
-        for await (const chunk of response) {
-          if (chunk.text) {
-            fullResponse += chunk.text;
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessage = newMessages[newMessages.length - 1];
-              if (lastMessage?.role === 'assistant') {
-                lastMessage.content = fullResponse;
-                return newMessages;
-              }
-              return [...prev, { role: 'assistant' as const, content: fullResponse, timestamp: new Date() }];
-            });
-          }
-        }
+      if (typeof response === 'string') {
+        // Handle non-streaming response
+        const assistantMessage: Message = {
+          role: 'assistant',
+          content: response,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
       }
 
       // Save chat history
@@ -239,7 +299,7 @@ export default function Chat() {
                 messages: [
                   ...messages, 
                   newMessage, 
-                  { role: 'assistant' as const, content: fullResponse, timestamp: new Date() }
+                  { role: 'assistant', content: response as string, timestamp: new Date() }
                 ] 
               }
             : c
@@ -247,15 +307,17 @@ export default function Chat() {
       })));
 
     } catch (error) {
-      console.error('Chat error:', error);
+      console.error('Error sending message:', error);
+      toast.error('Failed to send message');
       setMessages(prev => [
         ...prev,
-        { role: 'assistant' as const, content: 'Sorry, I encountered an error. Please try again.', timestamp: new Date() }
+        { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.', timestamp: new Date() }
       ]);
     } finally {
       setIsStreaming(false);
     }
   };
+  
 
   const handleSystemPromptSave = () => {
     setSystemPrompt(tempSystemPrompt);
@@ -301,40 +363,14 @@ export default function Chat() {
       setSystemPrompt('');
     }
   };
-  interface SuggestedResponse {
-    text: string;
-    action: () => void;
-  }
-  const [suggestedResponses, setSuggestedResponses] = useState<SuggestedResponse[]>([]);
-  // Add to handleSendMessage function before the try block
-  setSuggestedResponses([
-    {
-      text: "Tell me more about that",
-      action: () => handleSendMessage("Tell me more about that")
-    },
-    {
-      text: "Can you explain differently?",
-      action: () => handleSendMessage("Can you explain this in a different way?")
-    },
-    {
-      text: "What are the next steps?",
-      action: () => handleSendMessage("What should be the next steps?")
-    }
-  ]);
-  // Add before the ChatInput component
-  <div className="flex flex-wrap gap-2 mb-4">
-    {suggestedResponses.map((suggestion, index) => (
-      <Button
-        key={index}
-        variant="outline"
-        size="sm"
-        onClick={suggestion.action}
-        className="text-sm"
-      >
-        {suggestion.text}
-      </Button>
-    ))}
-  </div>
+
+  const [suggestedResponses, setSuggestedResponses] = useState<SuggestedResponse[]>(() => 
+    DEFAULT_SUGGESTED_RESPONSES.map(suggestion => ({
+      ...suggestion,
+      action: () => handleSendMessage(suggestion.text)
+    }))
+  );
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-background">
@@ -356,55 +392,112 @@ export default function Chat() {
               <div className="flex items-center gap-4">
                 <input
                   type="file"
-                  id="file-upload"
+                  id="chat-file-upload"
                   className="hidden"
-                  onChange={(e) => {
+                  accept=".pdf,.doc,.docx,.txt,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                  onChange={async (e) => {
                     const file = e.target.files?.[0];
-                    if (file) {
-                      setIsUploading(true);
-                      const formData = new FormData();
-                      formData.append('file', file);
+                    if (!file) return;
 
-                      fetch('/api/upload', {
-                        method: 'POST',
-                        body: formData,
-                      })
-                        .then(response => {
-                          if (!response.ok) throw new Error('Upload failed');
-                          return response.json();
-                        })
-                        .then(data => {
+                    // Validate file size (5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                      toast.error('File size must be less than 5MB');
+                      return;
+                    }
+
+                    // Prepare upload
+                    setFileUploadState({
+                      isUploading: true,
+                      fileName: file.name,
+                      progress: 0
+                    });
+
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    try {
+                      const xhr = new XMLHttpRequest();
+                      xhr.open('POST', '/api/upload', true);
+
+                      // Track upload progress
+                      xhr.upload.onprogress = (event) => {
+                        if (event.lengthComputable) {
+                          const progress = Math.round((event.loaded / event.total) * 100);
+                          setFileUploadState(prev => ({
+                            ...prev,
+                            progress
+                          }));
+                        }
+                      };
+
+                      // Handle response
+                      xhr.onload = () => {
+                        if (xhr.status === 200) {
+                          const response = JSON.parse(xhr.responseText);
                           toast.success('File uploaded successfully!');
-                          console.log('Upload successful:', data);
-                        })
-                        .catch(error => {
-                          console.error('Upload error:', error);
-                          toast.error('Failed to upload file. Please try again.');
-                        })
-                        .finally(() => {
-                          setIsUploading(false);
+                          
+                          // Send message with attachment if we're in a chat
+                          if (currentChat) {
+                            handleSendMessage(`Attached file: ${file.name}`, {
+                              url: response.fileUrl,
+                              type: file.type,
+                              name: file.name
+                            });
+                          }
+                        } else {
+                          throw new Error('Upload failed');
+                        }
+                      };
+
+                      xhr.onerror = () => {
+                        throw new Error('Upload failed');
+                      };
+
+                      xhr.onloadend = () => {
+                        setFileUploadState({
+                          isUploading: false,
+                          fileName: null,
+                          progress: 0
                         });
+                        e.target.value = '';
+                      };
+
+                      xhr.send(formData);
+
+                    } catch (error) {
+                      console.error('Upload error:', error);
+                      toast.error('Failed to upload file. Please try again.');
+                      setFileUploadState({
+                        isUploading: false,
+                        fileName: null,
+                        progress: 0
+                      });
+                      e.target.value = '';
                     }
                   }}
                 />
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => document.getElementById('file-upload')?.click()}
-                  disabled={isUploading}
+                  onClick={() => document.getElementById('chat-file-upload')?.click()}
+                  disabled={fileUploadState.isUploading}
+                  className="relative"
                 >
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Uploading...
-                    </>
+                  {fileUploadState.isUploading ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="whitespace-nowrap">
+                        Uploading... {fileUploadState.progress}%
+                      </span>
+                    </div>
                   ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload
-                    </>
+                    <div className="flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      <span>Upload File</span>
+                    </div>
                   )}
                 </Button>
+
                 <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
                   Dashboard
                 </Button>
@@ -769,6 +862,19 @@ export default function Chat() {
                 </div>
 
                 <div className="p-4 border-t">
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {suggestedResponses.map((suggestion, index) => (
+                      <Button
+                        key={index}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => suggestion.action()}
+                        className="text-sm"
+                      >
+                        {suggestion.text}
+                      </Button>
+                    ))}
+                  </div>
                   <ChatInput
                     onSendMessage={handleSendMessage}
                     isDisabled={isStreaming}
@@ -882,114 +988,3 @@ export default function Chat() {
     </AuthGuard>
   );
 }
-{messages.map((message, index) => (
-  <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
-    <div className={`max-w-3/4 p-3 rounded-lg ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-      <div className="flex flex-col">
-        <div className="whitespace-pre-wrap break-words">{message.content}</div>
-        {message.role === 'assistant' && (
-          <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2"
-              onClick={() => {
-                // Handle feedback
-                console.log('Feedback:', 'helpful');
-              }}
-            >
-              <ThumbsUp className="h-3 w-3 mr-1" />
-              Helpful
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2"
-              onClick={() => {
-                // Handle feedback
-                console.log('Feedback:', 'not helpful');
-              }}
-            >
-              <ThumbsDown className="h-3 w-3 mr-1" />
-              Not Helpful
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-))}
-{messages.map((message, index) => (
-  <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
-    <div className={`max-w-3/4 p-3 rounded-lg ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-      <div className="flex flex-col">
-        <div className="whitespace-pre-wrap break-words">{message.content}</div>
-        {message.role === 'assistant' && (
-          <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2"
-              onClick={() => {
-                // Handle feedback
-                console.log('Feedback:', 'helpful');
-              }}
-            >
-              <ThumbsUp className="h-3 w-3 mr-1" />
-              Helpful
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2"
-              onClick={() => {
-                // Handle feedback
-                console.log('Feedback:', 'not helpful');
-              }}
-            >
-              <ThumbsDown className="h-3 w-3 mr-1" />
-              Not Helpful
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-))}
-{messages.map((message, index) => (
-  <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
-    <div className={`max-w-3/4 p-3 rounded-lg ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-      <div className="flex flex-col">
-        <div className="whitespace-pre-wrap break-words">{message.content}</div>
-        {message.role === 'assistant' && (
-          <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2"
-              onClick={() => {
-                // Handle feedback
-                console.log('Feedback:', 'helpful');
-              }}
-            >
-              <ThumbsUp className="h-3 w-3 mr-1" />
-              Helpful
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2"
-              onClick={() => {
-                // Handle feedback
-                console.log('Feedback:', 'not helpful');
-              }}
-            >
-              <ThumbsDown className="h-3 w-3 mr-1" />
-              Not Helpful
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-))}

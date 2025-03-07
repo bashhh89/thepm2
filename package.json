@@ -1,5 +1,15 @@
 {
-	"dependencies": {
-		"eciesjs": "0.3.16"
-	}
+  "name": "qandu-whitelabel",
+  "version": "1.0.0",
+  "description": "QanDu White Label Platform",
+  "scripts": {
+    "dev": "concurrently \"cd backend && pnpm run dev\" \"cd frontend && pnpm run dev\"",
+    "dev:backend": "cd backend && pnpm run dev",
+    "dev:frontend": "cd frontend && pnpm run dev",
+    "install:all": "pnpm install && cd frontend && pnpm install && cd ../backend && pnpm install"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2",
+    "eciesjs": "0.3.16"
+  }
 }

@@ -12,7 +12,8 @@ import {
   UserCircle,
   ChevronRight,
   ChevronDown,
-  Briefcase
+  Briefcase,
+  Building2
 } from 'lucide-react';
 import { useAuthStore } from '../utils/auth-store';
 
@@ -31,8 +32,8 @@ interface NavSection {
 }
 
 export function DashboardNav({ collapsed = false }: DashboardNavProps) {
-  const { isAdmin } = useAuthStore();
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['main', 'content', 'management']));
+  const { user } = useAuthStore();
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Overview']));
 
   const baseClasses = "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground";
   const activeClasses = "bg-accent text-accent-foreground";
@@ -51,13 +52,28 @@ export function DashboardNav({ collapsed = false }: DashboardNavProps) {
 
   const navSections: NavSection[] = [
     {
-      title: "Main",
+      title: "Overview",
       items: [
         {
           icon: <LayoutDashboard className="h-4 w-4" />,
-          title: "Overview & Analytics",
+          title: "Dashboard",
           to: "/dashboard",
           end: true
+        }
+      ]
+    },
+    {
+      title: "Recruitment",
+      items: [
+        {
+          icon: <Briefcase className="h-4 w-4" />,
+          title: "Jobs",
+          to: "/dashboard/jobs"
+        },
+        {
+          icon: <Users className="h-4 w-4" />,
+          title: "Applicants",
+          to: "/dashboard/applicants"
         }
       ]
     },
@@ -92,50 +108,45 @@ export function DashboardNav({ collapsed = false }: DashboardNavProps) {
       ]
     },
     {
-      title: "Management",
+      title: "Business",
       items: [
         {
           icon: <Lightbulb className="h-4 w-4" />,
           title: "Leads",
           to: "/dashboard/leads"
-        },
-        {
-          icon: <Briefcase className="h-4 w-4" />,
-          title: "Jobs",
-          to: "/dashboard/jobs" // Added link to Jobs page
         }
       ]
     },
     {
-      title: "Settings",
+      title: "Account",
       items: [
         {
           icon: <UserCircle className="h-4 w-4" />,
           title: "Profile",
           to: "/dashboard/profile"
+        },
+        {
+          icon: <Settings className="h-4 w-4" />,
+          title: "Settings",
+          to: "/dashboard/settings"
         }
       ]
     }
   ];
 
   // Add admin-only sections
-  if (isAdmin) {
+  if (user?.email === 'admin@qandu.co') {
     navSections.push({
       title: "Admin",
       items: [
         {
           icon: <Users className="h-4 w-4" />,
-          title: "Users",
-          to: "/admin/users"
-        },
-        {
-          icon: <Briefcase className="h-4 w-4" />,
           title: "Job Applications",
           to: "/admin/applications"
         },
         {
           icon: <Settings className="h-4 w-4" />,
-          title: "Settings",
+          title: "Admin Settings",
           to: "/admin/settings"
         }
       ]

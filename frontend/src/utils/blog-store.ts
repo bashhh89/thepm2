@@ -1,11 +1,6 @@
 import { create } from 'zustand';
 import { useAuthStore } from './auth-store';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = 'https://vzqythwfrmjakhvmopyf.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFybW1panZicnh5dmJwZ25pa2xiIiwicm9zZSI6ImFub24iLCJpYXQiOjE3NDEwNTg2MjYsImV4cCI6MjA1NjYzNDYyNn0.4LwYrfKrbn0WFb6wrwFnN_DgeThUJPDNzZ1miR2erxg'; // New key
-
-export const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabase } from '../lib/supabase';
 
 interface Post {
   id: string;
@@ -78,6 +73,7 @@ export const useBlogStore = create<BlogStore>((set, get) => ({
 
       return data;
     } catch (error: any) {
+      console.error('Error creating post:', error);
       throw new Error(error.message);
     }
   },
@@ -102,6 +98,7 @@ export const useBlogStore = create<BlogStore>((set, get) => ({
 
       return data;
     } catch (error: any) {
+      console.error('Error updating post:', error);
       throw new Error(error.message);
     }
   },
@@ -119,6 +116,7 @@ export const useBlogStore = create<BlogStore>((set, get) => ({
         posts: state.posts.filter((p) => p.id !== id)
       }));
     } catch (error: any) {
+      console.error('Error deleting post:', error);
       throw new Error(error.message);
     }
   }

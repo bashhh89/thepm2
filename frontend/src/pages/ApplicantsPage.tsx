@@ -1,61 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/Dialog';
-import { 
-  Search, 
-  FileText, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  Download,
-  ChevronDown,
-  ChevronUp,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  UserCircle2,
-  Building2
-} from 'lucide-react';
-import { supabase, handleSupabaseError } from '../lib/supabase';
+import { Loader2, Mail, Phone, FileText, Calendar, User, Star, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { cn } from '../lib/utils';
 
 interface Application {
   id: string;
-  created_at: string;
-  updated_at: string;
-  job_id: string;
-  user_name: string;
-  application_data: {
+  jobId: string;
+  applicationData: {
     name: string;
     email: string;
     phone: string;
     resumeUrl: string;
     coverLetter?: string;
+    socialLinks?: {
+      linkedin?: string;
+      github?: string;
+      website?: string;
+    };
   };
-  conversation_history: {
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-    timestamp: string;
-  }[];
-  feedback?: string;
-  admin_dashboard_viewed: boolean;
+  status: 'pending' | 'reviewing' | 'interviewed' | 'approved' | 'rejected';
+  createdAt: string;
   job?: {
     title: string;
     department: string;
   };
-  status?: 'pending' | 'reviewing' | 'approved' | 'rejected';
 }
 
 export default function ApplicantsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [expandedApplicationId, setExpandedApplicationId] = useState<string | null>(null);
-  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchApplications();
@@ -63,326 +40,234 @@ export default function ApplicantsPage() {
 
   const fetchApplications = async () => {
     try {
-      const { data, error } = await supabase
-        .from('applications')
-        .select(`
-          *,
-          job:jobs (
-            title,
-            department
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setApplications(data || []);
+      const response = await fetch('/api/applications');
+      if (!response.ok) throw new Error('Failed to fetch applications');
+      const data = await response.json();
+      setApplications(data);
     } catch (error) {
       console.error('Error fetching applications:', error);
-      toast.error(handleSupabaseError(error).error);
+      toast.error('Failed to load applications');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const updateApplicationStatus = async (applicationId: string, status: string) => {
+  const updateApplicationStatus = async (id: string, status: Application['status']) => {
     try {
-      const { error } = await supabase
-        .from('applications')
-        .update({ status })
-        .eq('id', applicationId);
-
-      if (error) throw error;
+      const response = await fetch(`/api/applications/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      
+      if (!response.ok) throw new Error('Failed to update status');
+      
+      setApplications(apps => 
+        apps.map(app => 
+          app.id === id ? { ...app, status } : app
+        )
+      );
       
       toast.success('Application status updated');
-      fetchApplications();
     } catch (error) {
-      console.error('Error updating application status:', error);
-      toast.error(handleSupabaseError(error).error);
+      console.error('Error updating status:', error);
+      toast.error('Failed to update status');
     }
   };
 
-  const filteredApplications = applications.filter(app => {
+  const filteredApplications = applications.filter(application => {
     const matchesSearch = 
-      app.application_data.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.application_data.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.job?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.job?.department?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus = selectedStatus === 'all' || app.status === selectedStatus;
-
+      application.applicationData.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      application.applicationData.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      application.job?.title.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || application.status === statusFilter;
+    
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusColor = (status?: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'approved':
-        return 'text-green-500';
-      case 'rejected':
-        return 'text-red-500';
-      case 'reviewing':
-        return 'text-yellow-500';
-      default:
-        return 'text-muted-foreground';
-    }
-  };
-
-  const getStatusIcon = (status?: string) => {
-    switch (status) {
-      case 'approved':
-        return <CheckCircle2 className="w-4 h-4 text-green-500" />;
-      case 'rejected':
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      case 'reviewing':
-        return <Clock className="w-4 h-4 text-yellow-500" />;
-      default:
-        return <Clock className="w-4 h-4 text-muted-foreground" />;
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'reviewing': return 'bg-blue-100 text-blue-800';
+      case 'interviewed': return 'bg-purple-100 text-purple-800';
+      case 'approved': return 'bg-green-100 text-green-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Applicant Tracking</h1>
-          <p className="text-muted-foreground mt-1">Manage and review job applications</p>
+          <h1 className="text-2xl font-bold">Job Applications</h1>
+          <p className="text-muted-foreground mt-1">
+            {applications.length} total applications
+          </p>
+        </div>
+        <div className="flex gap-4">
+          <Input
+            type="text"
+            placeholder="Search applications..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-64"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-md border bg-background px-3 py-2"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="reviewing">Reviewing</option>
+            <option value="interviewed">Interviewed</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <Button variant="outline" onClick={() => fetchApplications()}>
+            Refresh
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Filters */}
-        <Card className="p-6 h-fit lg:col-span-1 border-2">
-          <h2 className="font-semibold mb-4">Filters</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Status</label>
-              <select
-                className="w-full mt-1 p-2 rounded-md border bg-background"
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="reviewing">Reviewing</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-          </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center min-h-[200px]">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      ) : filteredApplications.length === 0 ? (
+        <Card className="p-6 text-center">
+          <p className="text-muted-foreground">No applications found</p>
         </Card>
-
-        {/* Applications List */}
-        <div className="lg:col-span-3">
-          <Card className="p-6 border-2">
-            <div className="mb-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input
-                  type="search"
-                  placeholder="Search by name, email, or job title..."
-                  className="pl-10"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              {filteredApplications.length === 0 ? (
-                <div className="text-center py-12">
-                  <UserCircle2 className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                  <h3 className="mt-4 text-lg font-semibold">No applications found</h3>
-                  <p className="text-muted-foreground mt-1">
-                    {applications.length === 0 
-                      ? 'No applications have been submitted yet.' 
-                      : 'Try adjusting your search or filters'}
-                  </p>
-                </div>
-              ) : (
-                filteredApplications.map(application => (
-                  <Card 
-                    key={application.id} 
-                    className={cn(
-                      "overflow-hidden transition-all duration-200",
-                      expandedApplicationId === application.id ? "shadow-lg" : "hover:shadow-md"
-                    )}
-                  >
-                    <div 
-                      className={cn(
-                        "p-4 cursor-pointer",
-                        expandedApplicationId === application.id ? "bg-muted/50" : "hover:bg-muted/30"
-                      )}
-                      onClick={() => setExpandedApplicationId(expandedApplicationId === application.id ? null : application.id)}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-lg font-semibold">
-                              {application.application_data.name}
-                            </h3>
-                            <span className={cn(
-                              "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium",
-                              getStatusColor(application.status)
-                            )}>
-                              {getStatusIcon(application.status)}
-                              {application.status || 'Pending'}
-                            </span>
-                          </div>
-                          
-                          <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Building2 className="w-4 h-4" />
-                              {application.job?.title || 'Unknown Position'}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Mail className="w-4 h-4" />
-                              {application.application_data.email}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              {format(new Date(application.created_at), 'MMM d, yyyy')}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 ml-4">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(application.application_data.resumeUrl, '_blank');
-                            }}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          {expandedApplicationId === application.id ? (
-                            <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                          ) : (
-                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                          )}
-                        </div>
-                      </div>
+      ) : (
+        <div className="grid gap-6">
+          {filteredApplications.map((application) => (
+            <Card key={application.id} className="p-6">
+              <div className="flex flex-col md:flex-row justify-between gap-4">
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h2 className="text-xl font-semibold">{application.job?.title || 'Unknown Position'}</h2>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(application.status)}`}>
+                        {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                      </span>
                     </div>
-
-                    {expandedApplicationId === application.id && (
-                      <div className="p-4 border-t">
-                        <div className="space-y-4">
-                          {/* Contact Information */}
-                          <div>
-                            <h4 className="text-sm font-medium mb-2">Contact Information</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="flex items-center gap-2">
-                                <Mail className="w-4 h-4 text-muted-foreground" />
-                                <span>{application.application_data.email}</span>
-                              </div>
-                              {application.application_data.phone && (
-                                <div className="flex items-center gap-2">
-                                  <Phone className="w-4 h-4 text-muted-foreground" />
-                                  <span>{application.application_data.phone}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Application Materials */}
-                          <div>
-                            <h4 className="text-sm font-medium mb-2">Application Materials</h4>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex items-center gap-2"
-                                onClick={() => window.open(application.application_data.resumeUrl, '_blank')}
-                              >
-                                <FileText className="w-4 h-4" />
-                                View Resume
-                              </Button>
-                            </div>
-                          </div>
-
-                          {/* Cover Letter */}
-                          {application.application_data.coverLetter && (
-                            <div>
-                              <h4 className="text-sm font-medium mb-2">Cover Letter</h4>
-                              <div className="bg-muted/30 rounded-lg p-4">
-                                <p className="text-sm whitespace-pre-wrap">
-                                  {application.application_data.coverLetter}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Status Update */}
-                          <div className="pt-4 border-t">
-                            <h4 className="text-sm font-medium mb-2">Update Status</h4>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => updateApplicationStatus(application.id, 'reviewing')}
-                                className={cn(
-                                  application.status === 'reviewing' && "border-yellow-500 text-yellow-500"
-                                )}
-                              >
-                                <Clock className="w-4 h-4 mr-1" />
-                                Reviewing
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => updateApplicationStatus(application.id, 'approved')}
-                                className={cn(
-                                  application.status === 'approved' && "border-green-500 text-green-500"
-                                )}
-                              >
-                                <CheckCircle2 className="w-4 h-4 mr-1" />
-                                Approve
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => updateApplicationStatus(application.id, 'rejected')}
-                                className={cn(
-                                  application.status === 'rejected' && "border-red-500 text-red-500"
-                                )}
-                              >
-                                <XCircle className="w-4 h-4 mr-1" />
-                                Reject
-                              </Button>
-                            </div>
-                          </div>
-
-                          {/* Conversation History */}
-                          <div className="pt-4 border-t">
-                            <h4 className="text-sm font-medium mb-2">Chat History</h4>
-                            <div className="space-y-2 max-h-96 overflow-y-auto">
-                              {application.conversation_history.map((message, index) => (
-                                <div
-                                  key={index}
-                                  className={cn(
-                                    "p-2 rounded-lg text-sm",
-                                    message.role === 'user' 
-                                      ? "bg-primary text-primary-foreground ml-auto max-w-[80%]"
-                                      : message.role === 'assistant'
-                                      ? "bg-muted max-w-[80%]"
-                                      : "bg-muted/50 text-center text-xs"
-                                  )}
-                                >
-                                  <p className="whitespace-pre-wrap">{message.content}</p>
-                                  <span className="text-xs opacity-70 block mt-1">
-                                    {format(new Date(message.timestamp), 'MMM d, yyyy h:mm a')}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
+                    <p className="text-muted-foreground">{application.job?.department}</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      <span>{application.applicationData.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      <a href={`mailto:${application.applicationData.email}`} className="text-primary hover:underline">
+                        {application.applicationData.email}
+                      </a>
+                    </div>
+                    {application.applicationData.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        <a href={`tel:${application.applicationData.phone}`} className="hover:underline">
+                          {application.applicationData.phone}
+                        </a>
                       </div>
                     )}
-                  </Card>
-                ))
-              )}
-            </div>
-          </Card>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <span className="text-muted-foreground">
+                        Applied {new Date(application.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {application.applicationData.resumeUrl && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => window.open(application.applicationData.resumeUrl, '_blank')}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        View Resume
+                      </Button>
+                    )}
+                    {application.applicationData.coverLetter && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toast.message('Cover Letter', {
+                          description: application.applicationData.coverLetter
+                        })}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        View Cover Letter
+                      </Button>
+                    )}
+                    {application.applicationData.socialLinks?.linkedin && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(application.applicationData.socialLinks?.linkedin, '_blank')}
+                      >
+                        LinkedIn
+                      </Button>
+                    )}
+                    {application.applicationData.socialLinks?.github && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(application.applicationData.socialLinks?.github, '_blank')}
+                      >
+                        GitHub
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant={application.status === 'approved' ? 'default' : 'outline'}
+                      onClick={() => updateApplicationStatus(application.id, 'approved')}
+                    >
+                      <Check className="h-4 w-4 mr-2" />
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={application.status === 'rejected' ? 'destructive' : 'outline'}
+                      onClick={() => updateApplicationStatus(application.id, 'rejected')}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Reject
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={application.status === 'reviewing' ? 'secondary' : 'outline'}
+                      onClick={() => updateApplicationStatus(application.id, 'reviewing')}
+                    >
+                      <Star className="h-4 w-4 mr-2" />
+                      Mark as Reviewing
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={application.status === 'interviewed' ? 'secondary' : 'outline'}
+                      onClick={() => updateApplicationStatus(application.id, 'interviewed')}
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Mark as Interviewed
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
         </div>
-      </div>
+      )}
     </div>
   );
 }

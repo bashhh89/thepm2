@@ -15,5 +15,11 @@ export default function Dashboard() {
     );
   }
 
-  return location.pathname === "/dashboard" ? <DashboardOverview /> : <Outlet />;
+  // Show overview only on exact /dashboard path
+  if (location.pathname === "/dashboard") {
+    return <DashboardOverview />;
+  }
+
+  // For all other /dashboard/* routes, show the child route content
+  return <Outlet />;
 }

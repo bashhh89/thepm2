@@ -16,10 +16,12 @@ const applicationSchema = z.object({
     email: z.string().email(),
     phone: z.string(),
     resumeUrl: z.string().url(),
+    resumeContent: z.string(),
     coverLetter: z.string().optional(),
     analysis: z.object({
       score: z.number(),
       totalApplicants: z.number(),
+      matchScore: z.number(),
       strengths: z.array(z.string()),
       improvements: z.array(z.string()),
       matchingJobs: z.array(z.object({
@@ -27,7 +29,12 @@ const applicationSchema = z.object({
         department: z.string(),
         matchScore: z.number()
       })),
-      keyQualifications: z.array(z.string())
+      keyQualifications: z.array(z.string()),
+      suggestedActions: z.array(z.object({
+        type: z.enum(['cover_letter', 'skills', 'portfolio', 'certification']),
+        title: z.string(),
+        description: z.string()
+      }))
     }).optional()
   }),
   conversation_history: z.array(z.object({
@@ -35,6 +42,11 @@ const applicationSchema = z.object({
     content: z.string(),
     timestamp: z.string()
   }))
+});
+
+// Schema for application status update
+const updateStatusSchema = z.object({
+  status: z.enum(['pending', 'reviewing', 'approved', 'rejected'])
 });
 
 // Get all applications (admin only)
@@ -55,14 +67,21 @@ router.get('/api/applications', authenticateToken, isAdmin, async (req, res) => 
   }
 });
 
-// Create a new application
+// Create a new application with resume analysis
 router.post('/api/applications', async (req, res) => {
   try {
     const validatedData = applicationSchema.parse(req.body);
     
+    // Analyze resume content and generate insights
+    const analysis = await analyzeResume(validatedData.application_data.resumeContent, validatedData.job_id);
+    
     const application = await prisma.application.create({
       data: {
         ...validatedData,
+        application_data: {
+          ...validatedData.application_data,
+          analysis
+        },
         admin_dashboard_viewed: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -77,6 +96,31 @@ router.post('/api/applications', async (req, res) => {
       console.error('Error creating application:', error);
       res.status(500).json({ error: 'Failed to create application' });
     }
+  }
+});
+
+// Generate cover letter based on resume and job
+router.post('/api/applications/:id/generate-cover-letter', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const application = await prisma.application.findUnique({
+      where: { id },
+      include: { job: true }
+    });
+
+    if (!application) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    const coverLetter = await generateCoverLetter(
+      application.application_data.resumeContent,
+      application.job
+    );
+
+    res.json({ coverLetter });
+  } catch (error) {
+    console.error('Error generating cover letter:', error);
+    res.status(500).json({ error: 'Failed to generate cover letter' });
   }
 });
 
@@ -131,7 +175,7 @@ router.put('/api/applications/:id/notes', authenticateToken, isAdmin, async (req
 });
 
 // Get all applications
-router.get('/', authenticateToken, async (req: Request, res: Response) => {
+router.get('/', async (req, res) => {
   try {
     const applications = await prisma.jobApplication.findMany({
       include: {
@@ -141,6 +185,9 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
             department: true
           }
         }
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     });
     res.json(applications);
@@ -151,24 +198,37 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
 });
 
 // Create new application
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', async (req, res) => {
   try {
-    const { jobId, applicationData, conversationHistory } = req.body;
-    
     const application = await prisma.jobApplication.create({
       data: {
-        jobId,
-        userName: applicationData.name,
-        applicationData,
-        conversationHistory,
-        adminDashboardViewed: false
+        jobId: req.body.jobId,
+        applicationData: req.body,
+        status: 'pending'
       }
     });
-
     res.status(201).json(application);
   } catch (error) {
     console.error('Error creating application:', error);
     res.status(500).json({ error: 'Failed to create application' });
+  }
+});
+
+// Update application status
+router.put('/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = updateStatusSchema.parse(req.body);
+
+    const application = await prisma.jobApplication.update({
+      where: { id },
+      data: { status }
+    });
+    
+    res.json(application);
+  } catch (error) {
+    console.error('Error updating application status:', error);
+    res.status(500).json({ error: 'Failed to update application status' });
   }
 });
 

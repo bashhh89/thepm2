@@ -62,6 +62,14 @@ export default defineConfig({
                 target: "http://localhost:5177",
                 rewrite: (path) => "/login",
             },
+            '/uploads': {
+                target: 'http://localhost:5000',
+                changeOrigin: true,
+            },
+            '/api/upload': {
+                target: 'http://localhost:5000',
+                changeOrigin: true,
+            },
             '/v2': {
                 target: 'https://js.puter.com',
                 changeOrigin: true,
@@ -138,10 +146,6 @@ export default defineConfig({
                         proxyReq.setHeader('Origin', 'https://generativelanguage.googleapis.com');
                     });
                 }
-            },
-            '/uploads': {
-                target: 'http://localhost:5000',
-                changeOrigin: true,
             },
             '/gemini': {
                 target: 'https://generativelanguage.googleapis.com',

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Textarea } from '../components/Textarea';
@@ -35,10 +35,19 @@ interface AIGenerationState {
   trainingData: boolean;
 }
 
-// Enhanced PuterAIResponse interface to handle all possible formats
+interface PuterAI {
+  chat: (messages: Array<{ role: string; content: string }>) => Promise<PuterAIResponse>;
+}
+
+interface PuterWindow extends Window {
+  puter?: {
+    ai?: PuterAI;
+  };
+}
+
 interface PuterAIResponse {
   message?: {
-    content: string | any;
+    content: string;
     tool_calls?: any[];
     role?: string;
   };
@@ -47,42 +56,53 @@ interface PuterAIResponse {
   type?: string;
 }
 
-const callPuterAI = async (prompt: string) => {
+const callPuterAI = async (prompt: string): Promise<string> => {
   console.log("callPuterAI called with prompt:", prompt);
 
   try {
-    if (!window.puter?.ai?.chat) {
+    const puter = (window as PuterWindow).puter;
+    if (!puter?.ai?.chat) {
       throw new Error('Puter AI is not initialized');
     }
 
-    // Use the window.puter.ai.chat function
-    const response = await window.puter.ai.chat(prompt);
+    const messages = [
+      {
+        role: 'system',
+        content: 'You are a professional HR assistant helping to create job postings. Provide concise, professional responses.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ];
+
+    const response = await puter.ai.chat(messages);
+
     console.log("Puter AI Response:", response);
 
-    // Handle different response formats
     if (typeof response === 'string') {
       return response;
-    } else if (response?.message?.content) {
-      return response.message.content;
-    } else if (response?.content) {
-      return typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
-    } else {
-      throw new Error('Unexpected response format from Puter AI');
     }
+
+    if ('message' in response && typeof response.message?.content === 'string') {
+      return response.message.content;
+    }
+
+    if ('content' in response && response.content) {
+      return typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+    }
+
+    if ('text' in response && typeof response.text === 'string') {
+      return response.text;
+    }
+
+    throw new Error('Unexpected response format from Puter AI');
   } catch (error) {
     console.error('Puter AI error:', error);
-    // Check if token is expired or invalid
-    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-      // Clear token and attempt to reinitialize
-      localStorage.removeItem('puter_token');
-      const initializePuter = window.initializePuter;
-      if (initializePuter) {
-        await initializePuter();
-        // Retry the request once
-        return callPuterAI(prompt);
-      }
+    if (error instanceof Error) {
+      throw error;
     }
-    throw error;
+    throw new Error('Unknown error occurred');
   }
 };
 
@@ -331,13 +351,12 @@ const generateWithAI = async (field: keyof AIGenerationState) => {
     let prompt = '';
     switch (field) {
       case 'title':
-        prompt = `I have a job title: "${newJob.title}". Please suggest 3 alternative professional titles that could work better.
-        Context:
+        prompt = `Generate a professional job title for this position:
         Department: ${newJob.department || 'Not specified'}
-        Experience: ${newJob.experience || 'Not specified'}
+        Experience Level: ${newJob.experience || 'Not specified'}
+        Current Title: ${newJob.title || 'Not specified'}
         
-        Return exactly 3 titles in a JSON array like this: ["Title 1", "Title 2", "Title 3"]
-        Make titles professional and relevant. No extra text.`;
+        Return only the job title, no additional text.`;
         break;
       case 'description':
         prompt = `Write a professional job description for this position:
@@ -345,8 +364,7 @@ const generateWithAI = async (field: keyof AIGenerationState) => {
         Department: ${newJob.department}
         Experience Level: ${newJob.experience}
         
-        Include an overview of the role, key responsibilities, and required qualifications.
-        Make it engaging and informative. Return just the description text.`;
+        Include key responsibilities and qualifications. Be concise and professional.`;
         break;
       case 'requirements':
         prompt = `List 5-7 key requirements for this position:
@@ -354,59 +372,61 @@ const generateWithAI = async (field: keyof AIGenerationState) => {
         Department: ${newJob.department}
         Experience Level: ${newJob.experience}
         
-        FORMAT YOUR RESPONSE AS A JSON ARRAY:
-        ["requirement 1", "requirement 2", "requirement 3", ...]
-        Requirements should be specific and relevant to the role.`;
+        Format as a bullet list. Be specific and relevant to the role.`;
         break;
       case 'benefits':
-        prompt = `List 4-6 attractive benefits for this position:
+        prompt = `List 4-6 competitive benefits for this position:
         Title: ${newJob.title}
         Department: ${newJob.department}
         
-        FORMAT YOUR RESPONSE AS A JSON ARRAY:
-        ["benefit 1", "benefit 2", "benefit 3", ...]
-        Focus on competitive and appealing benefits.`;
+        Format as a bullet list. Focus on attractive and relevant benefits.`;
+        break;
+      case 'trainingData':
+        prompt = `Generate comprehensive training data for a ${newJob.title} position in the ${newJob.department} department.
+        Experience Level: ${newJob.experience}
+        
+        Include:
+        1. Core Skills and Competencies
+        2. Technical Knowledge Requirements
+        3. Soft Skills Development
+        4. Learning Objectives
+        5. Training Milestones`;
         break;
     }
 
     const content = await callPuterAI(prompt);
-
+    
+    // Process the content based on the field
     switch (field) {
       case 'title':
-        try {
-          const titles = JSON.parse(content.replace(/```json\n?|```/g, '').trim());
-          if (Array.isArray(titles) && titles.length > 0) {
-            setNewJob(prev => ({ ...prev, title: titles[0] }));
-          }
-        } catch (e) {
-          console.error('Failed to parse titles:', e);
-          throw new Error('Failed to parse AI response');
-        }
+        setNewJob(prev => ({ ...prev, title: content.trim() }));
         break;
-
       case 'description':
         setNewJob(prev => ({ ...prev, description: content.trim() }));
         break;
-
       case 'requirements':
+        const requirements = content
+          .split('\n')
+          .map(line => line.replace(/^[•\-\*]\s*/, '').trim())
+          .filter(Boolean);
+        setNewJob(prev => ({ ...prev, requirements }));
+        break;
       case 'benefits':
-        try {
-          const items = JSON.parse(content.replace(/```json\n?|```/g, '').trim());
-          if (Array.isArray(items)) {
-            setNewJob(prev => ({ ...prev, [field]: items.filter(Boolean) }));
-          }
-        } catch (e) {
-          console.error(`Failed to parse ${field}:`, e);
-          throw new Error('Failed to parse AI response');
-        }
+        const benefits = content
+          .split('\n')
+          .map(line => line.replace(/^[•\-\*]\s*/, '').trim())
+          .filter(Boolean);
+        setNewJob(prev => ({ ...prev, benefits }));
+        break;
+      case 'trainingData':
+        setNewJob(prev => ({ ...prev, trainingData: content.trim() }));
         break;
     }
 
-    toast.success(`${field} generated successfully!`);
+    toast.success(`Generated ${field} successfully!`);
   } catch (error) {
     console.error(`Error generating ${field}:`, error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    toast.error(`Failed to generate ${field}: ${errorMessage}`);
+    toast.error(`Failed to generate ${field}. Please try again.`);
   } finally {
     setIsGeneratingAI(prev => ({ ...prev, [field]: false }));
   }

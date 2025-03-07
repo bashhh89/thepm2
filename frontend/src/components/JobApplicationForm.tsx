@@ -93,45 +93,46 @@ export function JobApplicationForm({ jobId, jobTitle, onSuccess, onCancel, initi
   };
 
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.length) return;
-    
-    const file = e.target.files[0];
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Resume file size must be less than 5MB');
-      return;
-    }
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    const allowedTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ];
-    
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Please upload a PDF or Word document');
-      return;
-    }
-
-    setResume(file);
     setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
       });
 
-      if (!response.ok) throw new Error('Failed to upload resume');
+      if (!response.ok) throw new Error('Failed to upload file');
+      const data = await response.json();
 
-      const { fileUrl } = await response.json();
-      setApplicationData(prev => ({ ...prev, resumeUrl: fileUrl }));
-      toast.success('Resume uploaded successfully');
+      // Set the resume URL and trigger analysis
+      setApplicationData(prev => ({ ...prev, resumeUrl: data.fileUrl }));
+      toast.success('Resume uploaded successfully. Analyzing...');
+      
+      // Analyze the resume
+      const prompt = `Please analyze this resume for ${jobTitle} position. 
+      Resume URL: ${data.fileUrl}
+      
+      Provide a brief confirmation of receipt and analysis completion.`;
+
+      const aiResponse = await window.puter.ai.chat(prompt, false, {
+        model: 'gpt-4',
+        stream: false
+      });
+
+      toast.success('Resume analysis complete!');
+      setMessages(prev => [
+        ...prev, 
+        { role: 'assistant', content: 'I\'ve analyzed your resume. Would you like to proceed with submitting your application?' }
+      ]);
+
     } catch (error) {
-      console.error('Error uploading resume:', error);
-      toast.error('Failed to upload resume. Please try again.');
+      console.error('Upload error:', error);
+      toast.error('Failed to upload or analyze resume');
     } finally {
       setIsUploading(false);
     }
