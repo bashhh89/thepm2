@@ -118,26 +118,19 @@ export function ChatApplicationForm({ jobId, jobTitle, onSuccess, onCancel }: Ch
             if (done) break;
             if (value?.text) {
               assistantContent += value.text;
-              setMessages(prev => {
-                const lastMessage = prev[prev.length - 1];
-                if (lastMessage?.role === 'assistant') {
-                  return [...prev.slice(0, -1), { ...lastMessage, content: assistantContent }];
-                }
-                return [...prev, { role: 'assistant', content: assistantContent }];
-              });
             }
           }
+          // Update application data before setting messages
+          updateApplicationData(currentAnswer, assistantContent);
         } catch (streamError) {
           console.error('Stream error:', streamError);
           throw new Error('Failed to process streaming response');
         }
       } else if (aiResponse.message?.content) {
         assistantContent = aiResponse.message.content;
-        setMessages(prev => [...prev, { role: 'assistant', content: assistantContent }]);
+        // Update application data before setting messages
+        updateApplicationData(currentAnswer, assistantContent);
       }
-
-      // Update application data based on the conversation
-      updateApplicationData(currentAnswer, assistantContent);
 
     } catch (error) {
       console.error('Error processing message:', error);
@@ -198,77 +191,85 @@ export function ChatApplicationForm({ jobId, jobTitle, onSuccess, onCancel }: Ch
   const handleFileUpload = async () => {
     setIsUploading(true);
     try {
-      const dropZone = document.createElement('div');
-      dropZone.className = 'fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50';
-      dropZone.innerHTML = `
-        <div class="bg-white p-8 rounded-lg shadow-xl text-center">
-          <div class="border-2 border-dashed border-gray-300 p-8 rounded-lg hover:border-primary transition-colors">
-            <div class="text-lg mb-4">Drop your resume here or click to browse</div>
-            <div class="text-sm text-gray-500">Supports PDF, DOC, DOCX (Max 5MB)</div>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(dropZone);
-
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  
-      // Handle file selection
+      input.style.display = 'none';
+      document.body.appendChild(input);
+
+      input.click();
+
       input.onchange = async (e) => {
         const file = (e.target as HTMLInputElement).files?.[0];
-        if (!file) return;
-  
-        // Check file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          toast.error('Resume file size must be less than 5MB');
+        if (!file) {
+          setIsUploading(false);
+          document.body.removeChild(input);
           return;
         }
-  
+
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error('Resume file size must be less than 5MB');
+          setIsUploading(false);
+          document.body.removeChild(input);
+          return;
+        }
+
+        setMessages(prev => [...prev, { role: 'system', content: `Uploading ${file.name}...` }]);
+
         const formData = new FormData();
         formData.append('file', file);
-  
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-  
-        if (!response.ok) {
-          throw new Error('Failed to upload resume');
-        }
-  
-        const { fileUrl } = await response.json() as FileUploadResponse;
-        setApplicationData(prev => ({ ...prev, resumeUrl: fileUrl }));
-        setMessages(prev => [...prev, { role: 'system', content: 'Resume uploaded successfully! Analyzing your resume...' }]);
-        await analyzeResume(fileUrl);
-      };
-  
-      const handleDrop = async (e: DragEvent) => {
-        e.preventDefault();
-        const file = e.dataTransfer?.files[0];
-        if (file) {
-          if (file.size > 5 * 1024 * 1024) {
-            toast.error('Resume file size must be less than 5MB');
-            return;
-          }
-          const formData = new FormData();
-          formData.append('file', file);
-          uploadFile(formData);
-        }
-      };
 
-      dropZone.addEventListener('dragover', (e) => e.preventDefault());
-      dropZone.addEventListener('drop', handleDrop);
-      dropZone.addEventListener('click', () => input.click());
+        try {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', '/api/upload', true);
 
-      return () => {
-        document.body.removeChild(dropZone);
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const progress = Math.round((event.loaded / event.total) * 100);
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage?.role === 'system' && lastMessage.content.startsWith('Uploading')) {
+                  lastMessage.content = `Uploading ${file.name}... ${progress}%`;
+                }
+                return newMessages;
+              });
+            }
+          };
+
+          xhr.onload = async () => {
+            if (xhr.status === 200) {
+              const response = JSON.parse(xhr.responseText);
+              setApplicationData(prev => ({ ...prev, resumeUrl: response.fileUrl }));
+              setMessages(prev => [
+                ...prev.filter(msg => !msg.content.startsWith('Uploading')),
+                { role: 'system', content: 'Resume uploaded successfully! Analyzing your resume...' }
+              ]);
+              await analyzeResume(response.fileUrl);
+            } else {
+              throw new Error('Upload failed');
+            }
+          };
+
+          xhr.onerror = () => {
+            throw new Error('Upload failed');
+          };
+
+          xhr.send(formData);
+        } catch (error) {
+          console.error('Error uploading file:', error);
+          toast.error('Failed to upload file. Please try again.');
+          setMessages(prev => [
+            ...prev.filter(msg => !msg.content.startsWith('Uploading')),
+            { role: 'system', content: '❌ Upload failed. Please try again.' }
+          ]);
+        }
       };
     } catch (error) {
       console.error('Error handling file upload:', error);
       toast.error('Failed to handle file upload. Please try again.');
     } finally {
+      document.body.removeChild(input);
       setIsUploading(false);
     }
   };
@@ -295,42 +296,56 @@ export function ChatApplicationForm({ jobId, jobTitle, onSuccess, onCancel }: Ch
   };
   const updateApplicationData = (userInput: string, aiResponse: string) => {
     // Extract name from the first interaction
-    if (!applicationData.name && messages.length === 1) {
+    if (currentStep === 0) {
       setApplicationData(prev => ({ ...prev, name: userInput }));
-      // Immediately ask for email after getting the name
-      const nextMessage = `Thanks ${userInput}! Could you please share your email address so I can keep you updated about your application?`;
-      setMessages(prev => [...prev, { role: 'assistant', content: nextMessage }]);
+      setCurrentStep(1);
+      setMessages(prev => [...prev, { role: 'assistant', content: `Nice to meet you, ${userInput}! 😊 Could you share your email address? I'll use it to keep you updated about your application.` }]);
       return;
     }
 
     // Handle email collection
-    if (applicationData.name && !applicationData.email) {
+    if (currentStep === 1) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (emailRegex.test(userInput)) {
         setApplicationData(prev => ({ ...prev, email: userInput }));
-        // Ask for phone number after valid email
-        const nextMessage = `Perfect! Now, could you please provide your phone number? This will help us reach you more quickly if needed.`;
-        setMessages(prev => [...prev, { role: 'assistant', content: nextMessage }]);
+        setCurrentStep(2);
+        setMessages(prev => [...prev, { role: 'assistant', content: `Thanks! I've noted your email as ${userInput}. Next, could you please share your phone number? You can skip this step if you prefer not to share it.` }]);
       } else {
-        // Invalid email format
-        const errorMessage = `That doesn't look like a valid email address. Please provide an email in the format: example@domain.com`;
-        setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
+        setMessages(prev => [...prev, { role: 'assistant', content: `That doesn't look like a valid email address. Please provide an email in the format: example@domain.com` }]);
       }
       return;
     }
 
     // Handle phone number collection
-    if (applicationData.name && applicationData.email && !applicationData.phone) {
+    if (currentStep === 2) {
       const phoneRegex = /^[\d\s\-()+]+$/;
-      if (phoneRegex.test(userInput)) {
+      if (userInput.toLowerCase() === 'skip' || userInput.toLowerCase().includes('prefer not')) {
+        setCurrentStep(3);
+        setMessages(prev => [...prev, { role: 'assistant', content: `No problem! Let's move on. Would you like to upload your resume now? This will help us better understand your qualifications.` }]);
+      } else if (phoneRegex.test(userInput)) {
         setApplicationData(prev => ({ ...prev, phone: userInput }));
-        // Ask for resume after valid phone number
-        const nextMessage = `Great! Would you like to upload your resume now? This will help us better understand your qualifications.`;
-        setMessages(prev => [...prev, { role: 'assistant', content: nextMessage }]);
+        setCurrentStep(3);
+        setMessages(prev => [...prev, { role: 'assistant', content: `Great! Would you like to upload your resume now? This will help us better understand your qualifications.` }]);
       } else {
-        // Invalid phone format
-        const errorMessage = `That doesn't look like a valid phone number. Please provide a phone number using only digits, spaces, and common symbols (-, +).`;
-        setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
+        setMessages(prev => [...prev, { role: 'assistant', content: `That doesn't look like a valid phone number. Please provide a phone number using only digits, spaces, and common symbols (-, +), or type 'skip' to move on.` }]);
+      }
+      return;
+    }
+
+    // Handle post-resume upload
+    if (currentStep === 3 && applicationData.resumeUrl) {
+      setCurrentStep(4);
+      setMessages(prev => [...prev, { role: 'assistant', content: `Great! I've received and analyzed your resume. Would you like to proceed with submitting your application now?` }]);
+      return;
+    }
+
+    // Handle application submission confirmation
+    if (currentStep === 4) {
+      if (userInput.toLowerCase().includes('yes') || userInput.toLowerCase().includes('proceed') || userInput.toLowerCase().includes('submit')) {
+        submitApplication();
+        setMessages(prev => [...prev, { role: 'assistant', content: `Perfect! I'm submitting your application now...` }]);
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: `Would you like to review your application details before submitting? Just let me know when you're ready to proceed.` }]);
       }
       return;
     }
@@ -383,22 +398,58 @@ export function ChatApplicationForm({ jobId, jobTitle, onSuccess, onCancel }: Ch
 
       <div className="flex flex-col gap-4">
         <div className="relative">
-          <textarea
-            value={currentAnswer}
-            onChange={(e) => setCurrentAnswer(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                if (currentAnswer.trim() && !isSubmitting) {
-                  handleSubmit();
+          <div className="space-y-4">
+            {messages[messages.length - 1]?.content?.includes("upload your resume") && (
+              <Button
+                onClick={handleFileUpload}
+                variant="outline"
+                className="w-full flex items-center justify-center gap-2"
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    Upload Resume
+                  </>
+                )}
+              </Button>
+            )}
+            <textarea
+              value={currentAnswer}
+              onChange={(e) => setCurrentAnswer(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (currentAnswer.trim() && !isSubmitting) {
+                    handleSubmit();
+                  }
                 }
-              }
-            }}
-            placeholder="Type your message... (Press Enter to send)"
-            className="w-full p-4 rounded-lg border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-            rows={3}
-            disabled={isSubmitting}
-          />
+              }}
+              placeholder="Type your message... (Press Enter to send)"
+              className="w-full p-4 rounded-lg border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              rows={3}
+              disabled={isSubmitting}
+            />
+          </div>
         </div>
 
         <div className="flex gap-2">

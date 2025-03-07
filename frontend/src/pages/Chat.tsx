@@ -361,8 +361,29 @@ export default function Chat() {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      // Handle file upload
-                      console.log('File uploaded:', file);
+                      setIsUploading(true);
+                      const formData = new FormData();
+                      formData.append('file', file);
+
+                      fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData,
+                      })
+                        .then(response => {
+                          if (!response.ok) throw new Error('Upload failed');
+                          return response.json();
+                        })
+                        .then(data => {
+                          toast.success('File uploaded successfully!');
+                          console.log('Upload successful:', data);
+                        })
+                        .catch(error => {
+                          console.error('Upload error:', error);
+                          toast.error('Failed to upload file. Please try again.');
+                        })
+                        .finally(() => {
+                          setIsUploading(false);
+                        });
                     }
                   }}
                 />
@@ -370,9 +391,19 @@ export default function Chat() {
                   variant="outline"
                   size="sm"
                   onClick={() => document.getElementById('file-upload')?.click()}
+                  disabled={isUploading}
                 >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload
+                    </>
+                  )}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
                   Dashboard
