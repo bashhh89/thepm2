@@ -127,12 +127,74 @@ export default defineConfig({
                 rewrite: (path) => path.replace(/^\/api\/puter/, ''),
             },
             '/api': {
-                target: 'http://localhost:5000',
+                target: 'https://generativelanguage.googleapis.com',
                 changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api/, '/v1'),
+                configure: (proxy, _options) => {
+                    proxy.on('error', (err, _req, _res) => {
+                        console.error('API proxy error:', err);
+                    });
+                    proxy.on('proxyReq', (proxyReq, req, _res) => {
+                        proxyReq.setHeader('Origin', 'https://generativelanguage.googleapis.com');
+                    });
+                }
             },
             '/uploads': {
                 target: 'http://localhost:5000',
                 changeOrigin: true,
+            },
+            '/gemini': {
+                target: 'https://generativelanguage.googleapis.com',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/gemini/, ''),
+                configure: (proxy, _options) => {
+                    proxy.on('error', (err, _req, _res) => {
+                        console.error('Gemini proxy error:', err);
+                    });
+                    proxy.on('proxyReq', (proxyReq, req, _res) => {
+                        proxyReq.setHeader('Origin', 'https://generativelanguage.googleapis.com');
+                        proxyReq.setHeader('Referer', 'https://generativelanguage.googleapis.com');
+                    });
+                    proxy.on('proxyRes', (proxyRes, req, _res) => {
+                        proxyRes.headers['access-control-allow-origin'] = '*';
+                        proxyRes.headers['access-control-allow-methods'] = 'GET,HEAD,PUT,PATCH,POST,DELETE';
+                        proxyRes.headers['access-control-allow-headers'] = 'Content-Type,Authorization';
+                    });
+                }
+            },
+            '/openai': {
+                target: 'https://generativelanguage.googleapis.com/v1beta/openai',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/openai/, ''),
+                configure: (proxy, _options) => {
+                    proxy.on('error', (err, _req, _res) => {
+                        console.error('OpenAI proxy error:', err);
+                    });
+                    proxy.on('proxyReq', (proxyReq, req, _res) => {
+                        proxyReq.setHeader('Origin', 'https://generativelanguage.googleapis.com');
+                        proxyReq.setHeader('Access-Control-Allow-Origin', '*');
+                        proxyReq.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+                        proxyReq.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+                    });
+                }
+            },
+            '/v1beta': {
+                target: 'https://generativelanguage.googleapis.com',
+                changeOrigin: true,
+                configure: (proxy, _options) => {
+                    proxy.on('error', (err, _req, _res) => {
+                        console.error('API proxy error:', err);
+                    });
+                    proxy.on('proxyReq', (proxyReq, req, _res) => {
+                        proxyReq.setHeader('Origin', 'https://generativelanguage.googleapis.com');
+                        proxyReq.setHeader('Referer', 'https://generativelanguage.googleapis.com');
+                    });
+                    proxy.on('proxyRes', (proxyRes, req, _res) => {
+                        proxyRes.headers['access-control-allow-origin'] = '*';
+                        proxyRes.headers['access-control-allow-methods'] = 'GET,HEAD,PUT,PATCH,POST,DELETE';
+                        proxyRes.headers['access-control-allow-headers'] = 'Content-Type,Authorization';
+                    });
+                }
             }
         },
     },

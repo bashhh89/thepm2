@@ -1,0 +1,163 @@
+[1mdiff --git a/backend/prisma/migrations/20250304210948_add_storage_policies/migration.sql b/backend/prisma/migrations/20250304210948_add_storage_policies/migration.sql[m
+[1mnew file mode 100644[m
+[1mindex 0000000..910bb94[m
+[1m--- /dev/null[m
+[1m+++ b/backend/prisma/migrations/20250304210948_add_storage_policies/migration.sql[m
+[36m@@ -0,0 +1,22 @@[m
+[32m+[m[32m-- First, clean up any existing policies[m
+[32m+[m[32mDROP POLICY IF EXISTS "resumes_select" ON storage.objects;[m
+[32m+[m[32mDROP POLICY IF EXISTS "resumes_insert" ON storage.objects;[m
+[32m+[m[32mDROP POLICY IF EXISTS "resumes_delete" ON storage.objects;[m
+[32m+[m
+[32m+[m[32m-- Create the resumes bucket if it doesn't exist[m
+[32m+[m[32mINSERT INTO storage.buckets (id, name, public)[m
+[32m+[m[32mVALUES ('resumes', 'resumes', true)[m
+[32m+[m[32mON CONFLICT (id) DO NOTHING;[m
+[32m+[m
+[32m+[m[32m-- Enable RLS on the objects table[m
+[32m+[m[32mALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;[m
+[32m+[m
+[32m+[m[32m-- Create the storage policies[m
+[32m+[m[32mCREATE POLICY "resumes_select" ON storage.objects[m[41m [m
+[32m+[m[32mFOR SELECT USING (bucket_id = 'resumes');[m
+[32m+[m
+[32m+[m[32mCREATE POLICY "resumes_insert" ON storage.objects[m[41m [m
+[32m+[m[32mFOR INSERT WITH CHECK (bucket_id = 'resumes');[m
+[32m+[m
+[32m+[m[32mCREATE POLICY "resumes_delete" ON storage.objects[m[41m [m
+[32m+[m[32mFOR DELETE USING (bucket_id = 'resumes');[m
+\ No newline at end of file[m
+[1mdiff --git a/backend/prisma/migrations/20250304210949_add_applications_table.sql b/backend/prisma/migrations/20250304210949_add_applications_table.sql[m
+[1mnew file mode 100644[m
+[1mindex 0000000..3bcf348[m
+[1m--- /dev/null[m
+[1m+++ b/backend/prisma/migrations/20250304210949_add_applications_table.sql[m
+[36m@@ -0,0 +1,30 @@[m
+[32m+[m[32m-- First, drop table if it exists[m
+[32m+[m[32mDROP TABLE IF EXISTS public.applications;[m
+[32m+[m
+[32m+[m[32m-- Create applications table with all required columns[m
+[32m+[m[32mCREATE TABLE public.applications ([m
+[32m+[m[32m    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,[m
+[32m+[m[32m    job_id UUID REFERENCES jobs(id),[m
+[32m+[m[32m    user_name TEXT NOT NULL,[m
+[32m+[m[32m    status TEXT NOT NULL DEFAULT 'pending',[m
+[32m+[m[32m    application_data JSONB NOT NULL,[m
+[32m+[m[32m    conversation_history JSONB NOT NULL,[m
+[32m+[m[32m    feedback TEXT,[m
+[32m+[m[32m    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),[m
+[32m+[m[32m    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()[m
+[32m+[m[32m);[m
+[32m+[m
+[32m+[m[32m-- Enable RLS[m
+[32m+[m[32mALTER TABLE public.applications ENABLE ROW LEVEL SECURITY;[m
+[32m+[m
+[32m+[m[32m-- Create policies[m
+[32m+[m[32mCREATE POLICY "applications_select" ON public.applications[m
+[32m+[m[32mFOR SELECT USING (true);[m
+[32m+[m
+[32m+[m[32mCREATE POLICY "applications_insert" ON public.applications[m
+[32m+[m[32mFOR INSERT WITH CHECK (true);[m
+[32m+[m
+[32m+[m[32m-- Create indexes after table and columns exist[m
+[32m+[m[32mCREATE INDEX IF NOT EXISTS idx_applications_job_id ON public.applications(job_id);[m
+[32m+[m[32mCREATE INDEX IF NOT EXISTS idx_applications_status ON public.applications(status);[m
+[32m+[m[32mCREATE INDEX IF NOT EXISTS idx_applications_created_at ON public.applications(created_at);[m
+\ No newline at end of file[m
+[1mdiff --git a/backend/prisma/migrations/20250304211000_add_resume_storage_policies/migration.sql b/backend/prisma/migrations/20250304211000_add_resume_storage_policies/migration.sql[m
+[1mnew file mode 100644[m
+[1mindex 0000000..399cb02[m
+[1m--- /dev/null[m
+[1m+++ b/backend/prisma/migrations/20250304211000_add_resume_storage_policies/migration.sql[m
+[36m@@ -0,0 +1,30 @@[m
+[32m+[m[32m-- Create resumes bucket if it doesn't exist[m
+[32m+[m[32mINSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)[m
+[32m+[m[32mVALUES ([m
+[32m+[m[32m  'resumes',[m
+[32m+[m[32m  'resumes',[m
+[32m+[m[32m  TRUE,[m
+[32m+[m[32m  10485760,[m
+[32m+[m[32m  ARRAY['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'][m
+[32m+[m[32m)[m
+[32m+[m[32mON CONFLICT (id) DO NOTHING;[m
+[32m+[m
+[32m+[m[32m-- Set up storage policies for resumes bucket[m
+[32m+[m[32mCREATE POLICY "Give public access to resumes"[m
+[32m+[m[32mON storage.objects FOR SELECT[m
+[32m+[m[32mUSING (bucket_id = 'resumes');[m
+[32m+[m
+[32m+[m[32mCREATE POLICY "Enable resume upload for everyone"[m
+[32m+[m[32mON storage.objects FOR INSERT[m
+[32m+[m[32mWITH CHECK (bucket_id = 'resumes');[m
+[32m+[m
+[32m+[m[32mCREATE POLICY "Enable resume deletion for owners"[m
+[32m+[m[32mON storage.objects FOR DELETE[m
+[32m+[m[32mUSING (bucket_id = 'resumes');[m
+[32m+[m
+[32m+[m[32m-- Set CORS policy for resumes bucket[m
+[32m+[m[32mUPDATE storage.buckets[m
+[32m+[m[32mSET cors_origins = array['*'],[m
+[32m+[m[32m    cors_methods = array['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'],[m
+[32m+[m[32m    cors_headers = array['*'][m
+[32m+[m[32mWHERE id = 'resumes';[m
+\ No newline at end of file[m
+[1mdiff --git a/backend/prisma/migrations/20250305000000_add_resume_storage/migration.sql b/backend/prisma/migrations/20250305000000_add_resume_storage/migration.sql[m
+[1mnew file mode 100644[m
+[1mindex 0000000..e69de29[m
+[1mdiff --git a/backend/src/routes/applications.ts b/backend/src/routes/applications.ts[m
+[1mindex 0f43a9a..2ef6063 100644[m
+[1m--- a/backend/src/routes/applications.ts[m
+[1m+++ b/backend/src/routes/applications.ts[m
+[36m@@ -8,14 +8,33 @@[m [mconst router = express.Router();[m
+ [m
+ // Application schema validation[m
+ const applicationSchema = z.object({[m
+[31m-  jobId: z.string(),[m
+[31m-  name: z.string().min(1),[m
+[31m-  email: z.string().email(),[m
+[31m-  phone: z.string().optional(),[m
+[31m-  resumeUrl: z.string().url(),[m
+[31m-  coverLetter: z.string().optional(),[m
+[31m-  status: z.enum(['pending', 'reviewed', 'shortlisted', 'rejected']).default('pending'),[m
+[31m-  notes: z.string().optional(),[m
+[32m+[m[32m  job_id: z.string(),[m
+[32m+[m[32m  user_name: z.string(),[m
+[32m+[m[32m  status: z.enum(['pending', 'reviewing', 'approved', 'rejected']).default('pending'),[m
+[32m+[m[32m  application_data: z.object({[m
+[32m+[m[32m    name: z.string(),[m
+[32m+[m[32m    email: z.string().email(),[m
+[32m+[m[32m    phone: z.string(),[m
+[32m+[m[32m    resumeUrl: z.string().url(),[m
+[32m+[m[32m    coverLetter: z.string().optional(),[m
+[32m+[m[32m    analysis: z.object({[m
+[32m+[m[32m      score: z.number(),[m
+[32m+[m[32m      totalApplicants: z.number(),[m
+[32m+[m[32m      strengths: z.array(z.string()),[m
+[32m+[m[32m      improvements: z.array(z.string()),[m
+[32m+[m[32m      matchingJobs: z.array(z.object({[m
+[32m+[m[32m        title: z.string(),[m
+[32m+[m[32m        department: z.string(),[m
+[32m+[m[32m        matchScore: z.number()[m
+[32m+[m[32m      })),[m
+[32m+[m[32m      keyQualifications: z.array(z.string())[m
+[32m+[m[32m    }).optional()[m
+[32m+[m[32m  }),[m
+[32m+[m[32m  conversation_history: z.array(z.object({[m
+[32m+[m[32m    role: z.enum(['user', 'assistant', 'system']),[m
+[32m+[m[32m    content: z.string(),[m
+[32m+[m[32m    timestamp: z.string()[m
+[32m+[m[32m  }))[m
+ });[m
+ [m
+ // Get all applications (admin only)[m
+[36m@@ -39,24 +58,17 @@[m [mrouter.get('/api/applications', authenticateToken, isAdmin, async (req, res) =>[m
+ // Create a new application[m
+ router.post('/api/applications', async (req, res) => {[m
+   try {[m
+[31m-    const applicationData = applicationSchema.parse(req.body);[m
+[32m+[m[32m    const validatedData = applicationSchema.parse(req.body);[m
+     [m
+[31m-    // Check if job exists[m
+[31m-    const job = await prisma.job.findUnique({[m
+[31m-      where: { id: applicationData.jobId },[m
+[31m-  

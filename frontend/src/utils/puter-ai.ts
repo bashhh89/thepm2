@@ -388,3 +388,124 @@ export async function checkGrammar(text: string): Promise<{
         throw error;
     }
 }
+
+/**
+ * Utility functions for interacting with Puter's AI functionality
+ */
+
+interface PuterAIOptions {
+  model?: string;
+  stream?: boolean;
+  [key: string]: any;
+}
+
+/**
+ * Send a prompt to Puter AI and get a standardized response
+ * @param prompt The prompt to send to the AI
+ * @param options Options for the AI request
+ * @returns The parsed content from the AI response
+ */
+export async function sendPromptToPuterAI(prompt: string, options: PuterAIOptions = {}) {
+  if (typeof window === 'undefined' || !window.puter?.ai) {
+    throw new Error('Puter AI not initialized');
+  }
+
+  // Set default options
+  const defaultOptions = {
+    model: 'gpt-4o-mini',
+    stream: false
+  };
+
+  console.log('Sending prompt to Puter AI:', prompt);
+  
+  try {
+    // Make the API call with combined options
+    const response = await window.puter.ai.chat(prompt, false, {
+      ...defaultOptions,
+      ...options
+    });
+
+    console.log('Raw AI response:', response);
+
+    // Extract content from various possible response formats
+    let content;
+
+    // Case 1: Direct access to message.content (most common format)
+    if (response && response.message && response.message.content) {
+      content = response.message.content;
+    }
+    // Case 2: Array of objects with type/text properties
+    else if (Array.isArray(response)) {
+      const textItems = response.filter(item => item.type === 'text' && item.text);
+      if (textItems.length > 0) {
+        content = textItems.map(item => item.text).join(' ');
+      }
+    }
+    // Case 3: Direct string response
+    else if (typeof response === 'string') {
+      content = response;
+    }
+    // Case 4: Object with text property
+    else if (response && response.text) {
+      content = response.text;
+    }
+    // Case 5: Last resort - stringify the response
+    else if (response) {
+      content = JSON.stringify(response);
+    }
+
+    // Validate content
+    if (!content || content === 'undefined' || content === '[object Object]') {
+      console.error('Invalid content extracted:', content);
+      throw new Error('Failed to extract valid content from AI response');
+    }
+
+    // Clean content if it's a string
+    if (typeof content === 'string') {
+      content = content.replace(/```json\n?|```\n?/g, '').trim();
+    }
+
+    console.log('Extracted content:', content);
+    return content;
+  } catch (error) {
+    console.error('Error in Puter AI interaction:', error);
+    throw error;
+  }
+}
+
+/**
+ * Parse JSON from an AI response with fallbacks
+ * @param content The content to parse as JSON
+ * @returns Parsed JSON object or array
+ */
+export function parseJsonFromAI(content: string): any {
+  try {
+    // Direct JSON parse
+    return JSON.parse(content);
+  } catch (e) {
+    console.log('Direct JSON parse failed, trying to extract JSON:', e);
+    
+    // Try to extract JSON from text
+    try {
+      // Check if it contains a JSON array
+      const arrayMatch = content.match(/\[([\s\S]*?)\]/);
+      if (arrayMatch) {
+        return JSON.parse(arrayMatch[0]);
+      }
+      
+      // Check if it contains a JSON object
+      const objectMatch = content.match(/\{([\s\S]*?)\}/);
+      if (objectMatch) {
+        return JSON.parse(objectMatch[0]);
+      }
+    } catch (e) {
+      console.error('Failed to extract JSON:', e);
+    }
+    
+    // If all else fails, split by lines for lists
+    return content
+      .split('\n')
+      .map(line => line.trim().replace(/^[-*\d.\s]+/, '').trim())
+      .filter(Boolean);
+  }
+}

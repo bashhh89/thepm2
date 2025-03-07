@@ -72,8 +72,54 @@ export function JobsAIManager({ onGenerateContent }: JobsAIManagerProps) {
         model: 'gpt-4o-mini'
       }) as AIResponse;
 
-      const titles = JSON.parse(response.message.content);
-      setEnhancedTitles(titles);
+      let titles;
+      try {
+        // Parse the response content
+        const content = response.message.content;
+        if (typeof content === 'string') {
+          try {
+            titles = JSON.parse(content.trim());
+          } catch {
+            // If parsing fails, split by newlines and clean up
+            titles = content.split('\n')
+              .map(t => t.trim())
+              .filter(t => t && !t.startsWith('[') && !t.endsWith(']'));
+          }
+        } else if (Array.isArray(content)) {
+          titles = content;
+        } else if (typeof content === 'object' && content !== null) {
+          // Handle case where content is already an object
+          titles = [String(content)];
+        } else {
+          throw new Error('Unexpected response format');
+        }
+
+        // Ensure titles are valid strings
+        titles = titles.map(title => {
+          if (typeof title === 'object' && title !== null) {
+            return String(title.title || title.name || JSON.stringify(title));
+          }
+          return String(title).trim();
+        }).filter(title => title.length > 0);
+
+        if (titles.length === 0) {
+          throw new Error('No valid titles generated');
+        }
+
+        setEnhancedTitles(titles);
+
+        // Auto-populate form data with selected title
+        if (titles.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            title: titles[0]
+          }));
+          onGenerateContent?.({ ...formData, title: titles[0] });
+        }
+      } catch (error) {
+        console.error('Error parsing titles:', error);
+        toast.error('Failed to parse title suggestions');
+      }
     } catch (error) {
       console.error('Error enhancing title:', error);
       toast.error('Failed to enhance title');
@@ -90,15 +136,20 @@ export function JobsAIManager({ onGenerateContent }: JobsAIManagerProps) {
 
     setIsGenerating(true);
     try {
-      const experienceMatch = quickPrompt.match(/(\d+)\s*(?:year|yr|years)/i);
-      const locationMatch = quickPrompt.match(/\b(?:remote|in\s+([A-Za-z\s,]+))\b/i);
-      const titleMatch = quickPrompt.match(/(?:create\s+(?:a|an)|for\s+(?:a|an)|need\s+(?:a|an))\s+([^.]+)(?:\.|$)/i);
+      // Enhanced pattern matching for better context extraction
+      const experienceMatch = quickPrompt.match(/(d+)\s*(?:year|yr|years|\+)\s*(?:of)?\s*(?:experience)?/i);
+      const locationMatch = quickPrompt.match(/\b(?:remote|hybrid|on[- ]?site|in\s+([A-Za-z\s,]+))\b/i);
+      const titleMatch = quickPrompt.match(/(?:create|looking for|hiring|need|want)\s+(?:a|an)?\s+([^.,]+?)(?=\s+(?:position|role|job|with|requiring|\.|$))/i);
+      const departmentMatch = quickPrompt.match(/\b(engineering|sales|marketing|design|product|support|hr|finance|operations)\b/i);
+      const typeMatch = quickPrompt.match(/\b(full[- ]time|part[- ]time|contract|freelance|temporary)\b/i);
 
       const prompt = `Create a detailed job posting based on this context: "${quickPrompt}"
       Key details extracted:
-      - Title: ${titleMatch ? titleMatch[1] : 'Not specified'}
+      - Title: ${titleMatch ? titleMatch[1].trim() : 'Not specified'}
       - Experience: ${experienceMatch ? experienceMatch[1] + ' years' : 'Not specified'}
       - Location: ${locationMatch ? locationMatch[0] : 'Not specified'}
+      - Department: ${departmentMatch ? departmentMatch[1] : 'Not specified'}
+      - Type: ${typeMatch ? typeMatch[1] : 'Not specified'}
       
       Return as a JSON object with:
       {
@@ -112,19 +163,53 @@ export function JobsAIManager({ onGenerateContent }: JobsAIManagerProps) {
         "benefits": ["Array of 4-6 competitive benefits"]
       }
       
-      Ensure requirements are specific and measurable.
-      Include industry-standard benefits.
-      Match department to organizational structure.`;
+      Ensure:
+      1. Requirements are specific and measurable
+      2. Benefits are competitive and industry-standard
+      3. Description includes role overview, responsibilities, and impact
+      4. All fields match the extracted context
+      5. Department aligns with organizational structure";
 
       const response = await window.puter.ai.chat(prompt, false, {
         model: 'gpt-4o-mini'
       }) as AIResponse;
 
-      const jobData = JSON.parse(response.message.content);
-      setFormData(jobData);
-      onGenerateContent?.(jobData);
-      setIsDraftSaved(false);
-      toast.success('Job details generated successfully!');
+      let jobData;
+      try {
+        // Enhanced response parsing with fallback handling
+        const content = response.message.content;
+        if (typeof content === 'string') {
+          // Clean up the response and attempt to parse JSON
+          const cleanedContent = content.replace(/```json\n?|```/g, '').trim();
+          jobData = JSON.parse(cleanedContent);
+        } else if (typeof content === 'object' && content !== null) {
+          jobData = content;
+        } else {
+          throw new Error('Invalid response format');
+        }
+
+        // Validate and sanitize the job data
+        jobData = {
+          title: String(jobData.title || '').trim(),
+          department: String(jobData.department || '').trim(),
+          location: String(jobData.location || '').trim(),
+          type: String(jobData.type || '').trim(),
+          experience: String(jobData.experience || '').trim(),
+          description: String(jobData.description || '').trim(),
+          requirements: Array.isArray(jobData.requirements) ? 
+            jobData.requirements.map(String).filter(Boolean) : [],
+          benefits: Array.isArray(jobData.benefits) ? 
+            jobData.benefits.map(String).filter(Boolean) : []
+        };
+
+        setFormData(jobData);
+        onGenerateContent?.(jobData);
+        setIsDraftSaved(false);
+        toast.success('Job details generated successfully!');
+      } catch (parseError) {
+        console.error('Error parsing job data:', parseError);
+        toast.error('Failed to parse AI response');
+      }
     } catch (error) {
       console.error('Error generating job:', error);
       toast.error('Failed to generate job details');

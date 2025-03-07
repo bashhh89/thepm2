@@ -1,15 +1,9 @@
 /// <reference types="vite/client" />
 
 interface Window {
-  puter?: {
+  puter: {
     ai: {
-      chat: (
-        prompt: string | object[] | any, 
-        imageOrTestMode?: string | boolean | string[], 
-        testModeOrOptions?: boolean | object,
-        options?: object
-      ) => Promise<any>;
+      chat: (prompt: string) => Promise<string>;
     };
-    print: (text: any) => void;
   };
 }

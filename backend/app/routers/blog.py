@@ -40,13 +40,6 @@ async def get_posts():
     return posts_db
 
 @router.post("", response_model=BlogPost, status_code=status.HTTP_201_CREATED)
-    print("Creating post with data:", post)
-    
-    
-    
-    
-    
-    
 async def create_post(post: BlogPostCreate):
     new_post = BlogPost(
         **post.model_dump(),
@@ -59,13 +52,6 @@ async def create_post(post: BlogPostCreate):
 
 @router.put("/{post_id}", response_model=BlogPost)
 async def update_post(post_id: str, post_update: BlogPostBase):
-    print("Current posts in database:", posts_db)
-    print("Current posts in database:", posts_db)
-    print("Current posts in database:", posts_db)
-    print("Current posts in database:", posts_db)
-    print("Current posts in database:", posts_db)
-    print("Current posts in database:", posts_db)
-    print("Current posts in database:", posts_db)
     for i, post in enumerate(posts_db):
         if post["id"] == post_id:
             posts_db[i].update(

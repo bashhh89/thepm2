@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Textarea } from '../components/Textarea';
 import { Card } from '../components/Card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../components/Dialog';
 import { Label } from '../components/Label';
-import { Wand2, Briefcase, Building2, MapPin, Clock, Loader2, X, Search, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Wand2, Briefcase, Building2, MapPin, Clock, Loader2, X, Search, Sparkles, ChevronDown, ChevronUp, Upload, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase, handleSupabaseError } from '../lib/supabase';
 import { cn } from '../lib/utils';
@@ -20,7 +20,10 @@ interface Job {
   description: string;
   requirements: string[];
   benefits: string[];
-  createdAt: string;
+  created_at: string;  // Match backend field name
+  updated_at: string;  // Match backend field name
+  status?: 'active' | 'filled' | 'draft' | 'archived';
+  trainingData?: string; // Add optional training data field
 }
 
 // Add new interface for AI generation
@@ -29,17 +32,59 @@ interface AIGenerationState {
   description: boolean;
   requirements: boolean;
   benefits: boolean;
+  trainingData: boolean;
 }
 
-// Update the type definitions at the top of the file
+// Enhanced PuterAIResponse interface to handle all possible formats
 interface PuterAIResponse {
   message?: {
     content: string | any;
     tool_calls?: any[];
+    role?: string;
   };
   text?: string;
   content?: string | Record<string, any>;
+  type?: string;
 }
+
+const callPuterAI = async (prompt: string) => {
+  console.log("callPuterAI called with prompt:", prompt);
+
+  try {
+    if (!window.puter?.ai?.chat) {
+      throw new Error('Puter AI is not initialized');
+    }
+
+    // Use the window.puter.ai.chat function
+    const response = await window.puter.ai.chat(prompt);
+    console.log("Puter AI Response:", response);
+
+    // Handle different response formats
+    if (typeof response === 'string') {
+      return response;
+    } else if (response?.message?.content) {
+      return response.message.content;
+    } else if (response?.content) {
+      return typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+    } else {
+      throw new Error('Unexpected response format from Puter AI');
+    }
+  } catch (error) {
+    console.error('Puter AI error:', error);
+    // Check if token is expired or invalid
+    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      // Clear token and attempt to reinitialize
+      localStorage.removeItem('puter_token');
+      const initializePuter = window.initializePuter;
+      if (initializePuter) {
+        await initializePuter();
+        // Retry the request once
+        return callPuterAI(prompt);
+      }
+    }
+    throw error;
+  }
+};
 
 export default function JobsPage() {
   // State for job list and filters
@@ -59,15 +104,63 @@ export default function JobsPage() {
     experience: '',
     description: '',
     requirements: [''],
-    benefits: ['']
+    benefits: [''],
+    trainingData: '' // Add training data field
   });
 
   const [isGeneratingAI, setIsGeneratingAI] = useState<AIGenerationState>({
     title: false,
     description: false,
     requirements: false,
-    benefits: false
+    benefits: false,
+    trainingData: false
   });
+
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    
+    const file = e.target.files[0];
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please upload a PDF or Word document');
+      return;
+    }
+
+    setUploadedFile(file);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Failed to upload file');
+
+      const { fileUrl } = await response.json();
+      setNewJob(prev => ({ ...prev, trainingData: fileUrl }));
+      toast.success('File uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast.error('Failed to upload file. Please try again.');
+    } finally {
+      setUploadedFile(null);
+    }
+  };
 
   // Add editing state
   const [editingJob, setEditingJob] = useState<Job | null>(null);
@@ -78,6 +171,10 @@ export default function JobsPage() {
 
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
 
+  const [suggestedTitles, setSuggestedTitles] = useState<string[]>([]);
+  const [debouncedTitleValue, setDebouncedTitleValue] = useState('');
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+
   // Fetch jobs on component mount
   React.useEffect(() => {
     fetchJobs();
@@ -85,13 +182,15 @@ export default function JobsPage() {
 
   const fetchJobs = async () => {
     try {
-      const { error, data } = await supabase
+      const { data: response, error } = await supabase
         .from('jobs')
         .select('*')
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
-      setJobs(data || []);
+      
+      // Update to match backend response format which includes jobs in data
+      setJobs(response || []);
     } catch (error) {
       console.error('Error fetching jobs:', error);
       toast.error(handleSupabaseError(error).error);
@@ -99,8 +198,8 @@ export default function JobsPage() {
   };
 
   const createJob = async () => {
-    if (!newJob.title) {
-      toast.error('Please enter a job title');
+    if (!newJob.title || !newJob.department || !newJob.location) {
+      toast.error('Please fill in all required fields');
       return;
     }
 
@@ -117,45 +216,46 @@ export default function JobsPage() {
             type: newJob.type,
             experience: newJob.experience,
             description: newJob.description,
-            requirements: newJob.requirements,
-            benefits: newJob.benefits,
-            employment_type: newJob.type,
-            remote_policy: newJob.location.toLowerCase().includes('remote') ? 'remote' : 'on-site',
-            updated_at: new Date().toISOString()
+            requirements: newJob.requirements.filter(Boolean),
+            benefits: newJob.benefits.filter(Boolean),
+            trainingData: newJob.trainingData || null, // Include training data in update
+            updated_at: new Date().toISOString(),
+            status: 'active'
           })
           .eq('id', editingJob.id)
-          .select()
-          .single();
+          .select();
 
         if (error) throw error;
+        
         toast.success('Job updated successfully!');
       } else {
-        // Create new job
+        // Create new job - match backend JobCreate model
+        const jobData = {
+          title: newJob.title,
+          department: newJob.department,
+          location: newJob.location,
+          type: newJob.type,
+          experience: newJob.experience,
+          description: newJob.description,
+          requirements: newJob.requirements.filter(Boolean),
+          benefits: newJob.benefits.filter(Boolean),
+          trainingData: newJob.trainingData || null, // Include training data in create
+          status: 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
         const { data, error } = await supabase
           .from('jobs')
-          .insert([{
-            title: newJob.title,
-            department: newJob.department,
-            location: newJob.location,
-            type: newJob.type,
-            experience: newJob.experience,
-            description: newJob.description,
-            requirements: newJob.requirements,
-            benefits: newJob.benefits,
-            status: 'active',
-            employment_type: newJob.type, // Match schema
-            remote_policy: newJob.location.toLowerCase().includes('remote') ? 'remote' : 'on-site',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }])
-          .select()
-          .single();
+          .insert([jobData])
+          .select();
 
         if (error) throw error;
 
         toast.success('Job created successfully!');
       }
 
+      // Reset form and refresh jobs
       setShowJobDialog(false);
       setEditingJob(null);
       setNewJob({
@@ -166,7 +266,8 @@ export default function JobsPage() {
         experience: '',
         description: '',
         requirements: [''],
-        benefits: ['']
+        benefits: [''],
+        trainingData: ''
       });
       fetchJobs();
     } catch (error) {
@@ -221,382 +322,281 @@ export default function JobsPage() {
     }));
   };
 
-  const generateWithAI = async (field: keyof AIGenerationState) => {
-    setIsGeneratingAI(prev => ({ ...prev, [field]: true }));
-    try {
-      let prompt = '';
-      switch (field) {
-        case 'title':
-          prompt = `Suggest 3 professional job titles for a ${newJob.title || 'new'} position.
-          FORMAT YOUR RESPONSE EXACTLY LIKE THIS JSON ARRAY:
-          
-          ["First Job Title", "Second Job Title", "Third Job Title"]
-          
-          Do not return anything other than this JSON array format.`;
-          break;
-        case 'description':
-          prompt = `Create a job description for ${newJob.title || 'this'} position.
-          Include sections for:
-          - Overview
-          - Key Responsibilities
-          - What We're Looking For
-          
-          Return as plain text without any JSON formatting or code blocks.
-          Do not include any section headers or other formatting.`;
-          break;
-        case 'requirements':
-          prompt = `List 5-7 key requirements for ${newJob.title || 'this'} position.
-          FORMAT YOUR RESPONSE EXACTLY LIKE THIS JSON ARRAY:
-          
-          [
-            "First specific requirement",
-            "Second specific requirement",
-            "Third specific requirement"
-          ]
-          
-          Do not return anything other than this JSON array format.`;
-          break;
-        case 'benefits':
-          prompt = `List 5-7 competitive benefits for ${newJob.title || 'this'} position.
-          FORMAT YOUR RESPONSE EXACTLY LIKE THIS JSON ARRAY:
-          
-          [
-            "First specific benefit",
-            "Second specific benefit",
-            "Third specific benefit"
-          ]
-          
-          Do not return anything other than this JSON array format.`;
-          break;
-      }
+  // Update the generateWithAI function to handle responses properly and auto-populate fields
+const generateWithAI = async (field: keyof AIGenerationState) => {
+  setIsGeneratingAI(prev => ({ ...prev, [field]: true }));
+  try {
+    let prompt = '';
+    switch (field) {
+      case 'title':
+        prompt = `I have a job title: "${newJob.title}". Please suggest 3 alternative professional titles that could work better.
+        Context:
+        Department: ${newJob.department || 'Not specified'}
+        Experience: ${newJob.experience || 'Not specified'}
+        
+        Return exactly 3 titles in a JSON array like this: ["Title 1", "Title 2", "Title 3"]
+        Make titles professional and relevant. No extra text.`;
+        break;
+      case 'description':
+        prompt = `Write a professional job description for this position:
+        Title: ${newJob.title}
+        Department: ${newJob.department}
+        Experience Level: ${newJob.experience}
+        
+        Include an overview of the role, key responsibilities, and required qualifications.
+        Make it engaging and informative. Return just the description text.`;
+        break;
+      case 'requirements':
+        prompt = `List 5-7 key requirements for this position:
+        Title: ${newJob.title}
+        Department: ${newJob.department}
+        Experience Level: ${newJob.experience}
+        
+        FORMAT YOUR RESPONSE AS A JSON ARRAY:
+        ["requirement 1", "requirement 2", "requirement 3", ...]
+        Requirements should be specific and relevant to the role.`;
+        break;
+      case 'benefits':
+        prompt = `List 4-6 attractive benefits for this position:
+        Title: ${newJob.title}
+        Department: ${newJob.department}
+        
+        FORMAT YOUR RESPONSE AS A JSON ARRAY:
+        ["benefit 1", "benefit 2", "benefit 3", ...]
+        Focus on competitive and appealing benefits.`;
+        break;
+    }
 
-      if (typeof window === 'undefined' || !window.puter?.ai) {
-        throw new Error('Puter AI not initialized');
-      }
+    const response = await callPuterAI(prompt);
+    console.log("Raw AI Response:", response);
+    
+    // Try to extract JSON if the response contains it
+    let cleanedContent = '';
+    const jsonMatch = response.match(/\[.*?\]|\{.*?\}/s);
+    
+    if (jsonMatch) {
+      cleanedContent = jsonMatch[0];
+    } else {
+      // If no JSON found, clean up markdown and use the full response
+      cleanedContent = response.replace(/```json\n?|```/g, '').trim();
+    }
 
-      console.log('Sending prompt to AI:', prompt);
-
-      const response = await window.puter.ai.chat(prompt, false, {
-        model: 'claude-3-5-sonnet',
-        stream: false
-      });
-
-      console.log('Raw AI response:', response);
-
-      // Extract content from the response with improved object handling
-      let content = '';
-      
-      if (typeof response === 'string') {
-        content = response;
-      } else if (response && typeof response === 'object') {
-        // Handle message.content object or string
-        if (response.message && typeof response.message === 'object') {
-          if (typeof response.message.content === 'string') {
-            content = response.message.content;
-          } else if (response.message.content && typeof response.message.content === 'object') {
-            // If content is an object (like a direct array), stringify it properly
-            content = JSON.stringify(response.message.content);
-          }
-        } 
-        // Handle text property
-        else if ('text' in response && response.text) {
-          content = String(response.text);
-        }
-        // Handle content property
-        else if ('content' in response) {
-          if (typeof response.content === 'string') {
-            content = response.content;
-          } else if (response.content && typeof response.content === 'object') {
-            // If content is a direct array or object, stringify it properly
-            content = JSON.stringify(response.content);
-          }
-        }
-      }
-
-      // If content is still not set, try to stringify the entire response as a last resort
-      if (!content && response) {
-        try {
-          content = JSON.stringify(response);
-        } catch (e) {
-          console.error('Failed to stringify response:', e);
-        }
-      }
-
-      if (!content || content === 'undefined' || content === '[object Object]') {
-        console.error('Invalid content extracted:', content);
-        throw new Error('Failed to extract valid content from AI response');
-      }
-
-      console.log('Extracted content:', content);
-
-      // Clean and normalize the content
-      content = content.replace(/```json\n?|```\n?/g, '').trim();
-      
-      console.log('Cleaned content:', content);
-
+    if (field === 'title') {
       try {
-        switch (field) {
-          case 'title': {
-            // For title, parse the JSON array directly or extract from text
-            let titles: string[] = [];
-            
-            try {
-              // First try direct JSON parse
-          const parsed = JSON.parse(content);
-              if (Array.isArray(parsed)) {
-                titles = parsed.map(t => String(t));
-              } else if (typeof parsed === 'object' && parsed !== null) {
-                // If parsed is an object but not array, check if it has values we can use
-                const values = Object.values(parsed);
-                if (values.length > 0 && values.every(v => typeof v === 'string')) {
-                  titles = values;
-                }
-              }
-            } catch (e) {
-              console.log('Direct JSON parse failed, trying to extract array:', e);
-              
-              // Try to extract array from text
-              const arrayMatch = content.match(/\[([\s\S]*?)\]/);
-              if (arrayMatch) {
-                try {
-                  titles = JSON.parse(arrayMatch[0]);
-                } catch (e) {
-                  // If JSON parse fails, split by commas
-                  titles = arrayMatch[1]
-                    .split(',')
-                    .map(t => t.trim().replace(/^["']|["']$/g, ''))
-                    .filter(Boolean);
-                }
-              }
-              
-              // If still no titles, split by lines
-              if (titles.length === 0) {
-                titles = content
-                  .split('\n')
-                  .map(line => line.trim().replace(/^[-*\d.\s]+/, '').trim())
-                  .filter(Boolean);
-              }
-            }
-            
-            if (titles.length > 0) {
-              setNewJob(prev => ({ ...prev, title: titles[0] }));
-              if (titles.length > 1) {
-                toast.success(`Alternative titles: ${titles.slice(1).join(', ')}`);
-              }
-            } else {
-              throw new Error('No valid titles found in response');
-            }
-            break;
-          }
-          case 'description': {
-            // For description, use the content directly
-            const description = content
-              .replace(/```[a-z]*\n|```/g, '')
-              .replace(/[\r\n]+/g, '\n')
-              .trim();
-              
-            if (!description) {
-              throw new Error('Empty description in response');
-            }
-            setNewJob(prev => ({ ...prev, description }));
-            break;
-          }
-          case 'requirements':
-          case 'benefits': {
-            // For requirements and benefits, parse the JSON array
-            let items: string[] = [];
-            
-            try {
-              // First try direct JSON parse
-              const parsed = JSON.parse(content);
-              if (Array.isArray(parsed)) {
-                items = parsed.map(item => String(item));
-              } else if (typeof parsed === 'object' && parsed !== null) {
-                // Handle object with values
-                const values = Object.values(parsed);
-                if (values.length > 0) {
-                  items = values.map(v => String(v));
-                }
-              }
-            } catch (e) {
-              console.log('JSON parse failed, trying to extract array:', e);
-              
-              // Try to extract array from text
-              const arrayMatch = content.match(/\[([\s\S]*?)\]/);
-              if (arrayMatch) {
-                try {
-                  items = JSON.parse(arrayMatch[0]);
-                } catch (e) {
-                  // If JSON parse fails, split by lines or commas
-                  items = arrayMatch[1]
-                    .split(/[,\n]/)
-                    .map(item => item.trim().replace(/^["']|["']$/g, '').replace(/^[-*•\d.\s]+/, ''))
-                    .filter(Boolean);
-                }
-              } else {
-                // If no array found, split by lines
-                items = content
-                  .split('\n')
-                  .map(line => line.trim().replace(/^[-*•\d.\s]+/, '').trim())
-                  .filter(Boolean);
-              }
-            }
-            
-            if (items.length > 0) {
-              setNewJob(prev => ({ ...prev, [field]: items }));
-            } else {
-              throw new Error(`No valid ${field} found in response`);
-            }
-            break;
-          }
-        }
-        toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} generated successfully!`);
-      } catch (e) {
-        console.error(`Error processing ${field}:`, e);
-        throw new Error(`Failed to process AI response for ${field}: ${e.message}`);
-      }
-    } catch (error: unknown) {
-      console.error(`Error generating ${field}:`, error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      toast.error(`Failed to generate ${field}: ${errorMessage}`);
-    } finally {
-      setIsGeneratingAI(prev => ({ ...prev, [field]: false }));
-    }
-  };
-
-  // Also fix the generateFullJob function to handle Puter.js response format correctly
-  const generateFullJob = async () => {
-    if (!newJob.department || !newJob.experience) {
-      toast.error('Please select a department and experience level first');
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      const prompt = `Create a complete job posting with these details:
-      Department: ${newJob.department}
-      Experience Level: ${newJob.experience}
-      Location: ${newJob.location || 'Remote'}
-      
-      FORMAT YOUR RESPONSE EXACTLY LIKE THIS JSON, replacing the placeholders with appropriate content:
-
-      {
-        "title": "Actual Professional Job Title",
-        "description": "Actual job description with sections for Overview, Responsibilities, and Requirements.",
-        "requirements": [
-          "Actual requirement 1",
-          "Actual requirement 2",
-          "Actual requirement 3"
-        ],
-        "benefits": [
-          "Actual benefit 1",
-          "Actual benefit 2",
-          "Actual benefit 3"
-        ]
-      }
-
-      Do not return anything other than this JSON format.`;
-
-      if (typeof window === 'undefined' || !window.puter?.ai) {
-        throw new Error('Puter AI not initialized');
-      }
-
-      console.log('Sending full job prompt to AI:', prompt);
-
-      const response = await window.puter.ai.chat(prompt, false, {
-        model: 'claude-3-5-sonnet',
-        stream: false
-      });
-
-      console.log('Raw full job AI response:', response);
-
-      // Extract content from the response with improved object handling
-      let result = '';
-      
-      if (typeof response === 'string') {
-        result = response;
-      } else if (response && typeof response === 'object') {
-        // Handle message.content object or string
-        if (response.message && typeof response.message === 'object') {
-          if (typeof response.message.content === 'string') {
-            result = response.message.content;
-          } else if (response.message.content && typeof response.message.content === 'object') {
-            // If content is an object, stringify it properly
-            result = JSON.stringify(response.message.content);
-          }
-        } 
-        // Handle text property
-        else if ('text' in response && response.text) {
-          result = String(response.text);
-        }
-        // Handle content property
-        else if ('content' in response) {
-          if (typeof response.content === 'string') {
-            result = response.content;
-          } else if (response.content && typeof response.content === 'object') {
-            // If content is a direct object, stringify it properly
-            result = JSON.stringify(response.content);
-          }
-        }
-      }
-
-      // If result is still not set, try to stringify the entire response as a last resort
-      if (!result && response) {
+        let titles: string[] = [];
         try {
-          result = JSON.stringify(response);
-        } catch (e) {
-          console.error('Failed to stringify response:', e);
+          // First try parsing as JSON array
+          const parsed = JSON.parse(cleanedContent);
+          titles = Array.isArray(parsed) ? parsed.map(String) : [];
+        } catch {
+          // If JSON parsing fails, split by newlines and clean up
+          titles = response
+            .split('\n')
+            .map(line => line.replace(/^\d+\.\s*|^[-*•]\s*/, '').trim())
+            .filter(Boolean)
+            .slice(0, 3);
         }
-      }
 
-      if (!result || result === 'undefined' || result === '[object Object]') {
-        console.error('Invalid content extracted:', result);
-        throw new Error('Failed to extract valid content from AI response');
-      }
+        if (!titles.length) {
+          throw new Error('No valid titles generated');
+        }
 
-      console.log('Extracted full job content:', result);
+        // Update title and trigger auto-population
+        setNewJob(prev => ({ ...prev, title: titles[0] }));
+        setSuggestedTitles(titles);
+        
+        // Auto-populate other fields if this is a new job
+        if (!editingJob && titles[0]) {
+          // Wait for title to be set before generating other fields
+          setTimeout(async () => {
+            if (newJob.department && newJob.experience) {
+              await generateWithAI('description');
+              await generateWithAI('requirements');
+              await generateWithAI('benefits');
+            }
+          }, 100);
+        }
 
-      // Clean the content and extract JSON
-      result = result.replace(/```json\n?|```\n?/g, '').trim();
-      
-      console.log('Cleaned full job content:', result);
-      
-      // Try to find a JSON object in the response
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        result = jsonMatch[0];
-      }
-
-      let generated;
-      try {
-        generated = JSON.parse(result);
+        // Show alternative titles
+        if (titles.length > 1) {
+          toast.success(
+            <div>
+              <p>Alternative titles:</p>
+              <ul className="list-disc pl-4 mt-1">
+                {titles.slice(1).map((title, i) => (
+                  <li key={i} className="cursor-pointer hover:text-primary" 
+                      onClick={async () => {
+                        setNewJob(prev => ({ ...prev, title }));
+                        // Auto-populate other fields when alternative title is selected
+                        if (!editingJob) {
+                          await generateWithAI('description');
+                          await generateWithAI('requirements');
+                          await generateWithAI('benefits');
+                        }
+                      }}>
+                    {title}
+                  </li>
+                ))}
+              </ul>
+            </div>,
+            { duration: 5000 }
+          );
+        }
       } catch (e) {
-        console.error('Failed to parse JSON:', e);
-        throw new Error('Invalid JSON format in AI response. Please try again.');
+        console.error('Error parsing titles:', e);
+        throw new Error('Failed to parse title suggestions');
       }
-
-      if (!generated || typeof generated !== 'object') {
-        throw new Error('Invalid data structure in AI response');
+    } else if (field === 'description') {
+      // For description, try to extract the text content
+      const descriptionText = response.replace(/```.*?```/gs, '').trim();
+      setNewJob(prev => ({ ...prev, description: descriptionText }));
+    } else if (field === 'requirements' || field === 'benefits') {
+      try {
+        let items: string[] = [];
+        try {
+          // Try parsing as JSON
+          const parsed = JSON.parse(cleanedContent);
+          items = Array.isArray(parsed) ? parsed.map(String) : [];
+        } catch {
+          // If JSON parsing fails, split by newlines and clean up
+          items = response
+            .split('\n')
+            .map(line => line.replace(/^[-*•]\s*/, '').trim())
+            .filter(Boolean);
+        }
+        
+        if (!items.length) {
+          throw new Error(`No valid ${field} generated`);
+        }
+        
+        setNewJob(prev => ({
+          ...prev,
+          [field]: items
+        }));
+      } catch (e) {
+        console.error(`Error parsing ${field}:`, e);
+        throw new Error(`Failed to parse ${field}`);
       }
-
-      // Update job details with generated content
-      setNewJob(prev => ({
-        ...prev,
-        title: generated.title || prev.title,
-        description: generated.description || prev.description,
-        requirements: Array.isArray(generated.requirements) ? generated.requirements : prev.requirements,
-        benefits: Array.isArray(generated.benefits) ? generated.benefits : prev.benefits
-      }));
-
-      toast.success('Job details generated successfully!');
-    } catch (error: unknown) {
-      console.error('Error generating job:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      toast.error(`Failed to generate job details: ${errorMessage}`);
-    } finally {
-      setIsCreating(false);
     }
-  };
+
+    toast.success(`Generated ${field} successfully!`);
+  } catch (error) {
+    console.error(`Error generating ${field}:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    toast.error(`Failed to generate ${field}: ${errorMessage}`);
+  } finally {
+    setIsGeneratingAI(prev => ({ ...prev, [field]: false }));
+  }
+};
+
+  // Update generateFullJob to use the correct request format
+const generateTrainingData = async () => {
+  if (!newJob.title || !newJob.department) {
+    toast.error('Please provide job title and department first');
+    return;
+  }
+
+  setIsGeneratingAI(prev => ({ ...prev, trainingData: true }));
+  try {
+    const prompt = `Generate comprehensive training data for a ${newJob.title} position in the ${newJob.department} department.
+    Include key skills, knowledge areas, and learning objectives.
+    Consider experience level: ${newJob.experience || 'Not specified'}
+    
+    FORMAT YOUR RESPONSE AS A STRUCTURED TEXT:
+    1. Core Skills and Competencies
+    2. Technical Knowledge Requirements
+    3. Soft Skills Development
+    4. Learning Objectives
+    5. Training Milestones
+    
+    Make it detailed and specific to the role.`;
+
+    const response = await callPuterAI(prompt);
+    const cleanedContent = response.replace(/```.*?```/gs, '').trim();
+    
+    setNewJob(prev => ({
+      ...prev,
+      trainingData: cleanedContent
+    }));
+
+    toast.success('Training data generated successfully!');
+  } catch (error) {
+    console.error('Error generating training data:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    toast.error(`Failed to generate training data: ${errorMessage}`);
+  } finally {
+    setIsGeneratingAI(prev => ({ ...prev, trainingData: false }));
+  }
+};
+
+const generateFullJob = async () => {
+  if (!newJob.department || !newJob.experience) {
+    toast.error('Please select a department and experience level first');
+    return;
+  }
+
+  setIsCreating(true);
+  try {
+    const prompt = `Create a complete job posting for a position with these details:
+    Department: ${newJob.department}
+    Experience Level: ${newJob.experience}
+    Location: ${newJob.location || 'Remote'}
+    
+    FORMAT YOUR RESPONSE EXACTLY LIKE THIS JSON:
+    {
+      "title": "Professional job title",
+      "description": "Detailed job description with overview, responsibilities, and qualifications",
+      "requirements": [
+        "Specific requirement 1",
+        "Specific requirement 2",
+        "Specific requirement 3"
+      ],
+      "benefits": [
+        "Specific benefit 1",
+        "Specific benefit 2",
+        "Specific benefit 3"
+      ]
+    }`;
+
+    const content = await callPuterAI(prompt);
+
+    // Parse the content
+    let generated;
+    try {
+      // Clean up the response before parsing
+      const cleanedContent = content.replace(/```json\n?|```/g, '').trim();
+      generated = JSON.parse(cleanedContent);
+    } catch (e) {
+      console.error('Failed to parse content:', content);
+      throw new Error('Failed to parse AI response as JSON');
+    }
+
+    // Validate and update the form
+    if (!generated || typeof generated !== 'object') {
+      throw new Error('Invalid job data structure');
+    }
+
+    setNewJob(prev => ({
+      ...prev,
+      title: generated.title || prev.title,
+      description: generated.description || prev.description,
+      requirements: Array.isArray(generated.requirements) ? 
+        generated.requirements.filter(Boolean) : 
+        prev.requirements,
+      benefits: Array.isArray(generated.benefits) ? 
+        generated.benefits.filter(Boolean) : 
+        prev.benefits
+    }));
+
+    toast.success('Job details generated successfully!');
+  } catch (error) {
+    console.error('Error generating job:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    toast.error(`Failed to generate job details: ${errorMessage}`);
+  } finally {
+    setIsCreating(false);
+  }
+};
 
   // Add test job creation function
   const createTestJob = async () => {
@@ -613,8 +613,6 @@ export default function JobsPage() {
           requirements: ['JavaScript', 'React', 'Node.js'],
           benefits: ['Health Insurance', 'Remote Work', '401k'],
           status: 'active',
-          employment_type: 'Full-time',
-          remote_policy: 'remote',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }]);
@@ -651,7 +649,7 @@ export default function JobsPage() {
     }
   };
 
-  // Add edit function
+  // Fix the syntax error by removing the extra closing bracket
   const startEditing = (job: Job) => {
     setEditingJob(job);
     setNewJob({
@@ -662,7 +660,8 @@ export default function JobsPage() {
       experience: job.experience,
       description: job.description,
       requirements: job.requirements || [''],
-      benefits: job.benefits || ['']
+      benefits: job.benefits || [''],
+      trainingData: job.trainingData || ''
     });
     setShowJobDialog(true);
   };
@@ -678,6 +677,31 @@ export default function JobsPage() {
     const matchesLocation = selectedLocation === 'All' || job.location === selectedLocation;
     return matchesSearch && matchesDepartment && matchesLocation;
   });
+
+  // Add debouncing effect for title suggestions
+  useEffect(() => {
+    if (!debouncedTitleValue) return;
+
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    debounceTimer.current = setTimeout(async () => {
+      try {
+        if (debouncedTitleValue.trim()) {
+          await generateWithAI('title');
+        }
+      } catch (error) {
+        console.error('Error generating title suggestions:', error);
+      }
+    }, 300);
+
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [debouncedTitleValue]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -799,38 +823,9 @@ export default function JobsPage() {
                       )}
                       onClick={() => setExpandedJobId(expandedJobId === job.id ? null : job.id)}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold">{job.title}</h3>
-                            <div className="flex items-center gap-2">
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  startEditing(job);
-                                }}
-                              >
-                                Edit
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setJobToDelete(job);
-                                }}
-                              >
-                                Delete
-                              </Button>
-                              {expandedJobId === job.id ? (
-                                <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                              ) : (
-                                <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                              )}
-                            </div>
-                          </div>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h3 className="text-lg font-semibold">{job.title}</h3>
                           <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
                             <span className="flex items-center">
                               <Building2 className="w-4 h-4 mr-1" />
@@ -845,6 +840,33 @@ export default function JobsPage() {
                               {job.type}
                             </span>
                           </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startEditing(job);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setJobToDelete(job);
+                            }}
+                          >
+                            Delete
+                          </Button>
+                          {expandedJobId === job.id ? (
+                            <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -884,8 +906,6 @@ export default function JobsPage() {
                               <div>
                                 <h4 className="font-medium mb-2 flex items-center gap-2">
                                   <svg
-                                    className="w-4 h-4 text-primary"
-                                    viewBox="0 0 24 24"
                                     fill="none"
                                     stroke="currentColor"
                                     strokeWidth="2"
@@ -925,7 +945,8 @@ export default function JobsPage() {
             experience: '',
             description: '',
             requirements: [''],
-            benefits: ['']
+            benefits: [''],
+            trainingData: ''
           });
         }
         setShowJobDialog(open);
@@ -960,7 +981,10 @@ export default function JobsPage() {
                   <Input
                     id="job-title"
                     value={newJob.title}
-                    onChange={(e) => setNewJob({ ...newJob, title: e.target.value })}
+                    onChange={(e) => {
+                      setNewJob({ ...newJob, title: e.target.value });
+                      setDebouncedTitleValue(e.target.value);
+                    }}
                     placeholder="e.g. Senior Software Engineer"
                   />
                   <Button
@@ -1045,6 +1069,65 @@ export default function JobsPage() {
                     </>
                   )}
                 </Button>
+              </div>
+            </div>
+
+            {/* Add Training Data field */}
+            <div>
+              <Label htmlFor="job-training-data">Training Data</Label>
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={generateTrainingData}
+                    disabled={isGeneratingAI.trainingData}
+                    className="flex-1"
+                  >
+                    {isGeneratingAI.trainingData ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Generating training data...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-4 h-4 mr-2" />
+                        Generate Training Data with AI
+                      </>
+                    )}
+                  </Button>
+                  <div className="relative">
+                    <Input
+                      type="file"
+                      className="hidden"
+                      id="training-data-upload"
+                      onChange={handleFileUpload}
+                      accept=".txt,.doc,.docx,.pdf"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById('training-data-upload')?.click()}
+                      className="whitespace-nowrap"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload File
+                    </Button>
+                  </div>
+                </div>
+                <Textarea
+                  id="job-training-data"
+                  value={newJob.trainingData}
+                  onChange={(e) => setNewJob(prev => ({ ...prev, trainingData: e.target.value }))}
+                  placeholder="Enter or paste training materials to help the chat application answer questions about this position..."
+                  rows={6}
+                />
+                {uploadedFile && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Uploaded: {uploadedFile.name}
+                  </p>
+                )}
               </div>
             </div>
 
