@@ -2,6 +2,9 @@
   "routers": {
     "blog": {
       "disableAuth": true
+    },
+    "extract-text": {
+      "disableAuth": true
     }
   }
 }

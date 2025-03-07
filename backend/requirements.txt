@@ -8,3 +8,9 @@ uvicorn[standard]==0.29.0
 openai
 beautifulsoup4
 requests
+
+# File processing dependencies
+PyPDF2>=3.0.0
+python-docx>=0.8.11
+aiohttp>=3.8.0
+supabase>=1.0.0

@@ -35,6 +35,51 @@ interface ResumeAnalysis {
   relevantExperienceHighlights: { text: string; relevanceScore: number; }[];
 }
 
+// Add file processing utility functions
+const extractTextFromPDF = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await fetch('/api/extract-text', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to extract text from PDF');
+    }
+
+    const { text } = await response.json();
+    return text;
+  } catch (error) {
+    console.error('Error extracting text from PDF:', error);
+    throw error;
+  }
+};
+
+const processFile = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  try {
+    const response = await fetch('/api/extract-text', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to extract text from document');
+    }
+
+    const { text } = await response.json();
+    return text;
+  } catch (error) {
+    console.error('Error extracting text:', error);
+    throw error;
+  }
+};
+
 export function ChatApplicationAssistant({
   jobId,
   jobTitle,
@@ -200,6 +245,86 @@ export function ChatApplicationAssistant({
     }]);
   };
 
+  const handleFileAttachment = async (file: File) => {
+    if (!file) return;
+  
+    // Validate file type
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain'
+    ];
+  
+    if (!allowedTypes.includes(file.type)) {
+      addMessage('assistant', 'Please upload a PDF, Word document, or text file.');
+      return;
+    }
+
+    // Validate file size (5MB)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      addMessage('assistant', 'File size must be less than 5MB.');
+      return;
+    }
+
+    try {
+      addMessage('assistant', 'Processing your document...');
+      
+      // Extract text from the document
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const extractResponse = await fetch('http://localhost:8000/routes/extract-text', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!extractResponse.ok) {
+        const errorText = await extractResponse.text();
+        console.error('Server error:', errorText);
+        throw new Error('Failed to extract text from document');
+      }
+
+      const result = await extractResponse.json();
+      if (!result || !result.text) {
+        throw new Error('Invalid response format from server');
+      }
+
+      const textContent = result.text;
+      setResumeContent(textContent);
+
+      // Analyze the resume
+      const analysis = await analyzeResume(textContent);
+      
+      if (analysis) {
+        const matchPercentage = Math.round(analysis.matchScore);
+        const responseText = `
+          I've analyzed your resume for the ${jobTitle} position:
+
+          Match Score: ${matchPercentage}%
+          Key Skills Match: ${analysis.keySkillsMatch.join(', ')}
+          ${analysis.missingSkills.length > 0 ? `\nConsider adding experience in: ${analysis.missingSkills.join(', ')}` : ''}
+          
+          ${analysis.suggestions.length > 0 ? `\nSuggestions to improve your application:\n${analysis.suggestions.map(s => `• ${s}`).join('\n')}` : ''}
+          
+          Would you like me to:
+          1. Generate a tailored cover letter
+          2. Highlight your most relevant experience
+          3. Provide detailed skills analysis
+          4. Proceed with submitting your application
+        `;
+        
+        setResumeAnalysis(analysis);
+        setApplicationState('reviewed');
+        addMessage('assistant', responseText);
+      }
+    } catch (error) {
+      console.error('Error processing document:', error);
+      addMessage('assistant', `I apologize, but I encountered an error: ${error.message}. Please try again or upload a different file.`);
+    }
+  };
+
   const handleSendMessage = async (content: string, attachment?: { url: string; type: string; name: string }) => {
     if (isProcessing) return;
 
@@ -214,47 +339,68 @@ export function ChatApplicationAssistant({
 
     try {
       if (attachment) {
-        setApplicationState('analyzing');
+        // Add a loading message
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: 'I\'m analyzing your resume now...',
+          content: 'Processing your document...',
           timestamp: new Date()
         }]);
 
-        // Get resume content from the uploaded file
+        // Fetch the file content
         const response = await fetch(attachment.url);
-        const resumeText = await response.text();
-        setResumeContent(resumeText);
+        const blob = await response.blob();
+        const file = new File([blob], attachment.name, { type: blob.type });
 
-        // Analyze resume
-        const analysis = await analyzeResume(resumeText);
-        
-        if (analysis) {
-          const responseText = `
-            I've analyzed your resume for the ${jobTitle} position:
-            
-            Match Score: ${analysis.matchScore}%
-            Key Skills Match: ${analysis.keySkillsMatch.join(', ')}
-            Areas for Improvement: ${analysis.missingSkills.join(', ')}
-            Experience Match: ${analysis.experienceMatch}
-            
-            Would you like to:
-            1. Generate a tailored cover letter
-            2. See detailed skill analysis
-            3. Get improvement suggestions
-            4. Proceed with submitting your application
-            
-            Please select an option or ask any questions you have.
-          `;
-          
-          setMessages(prev => [...prev, {
+        try {
+          // Extract text from the document
+          const textContent = await processFile(file);
+          setResumeContent(textContent);
+
+          // Update the loading message
+          setMessages(prev => [...prev.slice(0, -1), {
             role: 'assistant',
-            content: responseText,
+            content: 'Analyzing your resume...',
+            timestamp: new Date()
+          }]);
+
+          // Analyze the resume
+          const analysis = await analyzeResume(textContent);
+          
+          if (analysis) {
+            const responseText = `
+              I've analyzed your resume for the ${jobTitle} position:
+              
+              Match Score: ${analysis.matchScore}%
+              Key Skills Match: ${analysis.keySkillsMatch.join(', ')}
+              Areas for Improvement: ${analysis.missingSkills.join(', ')}
+              Experience Match: ${analysis.experienceMatch}
+              
+              Would you like to:
+              1. Generate a tailored cover letter
+              2. See detailed skill analysis
+              3. Get improvement suggestions
+              4. Proceed with submitting your application
+              
+              Please select an option or ask any questions you have.
+            `;
+            
+            setResumeAnalysis(analysis);
+            setApplicationState('reviewed');
+            
+            setMessages(prev => [...prev.slice(0, -1), {
+              role: 'assistant',
+              content: responseText,
+              timestamp: new Date()
+            }]);
+          }
+        } catch (error) {
+          console.error('Error processing document:', error);
+          setMessages(prev => [...prev.slice(0, -1), {
+            role: 'assistant',
+            content: 'I apologize, but I had trouble processing your document. Please make sure it\'s a PDF, Word document, or text file and try again.',
             timestamp: new Date()
           }]);
         }
-
-        setApplicationState('reviewed');
       } else if (content.toLowerCase().includes('cover letter')) {
         await generateCoverLetter();
       } else if (content.toLowerCase().includes('submit')) {

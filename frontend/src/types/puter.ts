@@ -54,6 +54,27 @@ export interface PuterWindow extends Window {
   };
 }
 
+export interface PuterAIMessage {
+  role: string;
+  content: string;
+}
+
+export interface PuterAIResponse {
+  message?: {
+    content: string;
+  };
+  text?: string;
+  content?: string;
+}
+
+export interface PuterAI {
+  chat: (prompt: string | Array<{ role: string; content: string }>) => Promise<PuterAIResponse>;
+}
+
 declare global {
-  interface Window extends PuterWindow {}
+  interface Window {
+    puter?: {
+      ai: PuterAI;
+    };
+  }
 }

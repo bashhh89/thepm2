@@ -2,15 +2,14 @@ from fastapi import APIRouter, HTTPException, WebSocket, Depends
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime
-from app.auth import AuthorizedUser
-from app.services.ai import AIService
 from app.services.analytics import AnalyticsService
-from .mkdir import router as mkdir_router
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
-# Include the mkdir router
-router.include_router(mkdir_router)
+class User(BaseModel):
+    id: str
+    email: str
+    name: Optional[str] = None
 
 class DocumentContent(BaseModel):
     type: str  # text, image, chart, data
@@ -22,7 +21,7 @@ class DocumentVersion(BaseModel):
     version: int
     content: List[DocumentContent]
     created_at: datetime
-    created_by: str
+    created_by: User
     comment: Optional[str] = None
 
 class Document(BaseModel):
@@ -36,7 +35,7 @@ class Document(BaseModel):
     analytics_data: Optional[Dict[str, Any]] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    created_by: Optional[str] = None
+    created_by: Optional[User] = None
     settings: Optional[Dict[str, Any]] = None
 
 class AIGenerateRequest(BaseModel):
@@ -53,3 +52,27 @@ class Comment(BaseModel):
     created_at: datetime
     resolved: bool = False
     replies: List['Comment'] = []
+    created_by: User
+
+Comment.update_forward_refs()  # Required for self-referencing model
+
+# Document routes
+@router.get("")
+async def get_documents():
+    return {"documents": []}  # Placeholder implementation
+
+@router.post("")
+async def create_document(document: Document):
+    return document  # Placeholder implementation
+
+@router.get("/{document_id}")
+async def get_document(document_id: str):
+    return {"message": "Document retrieval not implemented"}  # Placeholder implementation
+
+@router.put("/{document_id}")
+async def update_document(document_id: str, document: Document):
+    return document  # Placeholder implementation
+
+@router.delete("/{document_id}")
+async def delete_document(document_id: str):
+    return {"message": "Document deleted"}  # Placeholder implementation
