@@ -52,21 +52,20 @@ export function ChatApplicationForm({ jobId, jobTitle, onSuccess, onCancel }: Ch
   
   const startChat = async () => {
     try {
-      const systemPrompt = `You are a friendly and professional AI recruiter assistant. Your role is to help candidates apply for the ${jobTitle} position. Be conversational, encouraging, and helpful throughout the process. Ask one question at a time, and provide relevant context or tips when appropriate.`;
-      const initialMessage = `Hi there! 👋 I'm your AI recruiting assistant, and I'm here to help you apply for the ${jobTitle} position. I'll guide you through the application process in a conversational way. Let's start with your name - what should I call you?`;
+      const systemPrompt = `You are Lilai, a friendly and professional AI recruiter assistant. Your role is to help candidates apply for the ${jobTitle} position. Be conversational, encouraging, and helpful throughout the process. Handle sarcasm and irrelevant inputs gracefully. Provide clear validation feedback for invalid inputs like email or phone numbers. Use the candidate's name throughout the conversation once provided. Ask one question at a time, and provide relevant context or tips when appropriate.`;
+      const initialMessage = `Hi there! 👋 I'm Lilai, your AI recruiting expert for QanDu. I'm here to help you apply for the ${jobTitle} position. Let's get started! What's your name?`;
       
-      const response = await window.puter.ai.chat([{ role: 'system', content: systemPrompt }, { role: 'assistant', content: initialMessage }]);
+      const response = await window.puter.ai.chat([{ role: 'system', content: systemPrompt }, { role: 'assistant', content: initialMessage }], {
+        model: 'gpt-4o',
+        stream: true
+      });
       
-      // Extract the message content from the response
-      const responseContent = response.message?.content || initialMessage;
-  
-      setMessages([{ role: 'assistant', content: responseContent }]);
+      setMessages([{ role: 'assistant', content: initialMessage }]);
     } catch (error) {
       console.error('Error starting chat:', error);
       toast.error('Failed to start the application process. Please try again.');
     }
   };
-  
   const handleSubmit = async () => {
     if (!currentAnswer.trim()) return;
   
@@ -76,102 +75,73 @@ export function ChatApplicationForm({ jobId, jobTitle, onSuccess, onCancel }: Ch
     setCurrentAnswer('');
   
     try {
-      let nextQuestion = '';
-      let resumeContext = '';
       const currentMessages = [...messages, userMessage];
+      let context = '';
 
-      // If resume is uploaded, try to parse it for context
+      // Add resume context if available
       if (applicationData.resumeUrl) {
         try {
           const resumeResponse = await fetch(`/api/parse-resume?url=${encodeURIComponent(applicationData.resumeUrl)}`);
           if (resumeResponse.ok) {
             const resumeData = await resumeResponse.json();
-            resumeContext = JSON.stringify(resumeData);
+            context = `\nResume Context: ${JSON.stringify(resumeData)}`;
           }
         } catch (error) {
           console.error('Error parsing resume:', error);
         }
       }
-  
-      // Process the answer based on the current step
+
+      // Add validation rules
+      const validationRules = {
+        email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        phone: /^[\d\s\-()+]+$/
+      };
+
       // Process user input with AI
-      // Process user input with AI and get initial response
       const aiResponse = await window.puter.ai.chat([
         ...currentMessages,
-        { role: 'system', content: `Current step: ${currentStep}. Resume context: ${resumeContext}. Process the user's response and provide a natural, context-aware reply.` }
-      ]);
-
-      // Extract message content from AI response
-      const responseContent = aiResponse.message?.content || 'I apologize, but I couldn\'t process your response. Could you please try again?';
-
-      // Handle special commands and resume analysis responses
-      if (resumeAnalysis && /^[1-3]$/.test(currentAnswer)) {
-        switch (currentAnswer) {
-          case '1':
-            const coverLetterResponse = await window.puter.ai.chat([
-              { role: 'system', content: `Generate a tailored cover letter based on the candidate's resume (${resumeContext}) and the ${jobTitle} position.` }
-            ]);
-            nextQuestion = coverLetterResponse.message?.content || 'I apologize, but I couldn\'t generate a cover letter. Please try again.';
-            break;
-          case '2':
-            nextQuestion = `Based on our analysis, here's how you compare to other candidates:\n\n${resumeAnalysis.competitiveAnalysis}\n\nWould you like specific advice on how to strengthen your application?`;
-            break;
-          case '3':
-            nextQuestion = `Here are some suggestions to improve your application:\n\n${resumeAnalysis.suggestedImprovements.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\nWould you like me to help you address any of these points?`;
-            break;
+        {
+          role: 'system',
+          content: `Current application data: ${JSON.stringify(applicationData)}\n${context}\n\nValidation Rules:\n- Email format: ${validationRules.email}\n- Phone format: ${validationRules.phone}\n\nProvide clear feedback for invalid inputs and handle any sarcasm or irrelevant responses professionally.`
         }
-      } else {
-        // Regular application flow
-        switch (currentStep) {
-          case 0: // Name
-            setApplicationData(prev => ({ ...prev, name: currentAnswer }));
-            nextQuestion = responseContent;
-            break;
-          case 1: // Email
-            setApplicationData(prev => ({ ...prev, email: currentAnswer }));
-            nextQuestion = responseContent;
-            break;
-          case 2: // Phone
-            setApplicationData(prev => ({ ...prev, phone: currentAnswer }));
-            const coverLetterPrompt = resumeContext ? 
-              await window.puter.ai.chat([
-                { role: 'system', content: `Generate a personalized question about the candidate's interest in the ${jobTitle} position, incorporating their resume experience: ${resumeContext}` }
-              ]) :
-              `I'd love to hear why you're interested in the ${jobTitle} position. What makes you a great fit for this role?`;
-            nextQuestion = coverLetterPrompt.message?.content || coverLetterPrompt;
-            break;
-          case 3: // Cover Letter
-            setApplicationData(prev => ({ ...prev, coverLetter: currentAnswer }));
-            nextQuestion = "That's fantastic! 🌟 Now, let's add your resume to complete your application. You can drag and drop your resume here, or click to browse your files.";
-            await handleFileUpload();
-            break;
-          case 4: // Resume
-            if (currentAnswer.toLowerCase() === 'upload') {
-              await handleFileUpload();
-            } else if (resumeAnalysis) {
-              nextQuestion = `Based on your resume analysis, you have a ${resumeAnalysis.overallScore}% match for this position. Would you like to:\n1. Submit your application now\n2. Get suggestions to improve your chances\n3. See how you compare to other candidates`;
+      ], {
+        model: 'gpt-4o',
+        stream: true
+      });
+
+      let assistantContent = '';
+      if (aiResponse && Symbol.asyncIterator in aiResponse) {
+        const iterator = aiResponse[Symbol.asyncIterator]();
+        try {
+          while (true) {
+            const { value, done } = await iterator.next();
+            if (done) break;
+            if (value?.text) {
+              assistantContent += value.text;
+              setMessages(prev => {
+                const lastMessage = prev[prev.length - 1];
+                if (lastMessage?.role === 'assistant') {
+                  return [...prev.slice(0, -1), { ...lastMessage, content: assistantContent }];
+                }
+                return [...prev, { role: 'assistant', content: assistantContent }];
+              });
             }
-            break;
-          case 5: // Confirmation
-            if (currentAnswer.toLowerCase() === 'yes') {
-              await submitApplication();
-              const successResponse = await window.puter.ai.chat([
-                { role: 'system', content: `Generate an encouraging success message for a candidate with ${resumeAnalysis?.overallScore ?? 'unknown'}% match score.` }
-              ]);
-              nextQuestion = successResponse.message?.content || 'Your application has been submitted successfully!';
-            } else {
-              nextQuestion = "I understand. Is there anything specific you'd like to review or improve before submitting?";
-            }
-            break;
+          }
+        } catch (streamError) {
+          console.error('Stream error:', streamError);
+          throw new Error('Failed to process streaming response');
         }
+      } else if (aiResponse.message?.content) {
+        assistantContent = aiResponse.message.content;
+        setMessages(prev => [...prev, { role: 'assistant', content: assistantContent }]);
       }
-  
-      // Update messages with the final response
-      setMessages(prev => [...prev, { role: 'assistant', content: nextQuestion }]);
-      setCurrentStep(prev => prev + 1);
+
+      // Update application data based on the conversation
+      updateApplicationData(currentAnswer, assistantContent);
+
     } catch (error) {
-      console.error('Error processing answer:', error);
-      toast.error('Failed to process your answer. Please try again.');
+      console.error('Error processing message:', error);
+      toast.error('Failed to process your response. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -189,22 +159,39 @@ export function ChatApplicationForm({ jobId, jobTitle, onSuccess, onCancel }: Ch
         setResumeAnalysis(analysis);
         setShowSuggestions(true);
         
-        // Add AI insights to the chat
-        const aiInsights = `Based on my analysis of your resume:\n\n` +
-          `• Your skills match: ${analysis.skillMatch}%\n` +
-          `• Experience match: ${analysis.experienceMatch}%\n` +
-          `• Overall fit score: ${analysis.overallScore}%\n\n` +
-          `Would you like me to help you:\n` +
-          `1. Generate a tailored cover letter\n` +
-          `2. See how you compare to other candidates\n` +
-          `3. Get suggestions for improving your application\n` +
-          `\nJust type the number of your choice or ask me anything else!`;
+        // Add AI insights to the chat with interactive buttons
+        const aiInsights = `I've analyzed your resume and here's what I found:\n\n` +
+          `📊 Skills Match: ${analysis.skillMatch}%\n` +
+          `💼 Experience Match: ${analysis.experienceMatch}%\n` +
+          `⭐ Overall Fit Score: ${analysis.overallScore}%\n\n` +
+          `What would you like to know more about?\n\n` +
+          `1️⃣ Generate a tailored cover letter\n` +
+          `2️⃣ See how you compare to other candidates\n` +
+          `3️⃣ Get suggestions for improving your application\n` +
+          `4️⃣ View detailed skills analysis\n\n` +
+          `Just type the number or ask me anything else!`;
         
         setMessages(prev => [...prev, { role: 'assistant', content: aiInsights }]);
+
+        // If score is below threshold, proactively offer suggestions
+        if (analysis.overallScore < 70) {
+          const suggestions = analysis.suggestedImprovements.map((suggestion, index) => 
+            `${index + 1}. ${suggestion}`
+          ).join('\n');
+
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: `I notice there might be some areas we can improve. Here are some specific suggestions:\n\n${suggestions}\n\nWould you like me to help you address any of these points?`
+          }]);
+        }
       }
     } catch (error) {
       console.error('Error analyzing resume:', error);
       toast.error('Failed to analyze resume. Please try again.');
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'I apologize, but I encountered an issue while analyzing your resume. Would you like to try uploading it again, or shall we continue with the rest of your application?'
+      }]);
     }
   };
 
@@ -306,6 +293,48 @@ export function ChatApplicationForm({ jobId, jobTitle, onSuccess, onCancel }: Ch
       toast.error('Failed to upload file. Please try again.');
     }
   };
+  const updateApplicationData = (userInput: string, aiResponse: string) => {
+    // Extract name from the first interaction
+    if (!applicationData.name && messages.length === 1) {
+      setApplicationData(prev => ({ ...prev, name: userInput }));
+      // Immediately ask for email after getting the name
+      const nextMessage = `Thanks ${userInput}! Could you please share your email address so I can keep you updated about your application?`;
+      setMessages(prev => [...prev, { role: 'assistant', content: nextMessage }]);
+      return;
+    }
+
+    // Handle email collection
+    if (applicationData.name && !applicationData.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (emailRegex.test(userInput)) {
+        setApplicationData(prev => ({ ...prev, email: userInput }));
+        // Ask for phone number after valid email
+        const nextMessage = `Perfect! Now, could you please provide your phone number? This will help us reach you more quickly if needed.`;
+        setMessages(prev => [...prev, { role: 'assistant', content: nextMessage }]);
+      } else {
+        // Invalid email format
+        const errorMessage = `That doesn't look like a valid email address. Please provide an email in the format: example@domain.com`;
+        setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
+      }
+      return;
+    }
+
+    // Handle phone number collection
+    if (applicationData.name && applicationData.email && !applicationData.phone) {
+      const phoneRegex = /^[\d\s\-()+]+$/;
+      if (phoneRegex.test(userInput)) {
+        setApplicationData(prev => ({ ...prev, phone: userInput }));
+        // Ask for resume after valid phone number
+        const nextMessage = `Great! Would you like to upload your resume now? This will help us better understand your qualifications.`;
+        setMessages(prev => [...prev, { role: 'assistant', content: nextMessage }]);
+      } else {
+        // Invalid phone format
+        const errorMessage = `That doesn't look like a valid phone number. Please provide a phone number using only digits, spaces, and common symbols (-, +).`;
+        setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
+      }
+      return;
+    }
+  };
 
   const submitApplication = async () => {
     try {
@@ -352,28 +381,49 @@ export function ChatApplicationForm({ jobId, jobTitle, onSuccess, onCancel }: Ch
         )}
       </div>
 
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          onClick={onCancel}
-        >
-          Cancel
-        </Button>
+      <div className="flex flex-col gap-4">
+        <div className="relative">
+          <textarea
+            value={currentAnswer}
+            onChange={(e) => setCurrentAnswer(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (currentAnswer.trim() && !isSubmitting) {
+                  handleSubmit();
+                }
+              }
+            }}
+            placeholder="Type your message... (Press Enter to send)"
+            className="w-full p-4 rounded-lg border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+            rows={3}
+            disabled={isSubmitting}
+          />
+        </div>
 
-        <Button
-          onClick={handleSubmit}
-          disabled={isSubmitting || !currentAnswer.trim()}
-          className="flex-1"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Sending...
-            </>
-          ) : (
-            'Send'
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={onCancel}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting || !currentAnswer.trim()}
+            className="flex-1"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              'Send'
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
