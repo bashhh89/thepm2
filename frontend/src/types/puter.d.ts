@@ -13,17 +13,17 @@ interface Message {
   tool_call_id?: string;
 }
 
+interface PuterAIMessage {
+  role: string;
+  content: string;
+}
+
 interface PuterAIResponse {
-  message: {
-    content: string | { type: string; text: string };
-    tool_calls?: Array<{
-      id: string;
-      function: {
-        name: string;
-        arguments: string;
-      };
-    }>;
+  message?: {
+    content: string;
   };
+  text?: string;
+  content?: string;
 }
 
 interface PuterAIOptions {
@@ -62,11 +62,7 @@ interface PuterAIOptions {
 }
 
 interface PuterAI {
-  chat(
-    prompt: string | Message[],
-    testMode?: boolean,
-    options?: PuterAIOptions
-  ): Promise<PuterAIResponse>;
+  chat: (prompt: string | PuterAIMessage[]) => Promise<PuterAIResponse>;
 }
 
 interface Puter {
@@ -76,10 +72,14 @@ interface Puter {
   print: (text: string) => void;
 }
 
+interface PuterGlobal {
+  ai: PuterAI;
+}
+
 declare global {
   interface Window {
-    puter?: Puter;
+    puter?: PuterGlobal;
   }
 }
 
-export type { Puter, Message, PuterAI, PuterAIResponse, PuterAIOptions, PuterConfig };
+export type { Puter, Message, PuterAIMessage, PuterAIResponse, PuterAIOptions, PuterConfig, PuterAI };

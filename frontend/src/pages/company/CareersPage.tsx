@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import { ChatApplicationAssistant } from '../../components/ChatApplicationAssistant';
 import { supabase, handleSupabaseError, initializeStorage } from '../../lib/supabase';
+import { ChatApplicationForm } from '../../components/ChatApplicationForm';
 
 interface Job {
   id: string;
@@ -417,75 +418,47 @@ export default function CareersPage() {
       {/* Application Modal */}
       {selectedJob && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 space-y-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold mb-2">{selectedJob.title}</h2>
-                  <div className="flex flex-wrap gap-4">
-                    <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                      <Building2 className="w-4 h-4" />
+          <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-4 top-4"
+              onClick={() => setSelectedJob(null)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+
+            <div className="p-6 flex-1 overflow-y-auto">
+              <div className="flex items-start gap-4 mb-6">
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold">{selectedJob.title}</h2>
+                  <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
+                    <span className="flex items-center">
+                      <Building2 className="w-4 h-4 mr-1" />
                       {selectedJob.department}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                      <MapPin className="w-4 h-4" />
+                    <span className="flex items-center">
+                      <MapPin className="w-4 h-4 mr-1" />
                       {selectedJob.location}
                     </span>
-                    {selectedJob.remote_policy && (
-                      <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                        <Globe className="w-4 h-4" />
-                        {selectedJob.remote_policy}
-                      </span>
-                    )}
+                    <span className="flex items-center">
+                      <Clock className="w-4 h-4 mr-1" />
+                      {selectedJob.type}
+                    </span>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setSelectedJob(null)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              
-              <div className="prose prose-sm max-w-none">
-                <p>{selectedJob.description}</p>
-                
-                {selectedJob.requirements?.length > 0 && (
-                  <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-2">Requirements</h3>
-                    <ul className="list-disc pl-5 space-y-1">
-                      {selectedJob.requirements.map((req, index) => (
-                        <li key={index}>{req}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                
-                {selectedJob.benefits?.length > 0 && (
-                  <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-2">Benefits</h3>
-                    <ul className="list-disc pl-5 space-y-1">
-                      {selectedJob.benefits.map((benefit, index) => (
-                        <li key={index}>{benefit}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
 
-              <div className="mt-8 pt-6 border-t">
-                <ChatApplicationAssistant
-                  jobId={selectedJob.id}
-                  jobTitle={selectedJob.title}
-                  jobDescription={selectedJob.description}
-                  onSuccess={() => {
-                    setSelectedJob(null);
-                    toast.success('Application submitted successfully! We will review your application and get back to you soon.');
-                  }}
-                  onCancel={() => setSelectedJob(null)}
-                />
-              </div>
+              <ChatApplicationForm
+                jobId={selectedJob.id}
+                jobTitle={selectedJob.title}
+                department={selectedJob.department}
+                onSuccess={() => {
+                  setSelectedJob(null);
+                  toast.success('Application submitted successfully! We will review your application and get back to you soon.');
+                }}
+                onCancel={() => setSelectedJob(null)}
+              />
             </div>
           </Card>
         </div>
