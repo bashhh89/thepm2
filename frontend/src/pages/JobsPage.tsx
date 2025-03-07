@@ -238,11 +238,7 @@ export default function JobsPage() {
           experience: newJob.experience,
           description: newJob.description,
           requirements: newJob.requirements.filter(Boolean),
-          benefits: newJob.benefits.filter(Boolean),
-          trainingData: newJob.trainingData || null, // Include training data in create
-          status: 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          benefits: newJob.benefits.filter(Boolean)
         };
 
         const { data, error } = await supabase
