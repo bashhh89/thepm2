@@ -301,7 +301,40 @@ export default function Chat() {
       setSystemPrompt('');
     }
   };
-
+  interface SuggestedResponse {
+    text: string;
+    action: () => void;
+  }
+  const [suggestedResponses, setSuggestedResponses] = useState<SuggestedResponse[]>([]);
+  // Add to handleSendMessage function before the try block
+  setSuggestedResponses([
+    {
+      text: "Tell me more about that",
+      action: () => handleSendMessage("Tell me more about that")
+    },
+    {
+      text: "Can you explain differently?",
+      action: () => handleSendMessage("Can you explain this in a different way?")
+    },
+    {
+      text: "What are the next steps?",
+      action: () => handleSendMessage("What should be the next steps?")
+    }
+  ]);
+  // Add before the ChatInput component
+  <div className="flex flex-wrap gap-2 mb-4">
+    {suggestedResponses.map((suggestion, index) => (
+      <Button
+        key={index}
+        variant="outline"
+        size="sm"
+        onClick={suggestion.action}
+        className="text-sm"
+      >
+        {suggestion.text}
+      </Button>
+    ))}
+  </div>
   return (
     <AuthGuard>
       <div className="min-h-screen bg-background">
@@ -320,9 +353,31 @@ export default function Chat() {
               <h1 className="text-2xl font-bold">QanDu Chat</h1>
             </div>
             <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-                Dashboard
-              </Button>
+              <div className="flex items-center gap-4">
+                <input
+                  type="file"
+                  id="file-upload"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      // Handle file upload
+                      console.log('File uploaded:', file);
+                    }
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('file-upload')?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
+                  Dashboard
+                </Button>
+              </div>
             </div>
           </div>
         </header>
@@ -796,3 +851,114 @@ export default function Chat() {
     </AuthGuard>
   );
 }
+{messages.map((message, index) => (
+  <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`max-w-3/4 p-3 rounded-lg ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+      <div className="flex flex-col">
+        <div className="whitespace-pre-wrap break-words">{message.content}</div>
+        {message.role === 'assistant' && (
+          <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2"
+              onClick={() => {
+                // Handle feedback
+                console.log('Feedback:', 'helpful');
+              }}
+            >
+              <ThumbsUp className="h-3 w-3 mr-1" />
+              Helpful
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2"
+              onClick={() => {
+                // Handle feedback
+                console.log('Feedback:', 'not helpful');
+              }}
+            >
+              <ThumbsDown className="h-3 w-3 mr-1" />
+              Not Helpful
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+))}
+{messages.map((message, index) => (
+  <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`max-w-3/4 p-3 rounded-lg ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+      <div className="flex flex-col">
+        <div className="whitespace-pre-wrap break-words">{message.content}</div>
+        {message.role === 'assistant' && (
+          <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2"
+              onClick={() => {
+                // Handle feedback
+                console.log('Feedback:', 'helpful');
+              }}
+            >
+              <ThumbsUp className="h-3 w-3 mr-1" />
+              Helpful
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2"
+              onClick={() => {
+                // Handle feedback
+                console.log('Feedback:', 'not helpful');
+              }}
+            >
+              <ThumbsDown className="h-3 w-3 mr-1" />
+              Not Helpful
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+))}
+{messages.map((message, index) => (
+  <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`max-w-3/4 p-3 rounded-lg ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+      <div className="flex flex-col">
+        <div className="whitespace-pre-wrap break-words">{message.content}</div>
+        {message.role === 'assistant' && (
+          <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2"
+              onClick={() => {
+                // Handle feedback
+                console.log('Feedback:', 'helpful');
+              }}
+            >
+              <ThumbsUp className="h-3 w-3 mr-1" />
+              Helpful
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2"
+              onClick={() => {
+                // Handle feedback
+                console.log('Feedback:', 'not helpful');
+              }}
+            >
+              <ThumbsDown className="h-3 w-3 mr-1" />
+              Not Helpful
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+))}

@@ -385,7 +385,10 @@ export function JobsAIManager({ onGenerateContent }: JobsAIManagerProps) {
             <div className="flex gap-2">
               <Input
                 value={jobTitle}
-                onChange={(e) => setJobTitle(e.target.value)}
+                onChange={(e) => {
+                  setJobTitle(e.target.value);
+                  setFormData(prev => ({ ...prev, title: e.target.value }));
+                }}
                 placeholder="Enter job title to enhance"
               />
               <Button

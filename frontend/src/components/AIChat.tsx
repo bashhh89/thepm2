@@ -13,7 +13,7 @@ export const AIChat: React.FC = () => {
     setLoading(true);
     try {
       const result = await getAIAssistance(input);
-      setResponse(result);
+      setResponse(result.message?.content || result.text || '');
     } catch (error) {
       console.error('Error:', error);
       setResponse('Sorry, something went wrong. Please try again.');
@@ -52,4 +52,4 @@ export const AIChat: React.FC = () => {
       )}
     </div>
   );
-}; 
+};

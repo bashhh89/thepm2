@@ -203,6 +203,12 @@ export default function JobsPage() {
       return;
     }
 
+    // Add validation for training data
+    if (!newJob.trainingData) {
+      const proceed = window.confirm('No training data provided. Training data helps our AI better understand the role and provide more accurate responses to applicants. Would you like to proceed anyway?');
+      if (!proceed) return;
+    }
+
     setIsCreating(true);
     try {
       if (editingJob) {
@@ -363,119 +369,40 @@ const generateWithAI = async (field: keyof AIGenerationState) => {
         break;
     }
 
-    const response = await callPuterAI(prompt);
-    console.log("Raw AI Response:", response);
-    
-    // Try to extract JSON if the response contains it
-    let cleanedContent = '';
-    const jsonMatch = response.match(/\[.*?\]|\{.*?\}/s);
-    
-    if (jsonMatch) {
-      cleanedContent = jsonMatch[0];
-    } else {
-      // If no JSON found, clean up markdown and use the full response
-      cleanedContent = response.replace(/```json\n?|```/g, '').trim();
+    const content = await callPuterAI(prompt);
+
+    switch (field) {
+      case 'title':
+        try {
+          const titles = JSON.parse(content.replace(/```json\n?|```/g, '').trim());
+          if (Array.isArray(titles) && titles.length > 0) {
+            setNewJob(prev => ({ ...prev, title: titles[0] }));
+          }
+        } catch (e) {
+          console.error('Failed to parse titles:', e);
+          throw new Error('Failed to parse AI response');
+        }
+        break;
+
+      case 'description':
+        setNewJob(prev => ({ ...prev, description: content.trim() }));
+        break;
+
+      case 'requirements':
+      case 'benefits':
+        try {
+          const items = JSON.parse(content.replace(/```json\n?|```/g, '').trim());
+          if (Array.isArray(items)) {
+            setNewJob(prev => ({ ...prev, [field]: items.filter(Boolean) }));
+          }
+        } catch (e) {
+          console.error(`Failed to parse ${field}:`, e);
+          throw new Error('Failed to parse AI response');
+        }
+        break;
     }
 
-    if (field === 'title') {
-      try {
-        let titles: string[] = [];
-        try {
-          // First try parsing as JSON array
-          const parsed = JSON.parse(cleanedContent);
-          titles = Array.isArray(parsed) ? parsed.map(String) : [];
-        } catch {
-          // If JSON parsing fails, split by newlines and clean up
-          titles = response
-            .split('\n')
-            .map(line => line.replace(/^\d+\.\s*|^[-*•]\s*/, '').trim())
-            .filter(Boolean)
-            .slice(0, 3);
-        }
-
-        if (!titles.length) {
-          throw new Error('No valid titles generated');
-        }
-
-        // Update title and trigger auto-population
-        setNewJob(prev => ({ ...prev, title: titles[0] }));
-        setSuggestedTitles(titles);
-        
-        // Auto-populate other fields if this is a new job
-        if (!editingJob && titles[0]) {
-          // Wait for title to be set before generating other fields
-          setTimeout(async () => {
-            if (newJob.department && newJob.experience) {
-              await generateWithAI('description');
-              await generateWithAI('requirements');
-              await generateWithAI('benefits');
-            }
-          }, 100);
-        }
-
-        // Show alternative titles
-        if (titles.length > 1) {
-          toast.success(
-            <div>
-              <p>Alternative titles:</p>
-              <ul className="list-disc pl-4 mt-1">
-                {titles.slice(1).map((title, i) => (
-                  <li key={i} className="cursor-pointer hover:text-primary" 
-                      onClick={async () => {
-                        setNewJob(prev => ({ ...prev, title }));
-                        // Auto-populate other fields when alternative title is selected
-                        if (!editingJob) {
-                          await generateWithAI('description');
-                          await generateWithAI('requirements');
-                          await generateWithAI('benefits');
-                        }
-                      }}>
-                    {title}
-                  </li>
-                ))}
-              </ul>
-            </div>,
-            { duration: 5000 }
-          );
-        }
-      } catch (e) {
-        console.error('Error parsing titles:', e);
-        throw new Error('Failed to parse title suggestions');
-      }
-    } else if (field === 'description') {
-      // For description, try to extract the text content
-      const descriptionText = response.replace(/```.*?```/gs, '').trim();
-      setNewJob(prev => ({ ...prev, description: descriptionText }));
-    } else if (field === 'requirements' || field === 'benefits') {
-      try {
-        let items: string[] = [];
-        try {
-          // Try parsing as JSON
-          const parsed = JSON.parse(cleanedContent);
-          items = Array.isArray(parsed) ? parsed.map(String) : [];
-        } catch {
-          // If JSON parsing fails, split by newlines and clean up
-          items = response
-            .split('\n')
-            .map(line => line.replace(/^[-*•]\s*/, '').trim())
-            .filter(Boolean);
-        }
-        
-        if (!items.length) {
-          throw new Error(`No valid ${field} generated`);
-        }
-        
-        setNewJob(prev => ({
-          ...prev,
-          [field]: items
-        }));
-      } catch (e) {
-        console.error(`Error parsing ${field}:`, e);
-        throw new Error(`Failed to parse ${field}`);
-      }
-    }
-
-    toast.success(`Generated ${field} successfully!`);
+    toast.success(`${field} generated successfully!`);
   } catch (error) {
     console.error(`Error generating ${field}:`, error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -484,13 +411,33 @@ const generateWithAI = async (field: keyof AIGenerationState) => {
     setIsGeneratingAI(prev => ({ ...prev, [field]: false }));
   }
 };
-
   // Update generateFullJob to use the correct request format
 const generateTrainingData = async () => {
   if (!newJob.title || !newJob.department) {
     toast.error('Please provide job title and department first');
     return;
   }
+  // Show explanation tooltip about training data
+  toast.info(`🎯 Training Data Importance
+
+This AI training data is crucial for:
+
+✨ Enhancing AI Understanding:
+- Helps our AI system comprehend specific job requirements
+- Enables more accurate candidate screening
+- Improves response quality to applicant questions
+
+🎓 Better Candidate Experience:
+- Provides tailored responses to job-related queries
+- Ensures consistent and accurate information
+- Streamlines the application process
+
+📊 Improved Screening:
+- More accurate skill matching
+- Better qualification assessment
+- Reduced manual screening time
+
+This data significantly improves both the hiring process and candidate experience.`, { duration: 10000 });
 
   setIsGeneratingAI(prev => ({ ...prev, trainingData: true }));
   try {
@@ -977,10 +924,7 @@ const generateFullJob = async () => {
                   <Input
                     id="job-title"
                     value={newJob.title}
-                    onChange={(e) => {
-                      setNewJob({ ...newJob, title: e.target.value });
-                      setDebouncedTitleValue(e.target.value);
-                    }}
+                    onChange={(e) => setNewJob({ ...newJob, title: e.target.value })}
                     placeholder="e.g. Senior Software Engineer"
                   />
                   <Button
