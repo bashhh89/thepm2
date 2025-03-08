@@ -1,3 +1,4 @@
+import { useTenant } from '../contexts/TenantContext';
 import React, { useEffect } from "react";
 import { NavigationHeader } from "../components/NavigationHeader";
 import HeroSection from "../components/HeroSection";
@@ -12,6 +13,12 @@ import { Card } from "../components/Card";
 export default function App() {
   const { posts, isLoading, loadPosts } = useBlogStore();
   const { isAuthenticated } = useAuthStore();
+  const { setTenantId } = useTenant();
+
+  useEffect(() => {
+    setTenantId('default-tenant'); // Hardcoding tenant ID for now
+    loadPosts();
+  }, [loadPosts, setTenantId]);
 
   useEffect(() => {
     loadPosts();

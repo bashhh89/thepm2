@@ -1,3 +1,4 @@
+import { tenantMiddleware } from './middleware/tenant';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -18,6 +19,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use(tenantMiddleware);
 app.use(express.urlencoded({ extended: true }));
 
 // Serve uploaded files with appropriate headers

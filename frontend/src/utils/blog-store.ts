@@ -20,6 +20,7 @@ interface Post {
   publishedAt?: string;
   featuredImage?: string;
   createdAt: string;
+  coverImage?: string;
   updatedAt: string;
 }
 

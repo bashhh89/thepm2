@@ -1,11 +1,14 @@
+import { TenantProvider } from './contexts/TenantContext';
 import { ErrorBoundary, FallbackProps } from "react-error-boundary";
 import { RouterProvider } from "react-router-dom";
 import { router } from "./router";
 import { Head } from "./internal-components/Head";
 import { ThemeProvider } from "./internal-components/ThemeProvider";
 import { DEFAULT_THEME } from "./constants/default-theme";
+<TenantProvider>
 import { FloatingChatButton } from "./components/FloatingChatButton";
 import { startTransition, useEffect, useState } from "react";
+</TenantProvider>
 import { PipelineProvider } from "./contexts/PipelineContext";
 import { useAuthSync } from './utils/auth-store';
 import { supabase } from './lib/supabase';

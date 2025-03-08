@@ -131,7 +131,7 @@ function parseResumeContent(text: string): ParsedResume['metadata'] {
   const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
   
   let currentSection = {
-    type: 'other' as "contact" | "education" | "experience" | "skills" | 'summary' | 'other',
+    type: 'other' as 'contact' | 'education' | 'experience' | 'skills' | 'summary' | 'other',
     content: '',
     confidence: 0
   };
