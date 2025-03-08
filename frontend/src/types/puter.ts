@@ -68,13 +68,15 @@ export interface PuterAIResponse {
 }
 
 export interface PuterAI {
-  chat: (prompt: string | Array<{ role: string; content: string }>) => Promise<PuterAIResponse>;
+  chat: (prompt: string | PuterAIMessage[]) => Promise<PuterAIResponse>;
 }
 
 declare global {
   interface Window {
     puter?: {
-      ai: PuterAI;
+      ai: {
+        chat: (prompt: string | PuterAIMessage[]) => Promise<PuterAIResponse>;
+      };
     };
   }
 }

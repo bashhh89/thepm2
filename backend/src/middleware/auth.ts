@@ -1,28 +1,29 @@
-import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from 'express';
 
-// TODO: Move to environment variables
-const JWT_SECRET = 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
-  // For development, bypass authentication
-  return next();
-  
+export function authenticateToken(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: 'Authentication required' });
+  
+  if (!authHeader) {
+    return res.status(401).json({ error: 'No authorization header' });
   }
 
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid token' });
-    }
+  const token = authHeader.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+
+  try {
+    const user = jwt.verify(token, JWT_SECRET);
     (req as any).user = user;
     next();
-  });
-};
+  } catch (err) {
+    return res.status(403).json({ error: 'Invalid token' });
+  }
+}
 
 export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
   // For development, allow all requests
@@ -33,4 +34,4 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();
-}; 
+};

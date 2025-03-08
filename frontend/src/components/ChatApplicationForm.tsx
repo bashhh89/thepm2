@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import React, { useState, useEffect, ChangeEvent } from 'react';
-=======
 import React, { useState, useEffect, useRef } from 'react';
->>>>>>> f62dddf (super enhanced chat application form needs pdf validation and more enhancment)
 import { Button } from './Button';
 import { Card } from './Card';
 import { Loader2, Upload, Send, Sparkles, User, Mail, Briefcase, Star, FileText, Info, CheckCircle } from 'lucide-react';
@@ -19,6 +15,7 @@ import { ApplicationProgress } from './ApplicationProgress';
 import { cn } from '../lib/utils';
 import { callPuterAI } from '../lib/puter';
 import type { PuterAIMessage } from '../types/puter';
+import { InitialForm } from './InitialForm';
 
 interface ChatApplicationFormProps {
   jobId: string;
@@ -124,13 +121,19 @@ declare global {
   }
 }
 
-const STEPS = [
+interface Step {
+  id: string;
+  label: string;
+  description: string;
+}
+
+const STEPS: Step[] = [
   { id: 'resume', label: 'Resume', description: 'Upload & Analysis' },
   { id: 'personal-info', label: 'Personal Info', description: 'Contact Details' },
   { id: 'experience', label: 'Experience', description: 'Work History' },
   { id: 'skills', label: 'Skills', description: 'Technical Skills' },
   { id: 'additional-info', label: 'Additional Info', description: 'Final Details' },
-  { id: 'review', label: 'Review', description: 'Final Review' },
+  { id: 'review', label: 'Review', description: 'Final Review' }
 ] as const;
 
 const createMessage = (
@@ -149,7 +152,18 @@ const createMessage = (
   ...(analysis && { analysis })
 });
 
+interface InitialFormData {
+  name: string;
+  email: string;
+}
+
 export function ChatApplicationForm({ jobId, jobTitle, department, onSuccess, onCancel }: ChatApplicationFormProps) {
+  const [showInitialForm, setShowInitialForm] = useState(true);
+  const [initialFormData, setInitialFormData] = useState<InitialFormData>({
+    name: '',
+    email: ''
+  });
+  const [formErrors, setFormErrors] = useState<Partial<InitialFormData>>({});
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentAnswer, setCurrentAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -166,10 +180,10 @@ export function ChatApplicationForm({ jobId, jobTitle, department, onSuccess, on
       current: true
     },
     applicationData: {
-      jobId,
-      name: '',
-      email: '',
-      phone: '',
+    jobId,
+    name: '',
+    email: '',
+    phone: '',
       skills: {},
     },
     jobRequirements: {
@@ -187,7 +201,7 @@ export function ChatApplicationForm({ jobId, jobTitle, department, onSuccess, on
     startChat();
     fetchJobRequirements();
   }, []);
-
+  
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -243,7 +257,7 @@ export function ChatApplicationForm({ jobId, jobTitle, department, onSuccess, on
         role: 'assistant',
         content: `# Welcome to QanDu! 👋
 
-I'm Lilai, your AI recruiting assistant. I'll be helping you apply for the **${jobTitle}** position.
+Hi ${context.applicationData.name}, I'm Lilai, your AI recruiting assistant. I'll be helping you apply for the **${jobTitle}** position.
 
 Let's start by analyzing your resume to provide personalized guidance for your application. Please upload your resume in PDF, DOC, or DOCX format.`,
         timestamp: Date.now(),
@@ -417,238 +431,188 @@ Respond in a helpful and professional manner, using markdown formatting.`;
     }
   };
 
-  const analyzeResume = async (resumeContent: string) => {
-    try {
-      setMessages(prev => [...prev, {
-        id: 'analyzing',
-        role: 'assistant',
-        content: '🔍 Analyzing your resume...',
-        timestamp: Date.now(),
-        type: 'text'
-      }]);
-
-      const analysisPrompt = `You are an expert AI recruiter. Analyze the following resume for the ${jobTitle} position:
-
-Resume Content:
-${resumeContent}
-
-Job Requirements:
-${JSON.stringify(context.jobRequirements, null, 2)}
-
-Analyze the resume and provide a detailed analysis in JSON format with the following structure:
-{
-  "skillMatch": number (0-100),
-  "experienceMatch": number (0-100),
-  "overallScore": number (0-100),
-  "keyStrengths": string[],
-  "developmentAreas": string[],
-  "suggestedImprovements": string[],
-  "competitiveAnalysis": string,
-  "roleAlignment": {
-    "score": number (0-100),
-    "feedback": string
-  }
-}
-
-Be thorough in your analysis and ensure all scores are justified based on the resume content and job requirements.`;
-
-      const analysisResponse = await callAI(analysisPrompt);
-      
-      try {
-        const analysis = JSON.parse(analysisResponse) as ResumeAnalysis;
-        setResumeAnalysis(analysis);
-        
-        const analysisMessage: Message = {
-          id: 'resume-analysis',
-          role: 'assistant',
-          content: "I've analyzed your resume. Here's what I found:",
-          timestamp: Date.now(),
-          type: 'analysis',
-          analysis: analysis
-        };
-
-        setMessages(prev => [...prev, analysisMessage]);
-
-        // If score is below threshold, offer improvement suggestions
-        if (analysis.overallScore < 70) {
-          const suggestionMessage: Message = {
-            id: 'improvement-suggestions',
-            role: 'assistant',
-            content: `Based on my analysis, here are some areas where we could strengthen your application:
-
-${analysis.suggestedImprovements.map((improvement, index) => `${index + 1}. ${improvement}`).join('\n')}
-
-Would you like to:`,
-            timestamp: Date.now(),
-            type: 'options',
-            options: [
-              { label: 'Get Detailed Improvement Tips', value: 'improvements' },
-              { label: 'Generate Cover Letter', value: 'cover-letter' },
-              { label: 'Continue As Is', value: 'continue' }
-            ]
-          };
-          setMessages(prev => [...prev, suggestionMessage]);
-        } else {
-          setMessages(prev => [...prev, createMessage(
-            'assistant',
-            `Great news! Your resume shows a strong match for this position with an overall score of ${analysis.overallScore}%. Would you like to proceed with the next steps of your application?`,
-            'options',
-            [
-              { label: 'Continue Application', value: 'continue' },
-              { label: 'View Detailed Analysis', value: 'view-analysis' }
-            ]
-          )]);
-        }
-      } catch (error) {
-        console.error('Error parsing analysis response:', error);
-        throw new Error('Failed to parse AI analysis');
-      }
-    } catch (error) {
-      console.error('Error analyzing resume:', error);
-      setMessages(prev => [...prev, createMessage(
-        'assistant',
-        'I apologize, but I had trouble analyzing your resume. This could be due to the file format or content. Would you like to try uploading it again, perhaps in a different format?',
-        'options',
-        [
-          { label: 'Upload Again', value: 'upload-again' },
-          { label: 'Try Different Format', value: 'change-format' },
-          { label: 'Skip Analysis', value: 'skip' }
-        ]
-      )]);
-    }
-  };
-
-<<<<<<< HEAD
-  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch('/api/upload', {
+  const extractPDFContent = async (fileUrl: string): Promise<string> => {
+    const response = await fetch('/api/extract-pdf-text', {
         method: 'POST',
-        body: formData,
-      });
+        headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileUrl })
+    });
 
-      if (!response.ok) throw new Error('Failed to upload file');
-      const data = await response.json();
-
-      // Set the resume URL and trigger analysis
-      setApplicationData(prev => ({ ...prev, resumeUrl: data.fileUrl }));
-      toast.success('Resume uploaded successfully. Analyzing...');
-      
-      // Analyze the resume
-      const prompt = `Please analyze this resume for ${jobTitle} position. 
-      Resume URL: ${data.fileUrl}
-      
-      Provide a brief confirmation of receipt and analysis completion.`;
-
-      const aiResponse = await window.puter.ai.chat(prompt, false, {
-        model: 'gpt-4',
-        stream: false
-      });
-
-      // Extract the text content from the AI response
-      const analysisText = aiResponse.message?.content || 'Resume analysis complete. Would you like to proceed?';
-
-      toast.success('Resume analysis complete!');
-      setMessages(prev => [
-        ...prev, 
-        { role: 'assistant', content: analysisText }
-      ]);
-
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Failed to upload or analyze resume');
-    } finally {
-      setIsUploading(false);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to extract PDF text');
     }
+
+    const { text } = await response.json();
+    if (!text || text.trim().length === 0) {
+      throw new Error('No text could be extracted from the PDF');
+    }
+    return text;
   };
-=======
+
+  const extractTextContent = async (file: File): Promise<string> => {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        if (!content || content.trim().length === 0) {
+          reject(new Error('File appears to be empty'));
+        } else {
+          resolve(content);
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsText(file);
+    });
+  };
+
   const handleFileUpload = async (file: File) => {
     try {
       setIsUploading(true);
-      setMessages(prev => [...prev, createMessage('system', `Uploading ${file.name}...`)]);
+      setMessages(prev => [...prev, createMessage('system', `Processing ${file.name}...`)]);
 
-      // First, read the file content
-      const fileContent = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        
-        reader.onload = async (e) => {
-          try {
-            let content = '';
-            
-            if (file.type === 'application/pdf') {
-              // For PDFs, read as ArrayBuffer and convert to Base64
-              const arrayBuffer = e.target?.result as ArrayBuffer;
-              const base64 = btoa(
-                new Uint8Array(arrayBuffer)
-                  .reduce((data, byte) => data + String.fromCharCode(byte), '')
-              );
-              content = `[PDF Content Base64: ${base64}]`;
-            } else {
-              content = e.target?.result as string;
-            }
-            
-            resolve(content);
-          } catch (error) {
-            reject(error);
-          }
-        };
-        
-        reader.onerror = (e) => reject(e);
-        
-        if (file.type === 'application/pdf') {
-          reader.readAsArrayBuffer(file);
-        } else {
-          reader.readAsText(file);
-        }
-      });
-
-      // Create form data for file upload
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('jobId', jobId);
->>>>>>> f62dddf (super enhanced chat application form needs pdf validation and more enhancment)
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload file');
+      // First, check file size and type
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        throw new Error('File size exceeds 10MB limit');
       }
 
-      const { fileUrl } = await response.json() as FileUploadResponse;
-      
-      // Update context with the file URL and content
-      setContext(prev => ({
-        ...prev,
-        applicationData: { 
-          ...prev.applicationData, 
-          resumeUrl: fileUrl,
-          resumeContent: fileContent
+      // For PDFs, we'll extract text first
+      if (file.type === 'application/pdf') {
+        // First, get the file buffer
+        const fileBuffer = await file.arrayBuffer();
+        
+        // Extract text from PDF
+        const extractResponse = await fetch('/api/extract-pdf-text', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            fileBuffer: Array.from(new Uint8Array(fileBuffer))
+          })
+        });
+
+        const responseData = await extractResponse.json();
+        
+        if (!extractResponse.ok) {
+          throw new Error(responseData.details || responseData.error || 'Failed to extract PDF text');
         }
-      }));
 
-      setMessages(prev => [
-        ...prev.filter(msg => !msg.content.startsWith('Uploading')),
-        createMessage('system', 'Resume uploaded successfully! Analyzing your resume...')
-      ]);
+        const { text, metadata } = responseData;
+        
+        // Create form data for file upload
+        const formData = new FormData();
+        formData.append('file', file);
 
-      // Analyze the resume
-      await analyzeResume(fileContent);
+        // Upload the file
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload file');
+        }
+
+        const { fileUrl } = await uploadResponse.json() as FileUploadResponse;
+
+        // Update context with file info
+        setContext(prev => ({
+          ...prev,
+          applicationData: {
+            ...prev.applicationData,
+            resumeUrl: fileUrl,
+            resumeContent: text
+          }
+        }));
+
+              setMessages(prev => [
+          ...prev.filter(msg => !msg.content.startsWith('Processing')),
+          createMessage('system', `Successfully processed your ${metadata.pages}-page resume. Analyzing content...`)
+              ]);
+
+        // Analyze the resume
+        await analyzeResume(text);
+
+            } else {
+        // For non-PDF files, use the existing text extraction
+        const fileContent = await extractTextContent(file);
+        
+        // Validate text content
+        if (!fileContent || fileContent.trim().length < 50) {
+          throw new Error('The file contains insufficient text content. Please ensure it contains your resume text.');
+        }
+        
+        // Create form data for file upload
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('jobId', jobId);
+
+        // Upload the file
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload file');
+        }
+
+        const { fileUrl } = await uploadResponse.json() as FileUploadResponse;
+
+        // Update context with file info
+        setContext(prev => ({
+          ...prev,
+          applicationData: {
+            ...prev.applicationData,
+            resumeUrl: fileUrl,
+            resumeContent: fileContent
+          }
+        }));
+
+          setMessages(prev => [
+          ...prev.filter(msg => !msg.content.startsWith('Processing')),
+          createMessage('system', 'Resume uploaded successfully! Analyzing your resume...')
+          ]);
+
+        // Analyze the resume
+        await analyzeResume(fileContent);
+        }
 
     } catch (error) {
       console.error('Error handling file upload:', error);
-      toast.error('Failed to process your resume. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process your resume';
+      
+      // Provide specific guidance based on the error
+      let options = [
+        { label: 'Try Again', value: 'upload-again' },
+        { label: 'Use Different Format', value: 'change-format' },
+        { label: 'Skip Resume Analysis', value: 'skip' }
+      ];
+
+      // Add specific help for common issues
+      if (errorMessage.toLowerCase().includes('scanned') || errorMessage.toLowerCase().includes('insufficient text')) {
+        options.unshift({ label: 'Convert to Text PDF', value: 'convert-pdf' });
+      }
+
+      let helpText = 'Tip: For best results, upload a PDF or DOCX file with selectable text.';
+      
+      if (errorMessage.toLowerCase().includes('invalid pdf')) {
+        helpText = 'Tip: The file appears to be corrupted or not a valid PDF. Try saving it again or converting it to a different format.';
+      } else if (errorMessage.toLowerCase().includes('timeout')) {
+        helpText = 'Tip: The PDF file is too complex to process. Try converting it to a simpler format or using a DOC/DOCX file.';
+      } else if (errorMessage.toLowerCase().includes('insufficient text')) {
+        helpText = 'Tip: If this is a scanned document, please convert it to a searchable PDF using an OCR tool first.';
+      }
+
       setMessages(prev => [
-        ...prev.filter(msg => !msg.content.startsWith('Uploading')),
-        createMessage('system', '❌ Upload failed. Please try again.')
+        ...prev.filter(msg => !msg.content.startsWith('Processing')),
+        createMessage(
+          'assistant',
+          `I encountered an issue while processing your resume: ${errorMessage}\n\n${helpText}\n\nWhat would you like to do?`,
+          'options',
+          options
+        )
       ]);
     } finally {
       setIsUploading(false);
@@ -672,7 +636,7 @@ Would you like to:`,
 
       case 'personal-info':
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        const phoneRegex = /^[\d\s\-()+]+$/;
+      const phoneRegex = /^[\d\s\-()+]+$/;
         
         if (!currentContext.applicationData.email && emailRegex.test(message.content)) {
           updatedContext.applicationData.email = message.content;
@@ -687,7 +651,7 @@ Would you like to:`,
             'assistant',
             `Great! Would you like to upload your resume now? This will help us better understand your qualifications.`
           )]);
-        } else {
+      } else {
           setMessages(prev => [...prev, createMessage(
             'assistant',
             `That doesn't look like a valid ${!currentContext.applicationData.email ? 'email address' : 'phone number'}. Please try again.`
@@ -723,7 +687,7 @@ Would you like to:`,
   const renderMessage = (message: Message) => {
     const isAI = message.role === 'assistant';
 
-    return (
+  return (
       <div key={message.id} className={`flex ${isAI ? 'justify-start' : 'justify-end'} mb-4`}>
         <div className={`flex ${isAI ? 'flex-row' : 'flex-row-reverse'} items-start max-w-[80%]`}>
           <Avatar
@@ -735,7 +699,7 @@ Would you like to:`,
               isAI ? 'bg-secondary text-secondary-foreground' : 'bg-primary text-primary-foreground'
             }`}>
               {renderMessageContent(message)}
-            </div>
+          </div>
             <span className="text-xs text-muted-foreground mt-1">
               {new Date(message.timestamp).toLocaleTimeString()}
             </span>
@@ -786,8 +750,8 @@ Would you like to:`,
                   {rating}
                 </Button>
               ))}
-            </div>
           </div>
+      </div>
         );
 
       case 'analysis':
@@ -836,6 +800,10 @@ Would you like to:`,
 
   const handleOptionSelect = (value: string) => {
     switch (value) {
+      case 'submit':
+        submitApplication();
+        break;
+
       case 'continue':
         // Move to the next step in the application process
         proceedToNextStep();
@@ -865,12 +833,12 @@ ${resumeAnalysis.competitiveAnalysis}
 **Role Alignment:**
 ${resumeAnalysis.roleAlignment.feedback}
 
-Would you like to:`,
+What would you like to do next?`,
             'options',
             [
-              { label: 'Continue Application', value: 'continue' },
               { label: 'Generate Cover Letter', value: 'cover-letter' },
-              { label: 'Improve Resume', value: 'improvements' }
+              { label: 'Improve Resume', value: 'improvements' },
+              { label: 'Continue Application', value: 'continue' }
             ]
           )]);
         }
@@ -884,12 +852,12 @@ Would you like to:`,
 
 ${resumeAnalysis.suggestedImprovements.map((improvement, index) => `${index + 1}. ${improvement}`).join('\n')}
 
-Would you like me to help you with any of these improvements?`,
+What would you like to do next?`,
             'options',
             [
               { label: 'Generate Cover Letter', value: 'cover-letter' },
-              { label: 'Continue Anyway', value: 'continue' },
-              { label: 'Upload New Resume', value: 'upload-again' }
+              { label: 'Upload New Resume', value: 'upload-again' },
+              { label: 'Continue Application', value: 'continue' }
             ]
           )]);
         }
@@ -903,7 +871,11 @@ Would you like me to help you with any of these improvements?`,
         setMessages(prev => [...prev, createMessage(
           'assistant',
           'Please provide any specific changes you\'d like to make to the cover letter, and I\'ll help you revise it.',
-          'text'
+          'options',
+          [
+            { label: 'Generate New Cover Letter', value: 'new-cover-letter' },
+            { label: 'Continue Application', value: 'continue' }
+          ]
         )]);
         break;
 
@@ -1052,8 +1024,8 @@ Would you like me to help you with any of these improvements?`,
       case 'review':
         return (
           <div className="flex gap-2 mt-4">
-            <Button
-              variant="outline"
+              <Button
+                variant="outline"
               onClick={() => setContext(prev => ({
                 ...prev,
                 currentStep: { ...prev.currentStep, type: 'personal-info' }
@@ -1069,11 +1041,11 @@ Would you like me to help you with any of these improvements?`,
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Submitting...
-                </>
-              ) : (
+                  </>
+                ) : (
                 'Submit Application'
-              )}
-            </Button>
+                )}
+              </Button>
           </div>
         );
       default:
@@ -1129,7 +1101,7 @@ Format the cover letter with proper paragraphs and spacing.`;
 
       setMessages(prev => [...prev, createMessage(
         'assistant',
-        `Here's your tailored cover letter:\n\n${response}\n\nWould you like to:`,
+        `Here's your tailored cover letter:\n\n${response}\n\nWhat would you like to do next?`,
         'options',
         [
           { label: 'Edit Cover Letter', value: 'edit-cover-letter' },
@@ -1142,17 +1114,146 @@ Format the cover letter with proper paragraphs and spacing.`;
       toast.error('Failed to generate cover letter. Please try again.');
       setMessages(prev => [...prev, createMessage(
         'assistant',
-        'I apologize, but I encountered an error while generating your cover letter. Would you like to try again?',
+        'I apologize, but I encountered an error while generating your cover letter. What would you like to do?',
         'options',
         [
           { label: 'Try Again', value: 'cover-letter' },
-          { label: 'Continue Without Cover Letter', value: 'continue' }
+          { label: 'Continue Application', value: 'continue' }
         ]
       )]);
     }
   };
 
-  return (
+  const analyzeResume = async (resumeContent: string) => {
+    try {
+      setMessages(prev => [...prev, createMessage(
+        'assistant',
+        '🔍 Analyzing your resume...',
+        'text'
+      )]);
+
+      const analysisPrompt = `You are an expert AI recruiter. Analyze the following resume for the ${jobTitle} position:
+
+Resume Content:
+${resumeContent}
+
+Job Requirements:
+${JSON.stringify(context.jobRequirements, null, 2)}
+
+Analyze the resume and provide a detailed analysis in JSON format with the following structure:
+{
+  "skillMatch": number (0-100),
+  "experienceMatch": number (0-100),
+  "overallScore": number (0-100),
+  "keyStrengths": string[] (3-5 points),
+  "developmentAreas": string[] (2-3 points),
+  "suggestedImprovements": string[] (2-4 points),
+  "competitiveAnalysis": string (2-3 sentences),
+  "roleAlignment": {
+    "score": number (0-100),
+    "feedback": string (1-2 sentences)
+  }
+}
+
+Be thorough in your analysis and ensure all scores are justified based on the resume content and job requirements.
+Format the response ONLY as valid JSON without any additional text.`;
+
+      const analysisResponse = await callAI(analysisPrompt);
+      
+      try {
+        const analysis = JSON.parse(analysisResponse) as ResumeAnalysis;
+        setResumeAnalysis(analysis);
+        
+        const analysisMessage: Message = {
+          id: 'resume-analysis',
+          role: 'assistant',
+          content: "I've analyzed your resume. Here's what I found:",
+          timestamp: Date.now(),
+          type: 'analysis',
+          analysis: analysis
+        };
+
+        setMessages(prev => [...prev, analysisMessage]);
+
+        // If score is below threshold, offer improvement suggestions
+        if (analysis.overallScore < 70) {
+          const suggestionMessage: Message = {
+            id: 'improvement-suggestions',
+            role: 'assistant',
+            content: `Based on my analysis, here are some areas where we could strengthen your application:
+
+${analysis.suggestedImprovements.map((improvement, index) => `${index + 1}. ${improvement}`).join('\n')}
+
+What would you like to do next?`,
+            timestamp: Date.now(),
+            type: 'options',
+            options: [
+              { label: 'Get Detailed Improvement Tips', value: 'improvements' },
+              { label: 'Generate Cover Letter', value: 'cover-letter' },
+              { label: 'Continue As Is', value: 'continue' }
+            ]
+          };
+          setMessages(prev => [...prev, suggestionMessage]);
+        } else {
+          setMessages(prev => [...prev, createMessage(
+            'assistant',
+            `Great news! Your resume shows a strong match for this position with an overall score of ${analysis.overallScore}%. What would you like to do next?`,
+            'options',
+            [
+              { label: 'Continue Application', value: 'continue' },
+              { label: 'View Detailed Analysis', value: 'view-analysis' }
+            ]
+          )]);
+        }
+      } catch (error) {
+        console.error('Error parsing analysis response:', error);
+        throw new Error('Failed to analyze resume content. Please try again or use a different format.');
+      }
+    } catch (error) {
+      console.error('Error analyzing resume:', error);
+      setMessages(prev => [...prev, createMessage(
+        'assistant',
+        'I apologize, but I had trouble analyzing your resume. This could be due to the content format. Would you like to:',
+        'options',
+        [
+          { label: 'Try Again', value: 'upload-again' },
+          { label: 'Use Different Format', value: 'change-format' },
+          { label: 'Skip Analysis', value: 'skip' }
+        ]
+      )]);
+    }
+  };
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleInitialFormSuccess = ({ name, email, leadId }: { name: string; email: string; leadId: string }) => {
+    // Update context with user info
+    setContext(prev => ({
+      ...prev,
+      applicationData: {
+        ...prev.applicationData,
+        name,
+        email,
+        leadId
+      }
+    }));
+
+    // Hide form and start chat
+    setShowInitialForm(false);
+    startChat();
+  };
+
+  return showInitialForm ? (
+    <InitialForm
+      jobTitle={jobTitle}
+      jobId={jobId}
+      department={department}
+      onSuccess={handleInitialFormSuccess}
+    />
+  ) : (
     <Card className="w-full max-w-3xl mx-auto">
       <div className="h-[600px] flex flex-col">
         <div className="flex items-center justify-between p-4 border-b">
@@ -1161,9 +1262,9 @@ Format the cover letter with proper paragraphs and spacing.`;
             <h2 className="text-lg font-semibold">Application Chat</h2>
           </div>
           <ApplicationProgress
-            steps={STEPS}
+            steps={[...STEPS]}
             currentStep={context.currentStep.id}
-            completedSteps={STEPS.slice(0, STEPS.findIndex(s => s.id === context.currentStep.id))}
+            completedSteps={[...STEPS].slice(0, STEPS.findIndex(s => s.id === context.currentStep.id))}
           />
         </div>
 
@@ -1185,7 +1286,7 @@ Format the cover letter with proper paragraphs and spacing.`;
         </div>
 
         <div className="p-4 border-t">
-          <div className="flex gap-2">
+        <div className="flex gap-2">
             <input
               type="text"
               value={currentAnswer}
@@ -1195,22 +1296,22 @@ Format the cover letter with proper paragraphs and spacing.`;
               className="flex-1 px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-primary"
               disabled={isSubmitting || context.currentStep.type === 'resume'}
             />
-            <Button
-              onClick={handleSubmit}
+          <Button
+            onClick={handleSubmit}
               disabled={isSubmitting || !currentAnswer.trim() || context.currentStep.type === 'resume'}
               className="flex items-center gap-2"
-            >
-              {isSubmitting ? (
+          >
+            {isSubmitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
+            ) : (
                 <Send className="w-4 h-4" />
-              )}
+            )}
               Send
-            </Button>
-          </div>
-          {renderActionButtons()}
+          </Button>
         </div>
+          {renderActionButtons()}
       </div>
+    </div>
     </Card>
   );
 }

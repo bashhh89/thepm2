@@ -52,7 +52,7 @@ export function MessageItem({ role, content, timestamp }: MessageItemProps) {
           'px-4 py-3 rounded-lg',
           isUser ? 'bg-primary text-primary-foreground rounded-tr-none' : 
           isSystem ? 'bg-yellow-500/10 text-foreground rounded-tl-none border border-yellow-500/20' :
-          'bg-muted text-foreground rounded-tl-none'
+          'bg-background text-foreground rounded-tl-none border border-border shadow-sm'
         )}>
           {content.split('\n').map((line, i) => (
             <React.Fragment key={i}>

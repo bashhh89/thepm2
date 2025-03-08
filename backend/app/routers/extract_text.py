@@ -5,6 +5,10 @@ import io
 import docx
 import tempfile
 import os
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -12,12 +16,37 @@ async def extract_text_from_pdf(file: bytes) -> str:
     try:
         pdf_file = io.BytesIO(file)
         reader = PyPDF2.PdfReader(pdf_file)
-        text = ""
-        for page in reader.pages:
-            text += page.extract_text() + "\n"
+        
+        if len(reader.pages) == 0:
+            raise ValueError("PDF file contains no pages")
+            
+        text_parts = []
+        for page_num, page in enumerate(reader.pages, 1):
+            try:
+                page_text = page.extract_text()
+                if page_text.strip():
+                    text_parts.append(page_text)
+                else:
+                    logger.warning(f"Page {page_num} appears to be empty or unreadable")
+            except Exception as page_error:
+                logger.error(f"Error extracting text from page {page_num}: {str(page_error)}")
+                continue
+        
+        if not text_parts:
+            raise ValueError("Could not extract any text from the PDF. The file might be scanned or contain only images.")
+            
+        text = "\n\n".join(text_parts)
         return text
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error extracting text from PDF: {str(e)}")
+        error_msg = str(e)
+        if "not a PDF file" in error_msg.lower() or "file has not been decrypted" in error_msg.lower():
+            raise HTTPException(status_code=400, detail="Invalid or encrypted PDF file")
+        elif "memory" in error_msg.lower():
+            raise HTTPException(status_code=400, detail="PDF file is too large to process")
+        else:
+            raise HTTPException(status_code=400, detail=f"Error extracting text from PDF: {error_msg}")
 
 async def extract_text_from_docx(file: bytes) -> str:
     try:
@@ -35,7 +64,7 @@ async def extract_text_from_docx(file: bytes) -> str:
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error extracting text from DOCX: {str(e)}")
 
-@router.post("/extract-text")
+@router.post("/routes/extract-text")
 async def extract_text(file: UploadFile) -> Dict[str, str]:
     content = await file.read()
     

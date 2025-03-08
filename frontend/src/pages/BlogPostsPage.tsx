@@ -6,7 +6,7 @@ import { useBlogStore } from '../utils/blog-store';
 import { Check, Clock, Eye, Edit, Trash2, Plus } from 'lucide-react';
 
 export default function BlogPostsPage() {
-  const { posts, loadPosts, deletePost } = useBlogStore();
+  const { posts, loadPosts, deletePost, isInitialized, isLoading: storeLoading } = useBlogStore();
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -93,9 +93,12 @@ export default function BlogPostsPage() {
         </div>
       </div>
 
-      {isLoading ? (
+      {isLoading || storeLoading ? (
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <p className="text-gray-600">{!isInitialized ? 'Initializing storage system...' : 'Loading posts...'}</p>
+          </div>
         </div>
       ) : (
         <div className="grid gap-6">
