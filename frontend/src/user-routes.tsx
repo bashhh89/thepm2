@@ -3,61 +3,216 @@ import { lazy } from "react";
 import { RouteObject, Outlet } from "react-router-dom";
 import { SuspenseWrapper } from "./components/SuspenseWrapper";
 import { DashboardMainLayout } from "./components/DashboardMainLayout";
+import { MainLayout } from "./components/MainLayout";
 import AuthGuard from "./components/AuthGuard";
 import { AdminJobApplications } from './components/AdminJobApplications';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ContentPage } from './pages/ContentPage';
 
-const App = lazy(() => import("./pages/App.tsx"));
-const BlogPage = lazy(() => import("./pages/BlogPage.tsx"));
-const BlogPostsPage = lazy(() => import("./pages/BlogPostsPage.tsx"));
-const BlogPostEditorPage = lazy(() => import("./pages/blog/BlogPostEditorPage.tsx"));
-const BlogPostDetailPage = lazy(() => import("./pages/blog/BlogPostDetailPage.tsx"));
-const Chat = lazy(() => import("./pages/Chat.tsx"));
-const ChatHistoryPage = lazy(() => import("./pages/ChatHistoryPage.tsx"));
-const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
-const DocumentsPage = lazy(() => import("./pages/DocumentsPage.tsx"));
-const DocumentCreatePage = lazy(() => import("./pages/create/DocumentCreatePage.tsx"));
-const DocumentViewPage = lazy(() => import("./pages/DocumentViewPage.tsx"));
-const JobsPage = lazy(() => import("./pages/JobsPage.tsx"));
-const LeadsPage = lazy(() => import("./pages/LeadsPage.tsx"));
-const Profile = lazy(() => import("./pages/Profile.tsx"));
-const SettingsPage = lazy(() => import("./pages/SettingsPage.tsx"));
-const AdminLogin = lazy(() => import("./pages/AdminLogin.tsx"));
-const AdminDashboard = lazy(() => import("./components/AdminDashboard.tsx"));
-const SignIn = lazy(() => import("./pages/SignIn.tsx"));
-const SignUp = lazy(() => import("./pages/Register.tsx"));
-const CareersPage = lazy(() => import("./pages/company/CareersPage.tsx"));
-const ApplicantsPage = lazy(() => import("./pages/ApplicantsPage.tsx"));
+const App = lazy(() => import("./pages/App"));
+const BlogPage = lazy(() => import("./pages/BlogPage"));
+const BlogPostsPage = lazy(() => import("./pages/BlogPostsPage"));
+const BlogPostEditorPage = lazy(() => import("./pages/blog/BlogPostEditorPage"));
+const BlogPostDetailPage = lazy(() => import("./pages/blog/BlogPostDetailPage"));
+const Chat = lazy(() => import("./pages/Chat"));
+const ChatHistoryPage = lazy(() => import("./pages/ChatHistoryPage"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const DocumentsPage = lazy(() => import("./pages/DocumentsPage"));
+const DocumentCreatePage = lazy(() => import("./pages/create/DocumentCreatePage"));
+const DocumentViewPage = lazy(() => import("./pages/DocumentViewPage"));
+const JobsPage = lazy(() => import("./pages/JobsPage"));
+const LeadsPage = lazy(() => import("./pages/LeadsPage"));
+const Profile = lazy(() => import("./pages/Profile"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin"));
+const AdminDashboard = lazy(() => import("./components/AdminDashboard"));
+const SignIn = lazy(() => import("./pages/SignIn"));
+const SignUp = lazy(() => import("./pages/Register"));
+const CareersPage = lazy(() => import("./pages/company/CareersPage"));
+const ApplicantsPage = lazy(() => import("./pages/ApplicantsPage"));
+
+// Add new page imports
+const FeaturesPage = lazy(() => import("./pages/FeaturesPage"));
+const PricingPage = lazy(() => import("./pages/PricingPage"));
+const AIToolsPage = lazy(() => import("./pages/AIToolsPage"));
+const IntegrationsPage = lazy(() => import("./pages/IntegrationsPage"));
+const APIPage = lazy(() => import("./pages/APIPage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+const PressPage = lazy(() => import("./pages/PressPage"));
+const ContactPage = lazy(() => import("./pages/ContactPage"));
+const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
+const SecurityPage = lazy(() => import("./pages/SecurityPage"));
+const GDPRPage = lazy(() => import("./pages/GDPRPage"));
+
+// Solution pages
+const AIMatching = lazy(() => import("./pages/solutions/AIMatching"));
+const VideoInterviews = lazy(() => import("./pages/solutions/VideoInterviews"));
+const CRMSolution = lazy(() => import("./pages/solutions/CRMSolution"));
+const JobPortalSolution = lazy(() => import("./pages/solutions/JobPortalSolution"));
+const ChatWidgetSolution = lazy(() => import("./pages/solutions/ChatWidgetSolution"));
+const InternalChatSolution = lazy(() => import("./pages/solutions/InternalChatSolution"));
+const AnalyticsSolution = lazy(() => import("./pages/solutions/AnalyticsSolution"));
+const AutomationSolution = lazy(() => import("./pages/solutions/AutomationSolution"));
+
+const BlogListing = lazy(() => import('./pages/blog/BlogListing'));
+const BlogPost = lazy(() => import('./pages/blog/BlogPost'));
 
 export const userRoutes: RouteObject[] = [
-  { 
-    path: "/", 
-    element: <SuspenseWrapper><App /></SuspenseWrapper>
+  {
+    element: <MainLayout />,
+    children: [
+      { 
+        path: "/", 
+        element: <SuspenseWrapper><App /></SuspenseWrapper>
+      },
+      // Solutions routes
+      {
+        path: "/solutions/ai-matching",
+        element: <SuspenseWrapper><AIMatching /></SuspenseWrapper>
+      },
+      {
+        path: "/solutions/video-interviews",
+        element: <SuspenseWrapper><VideoInterviews /></SuspenseWrapper>
+      },
+      {
+        path: "/solutions/analytics",
+        element: <SuspenseWrapper><AnalyticsSolution /></SuspenseWrapper>
+      },
+      {
+        path: "/solutions/automation",
+        element: <SuspenseWrapper><AutomationSolution /></SuspenseWrapper>
+      },
+      {
+        path: "/solutions/crm",
+        element: <SuspenseWrapper><CRMSolution /></SuspenseWrapper>
+      },
+      {
+        path: "/solutions/job-portal",
+        element: <SuspenseWrapper><JobPortalSolution /></SuspenseWrapper>
+      },
+      {
+        path: "/solutions/chat-widget",
+        element: <SuspenseWrapper><ChatWidgetSolution /></SuspenseWrapper>
+      },
+      {
+        path: "/solutions/internal-chat",
+        element: <SuspenseWrapper><InternalChatSolution /></SuspenseWrapper>
+      },
+      // Product routes
+      {
+        path: "/features",
+        element: <SuspenseWrapper><FeaturesPage /></SuspenseWrapper>
+      },
+      {
+        path: "/pricing",
+        element: <SuspenseWrapper><PricingPage /></SuspenseWrapper>
+      },
+      {
+        path: "/ai-tools",
+        element: <SuspenseWrapper><AIToolsPage /></SuspenseWrapper>
+      },
+      {
+        path: "/integrations",
+        element: <SuspenseWrapper><IntegrationsPage /></SuspenseWrapper>
+      },
+      {
+        path: "/api",
+        element: <SuspenseWrapper><APIPage /></SuspenseWrapper>
+      },
+      // Company routes
+      {
+        path: "/about",
+        element: <SuspenseWrapper><AboutPage /></SuspenseWrapper>
+      },
+      {
+        path: "/press",
+        element: <SuspenseWrapper><PressPage /></SuspenseWrapper>
+      },
+      {
+        path: "/contact",
+        element: <SuspenseWrapper><ContactPage /></SuspenseWrapper>
+      },
+      // Legal routes
+      {
+        path: "/privacy",
+        element: <SuspenseWrapper><PrivacyPage /></SuspenseWrapper>
+      },
+      {
+        path: "/terms",
+        element: <SuspenseWrapper><TermsPage /></SuspenseWrapper>
+      },
+      {
+        path: "/security",
+        element: <SuspenseWrapper><SecurityPage /></SuspenseWrapper>
+      },
+      {
+        path: "/gdpr",
+        element: <SuspenseWrapper><GDPRPage /></SuspenseWrapper>
+      },
+      { 
+        path: "/sign-in", 
+        element: <SuspenseWrapper><AuthGuard publicOnly><SignIn /></AuthGuard></SuspenseWrapper>
+      },
+      { 
+        path: "/sign-up", 
+        element: <SuspenseWrapper><AuthGuard publicOnly><SignUp /></AuthGuard></SuspenseWrapper>
+      },
+      { 
+        path: "/blog", 
+        element: (
+          <SuspenseWrapper>
+            <BlogListing />
+          </SuspenseWrapper>
+        )
+      },
+      { 
+        path: "/blog/:slug", 
+        element: (
+          <SuspenseWrapper>
+            <BlogPost />
+          </SuspenseWrapper>
+        )
+      },
+      { 
+        path: "/careers", 
+        element: (
+          <ErrorBoundary>
+            <SuspenseWrapper><CareersPage /></SuspenseWrapper>
+          </ErrorBoundary>
+        )
+      },
+      { 
+        path: "/careers/culture", 
+        element: <SuspenseWrapper><CareersPage /></SuspenseWrapper>
+      },
+      { 
+        path: "/careers/benefits", 
+        element: <SuspenseWrapper><CareersPage /></SuspenseWrapper>
+      },
+      { 
+        path: "/admin/login", 
+        element: <SuspenseWrapper><AuthGuard publicOnly><AdminLogin /></AuthGuard></SuspenseWrapper>
+      },
+      { 
+        path: "/admin", 
+        element: <SuspenseWrapper><AuthGuard requireAdmin><AdminDashboard /></AuthGuard></SuspenseWrapper>,
+        children: [
+          {
+            path: "applications",
+            element: <SuspenseWrapper><AdminJobApplications /></SuspenseWrapper>
+          }
+        ]
+      }
+    ]
   },
-  { 
-    path: "/sign-in", 
-    element: <SuspenseWrapper><AuthGuard publicOnly><SignIn /></AuthGuard></SuspenseWrapper>
-  },
-  { 
-    path: "/sign-up", 
-    element: <SuspenseWrapper><AuthGuard publicOnly><SignUp /></AuthGuard></SuspenseWrapper>
-  },
-  { 
-    path: "/blog", 
-    element: <SuspenseWrapper><BlogPage /></SuspenseWrapper>
-  },
-  { 
-    path: "/blog/:id", 
-    element: <SuspenseWrapper><BlogPostDetailPage /></SuspenseWrapper>
-  },
+  // Keep dashboard route separate as it uses its own layout
   { 
     path: "/dashboard",
     element: (
       <AuthGuard>
         <SuspenseWrapper>
-          <DashboardMainLayout>
-            <Outlet />
-          </DashboardMainLayout>
+          <DashboardMainLayout />
         </SuspenseWrapper>
       </AuthGuard>
     ),
@@ -77,36 +232,6 @@ export const userRoutes: RouteObject[] = [
       { path: "blog-posts/edit/:id", element: <SuspenseWrapper><BlogPostEditorPage /></SuspenseWrapper> },
       { path: "profile", element: <SuspenseWrapper><Profile /></SuspenseWrapper> },
       { path: "settings", element: <SuspenseWrapper><SettingsPage /></SuspenseWrapper> }
-    ]
-  },
-  { 
-    path: "/careers", 
-    element: (
-      <ErrorBoundary>
-        <SuspenseWrapper><CareersPage /></SuspenseWrapper>
-      </ErrorBoundary>
-    )
-  },
-  { 
-    path: "/careers/culture", 
-    element: <SuspenseWrapper><CareersPage /></SuspenseWrapper>
-  },
-  { 
-    path: "/careers/benefits", 
-    element: <SuspenseWrapper><CareersPage /></SuspenseWrapper>
-  },
-  { 
-    path: "/admin/login", 
-    element: <SuspenseWrapper><AuthGuard publicOnly><AdminLogin /></AuthGuard></SuspenseWrapper>
-  },
-  { 
-    path: "/admin", 
-    element: <SuspenseWrapper><AuthGuard requireAdmin><AdminDashboard /></AuthGuard></SuspenseWrapper>,
-    children: [
-      {
-        path: "applications",
-        element: <SuspenseWrapper><AdminJobApplications /></SuspenseWrapper>
-      }
     ]
   }
 ];

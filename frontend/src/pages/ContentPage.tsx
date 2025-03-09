@@ -1,11 +1,4 @@
 import React from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { Button } from './Button';
-import { Card } from './Card';
-import { ArrowLeft, ChevronRight, Shield, Building, Users, Phone } from 'lucide-react';
-import { NavigationHeader } from './NavigationHeader';
-import { cn } from '../lib/utils';
-import { useAuthStore } from '../utils/auth-store';
 
 interface ContentPageProps {
   category: string;
@@ -28,4 +21,4 @@ export function ContentPage({ category, page }: ContentPageProps) {
   );
 }
 
-export default ContentPage;
+export default ContentPage; 

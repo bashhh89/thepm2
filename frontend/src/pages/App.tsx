@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import { NavigationHeader } from "../components/NavigationHeader";
 import HeroSection from "../components/HeroSection";
 import FeaturesSection from "../components/FeaturesSection";
 import HowItWorksSection from "../components/HowItWorksSection";
@@ -7,15 +6,12 @@ import BenefitsSection from "../components/BenefitsSection";
 import SuccessStoriesSection from "../components/SuccessStoriesSection";
 import DemoSection from "../components/DemoSection";
 import CTASection from "../components/CTASection";
-import Footer from "../components/Footer";
 import { useBlogStore } from "../utils/blog-store";
 import { Link } from "react-router-dom";
-import { useAuthStore } from "../utils/auth-store";
 import { Card } from "../components/Card";
 
 export default function App() {
   const { posts, isLoading, loadPosts } = useBlogStore();
-  const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
     loadPosts();
@@ -25,12 +21,6 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <NavigationHeader 
-        isAuthenticated={isAuthenticated}
-        onSignIn={() => window.location.href = '/sign-in'}
-        onSignUp={() => window.location.href = '/sign-up'}
-        onLogout={() => window.location.href = '/sign-out'}
-      />
       <main>
         <HeroSection />
         <FeaturesSection />
@@ -97,7 +87,6 @@ export default function App() {
         
         <CTASection />
       </main>
-      <Footer />
     </div>
   );
 }
