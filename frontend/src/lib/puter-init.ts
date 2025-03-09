@@ -1,44 +1,67 @@
 // Initialize Puter.js configuration
 const initializePuter = async () => {
-  const maxRetries = 3;
-  let retries = 0;
-
-  const tryInitialize = async (): Promise<void> => {
-    try {
-      if (!window.puter?.ai?.chat) {
-        console.log('Waiting for Puter.js to load...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        throw new Error('Puter.js not loaded yet');
-      }
-
-      console.log('Puter.js loaded successfully');
-      window.puter.config = {
-        debug: true,
-        modules: ['ai'],
-        onError: function(error) {
-          console.warn('Puter.js error:', error);
-          window.dispatchEvent(new CustomEvent('putererror', { detail: error }));
-        }
-      };
-
-      // Mark as ready
-      window.puter.isReady = true;
-      window.dispatchEvent(new Event('puterready'));
-    } catch (error) {
-      console.warn(`Puter.js initialization attempt ${retries + 1} failed:`, error);
-      if (retries < maxRetries) {
-        retries++;
-        await tryInitialize();
-      } else {
-        console.error('Failed to initialize Puter.js after', maxRetries, 'attempts');
-        window.dispatchEvent(new CustomEvent('putererror', { 
-          detail: 'Failed to initialize Puter.js. Please refresh the page and try again.' 
-        }));
-      }
+  try {
+    const apiKey = import.meta.env.VITE_PUTER_API_KEY;
+    if (!apiKey) {
+      throw new Error('Puter API key is not configured');
     }
-  };
 
-  await tryInitialize();
+    window.puter = window.puter || {};
+    window.puter.config = {
+      apiKey,
+      apiHost: 'https://api.puter.com',
+      debug: true,
+      modules: ['ai'],
+      onInit: async function() {
+        try {
+          // Attempt to authenticate and get token
+          const response = await fetch('https://api.puter.com/v2/auth/token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`Authentication failed: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          if (data.token) {
+            localStorage.setItem('puter_token', data.token);
+          }
+
+          console.log('Puter.js initialized and authenticated successfully');
+          window.puter.isReady = true;
+          window.dispatchEvent(new Event('puterready'));
+        } catch (error) {
+          console.error('Puter authentication error:', error);
+          throw error;
+        }
+      },
+      onError: function(error) {
+        console.warn('Puter.js initialization error:', error);
+        // Create fallback implementation for AI module
+        window.puter = window.puter || {};
+        window.puter.ai = window.puter.ai || {
+          chat: async function(prompt: string | Array<{ role: string; content: string }>) {
+            console.log('Using fallback AI implementation');
+            return {
+              message: {
+                content: "I'm sorry, but I'm currently operating in fallback mode. Please try again later."
+              }
+            };
+          }
+        };
+        window.puter.isReady = true;
+        window.dispatchEvent(new Event('puterready'));
+      }
+    };
+  } catch (error) {
+    console.error('Puter initialization error:', error);
+    throw error;
+  }
 };
 
 export default initializePuter;

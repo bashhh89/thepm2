@@ -3,15 +3,38 @@ import { DashboardNav } from './DashboardNav';
 import { Button } from './Button';
 import { cn } from '../lib/utils';
 import { useAuthStore } from '../utils/auth-store';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Outlet, Link } from 'react-router-dom';
 import { supabase } from '../AppWrapper';
 import { ChevronLeft, ChevronRight, Menu } from 'lucide-react';
 
 interface DashboardMainLayoutProps {
-  children: React.ReactNode;
+  tenantConfig?: {
+    name: string;
+    logo?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+    features?: {
+      jobPosting: boolean;
+      candidateTracking: boolean;
+      interviews: boolean;
+      analytics: boolean;
+    };
+  };
 }
 
-export function DashboardMainLayout({ children }: DashboardMainLayoutProps) {
+export function DashboardMainLayout({ 
+  tenantConfig = {
+    name: 'QanDu',
+    primaryColor: 'purple',
+    secondaryColor: 'blue',
+    features: {
+      jobPosting: true,
+      candidateTracking: true,
+      interviews: true,
+      analytics: true
+    }
+  }
+}: DashboardMainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -19,12 +42,10 @@ export function DashboardMainLayout({ children }: DashboardMainLayoutProps) {
   const { adminLogout, isAdmin } = useAuthStore();
 
   useEffect(() => {
-    // Get initial user
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
     });
 
-    // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         navigate('/sign-in');
@@ -57,14 +78,20 @@ export function DashboardMainLayout({ children }: DashboardMainLayoutProps) {
           !sidebarOpen && "lg:w-0 -translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="flex h-full flex-1 flex-col">
+        <div className="flex h-full flex-col">
           <div className="flex h-14 items-center border-b px-4 justify-between">
-            <span className={cn(
-              "font-bold transition-all duration-300",
-              sidebarCollapsed && "opacity-0 lg:hidden"
-            )}>
-              {isAdmin ? 'QanDu Admin' : 'QanDu'}
-            </span>
+            <Link to="/dashboard" className="flex items-center space-x-2">
+              <div className="relative w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <span className="text-xl font-bold text-primary-foreground">Q</span>
+              </div>
+              <span className={cn(
+                "text-xl font-bold transition-all duration-300",
+                sidebarCollapsed && "opacity-0 lg:hidden"
+              )}>
+                {tenantConfig.name}
+              </span>
+            </Link>
+            
             <Button
               variant="ghost"
               size="sm"
@@ -80,7 +107,10 @@ export function DashboardMainLayout({ children }: DashboardMainLayoutProps) {
           </div>
           
           <div className="flex-1 overflow-y-auto">
-            <DashboardNav collapsed={sidebarCollapsed} />
+            <DashboardNav 
+              collapsed={sidebarCollapsed}
+              features={tenantConfig.features}
+            />
           </div>
           
           <div className="border-t p-4">
@@ -99,7 +129,7 @@ export function DashboardMainLayout({ children }: DashboardMainLayoutProps) {
                   "text-sm text-muted-foreground truncate transition-all duration-300",
                   sidebarCollapsed && "hidden"
                 )}>
-                  {isAdmin ? 'Administrator' : 'User'}
+                  {isAdmin ? 'Administrator' : 'Recruiter'}
                 </p>
               </div>
             </div>
@@ -132,7 +162,7 @@ export function DashboardMainLayout({ children }: DashboardMainLayoutProps) {
         </header>
         
         <main className="flex-1 p-4 md:p-6">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>

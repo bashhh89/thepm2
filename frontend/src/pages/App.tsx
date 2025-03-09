@@ -1,8 +1,11 @@
-import { useTenant } from '../contexts/TenantContext';
 import React, { useEffect } from "react";
 import { NavigationHeader } from "../components/NavigationHeader";
 import HeroSection from "../components/HeroSection";
 import FeaturesSection from "../components/FeaturesSection";
+import HowItWorksSection from "../components/HowItWorksSection";
+import BenefitsSection from "../components/BenefitsSection";
+import SuccessStoriesSection from "../components/SuccessStoriesSection";
+import DemoSection from "../components/DemoSection";
 import CTASection from "../components/CTASection";
 import Footer from "../components/Footer";
 import { useBlogStore } from "../utils/blog-store";
@@ -13,12 +16,6 @@ import { Card } from "../components/Card";
 export default function App() {
   const { posts, isLoading, loadPosts } = useBlogStore();
   const { isAuthenticated } = useAuthStore();
-  const { setTenantId } = useTenant();
-
-  useEffect(() => {
-    setTenantId('default-tenant'); // Hardcoding tenant ID for now
-    loadPosts();
-  }, [loadPosts, setTenantId]);
 
   useEffect(() => {
     loadPosts();
@@ -37,6 +34,10 @@ export default function App() {
       <main>
         <HeroSection />
         <FeaturesSection />
+        <HowItWorksSection />
+        <BenefitsSection />
+        <SuccessStoriesSection />
+        <DemoSection />
         
         {/* Recent Blog Posts Section */}
         <section className="w-full py-12 md:py-24 bg-slate-50 dark:bg-slate-900">
@@ -91,46 +92,6 @@ export default function App() {
                 <p className="text-muted-foreground">No blog posts available yet.</p>
               </div>
             )}
-          </div>
-        </section>
-        
-        <section className="w-full py-12 md:py-24">
-          <div className="container px-4 md:px-6 mx-auto">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
-              <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">Technical Excellence</h2>
-              <p className="max-w-[700px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                Built with cutting-edge technology for maximum performance and reliability
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="flex flex-col p-6 bg-card rounded-xl border shadow-sm transition-all hover:shadow-md">
-                <h3 className="text-xl font-bold mb-2">AI Integration</h3>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li>• Multiple AI model support</li>
-                  <li>• Contextual responses</li>
-                  <li>• Knowledge base training</li>
-                  <li>• Smart content generation</li>
-                </ul>
-              </div>
-              <div className="flex flex-col p-6 bg-card rounded-xl border shadow-sm transition-all hover:shadow-md">
-                <h3 className="text-xl font-bold mb-2">Development Stack</h3>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li>• React with TypeScript</li>
-                  <li>• Modern component library</li>
-                  <li>• Responsive design</li>
-                  <li>• Real-time updates</li>
-                </ul>
-              </div>
-              <div className="flex flex-col p-6 bg-card rounded-xl border shadow-sm transition-all hover:shadow-md">
-                <h3 className="text-xl font-bold mb-2">Storage & Security</h3>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li>• Persistent data storage</li>
-                  <li>• Secure file handling</li>
-                  <li>• Automatic backups</li>
-                  <li>• Version control</li>
-                </ul>
-              </div>
-            </div>
           </div>
         </section>
         

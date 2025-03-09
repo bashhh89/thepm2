@@ -1,88 +1,56 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://vzqythwfrmjakhvmopyf.supabase.co';
-const serviceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cXl0aHdmcm1qYWtodm1vcHlmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MTAxOTAwNCwiZXhwIjoyMDU2NTk1MDA0fQ.7wZ_4HjSGDEdVq7Q6u2W1JZnG1jvJL4L-6mUZkHvXWQ';
-const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cXl0aHdmcm1qYWtodm1vcHlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEwMTkwMDQsImV4cCI6MjA1NjU5NTAwNH0.QZRgjjtxLlXsH-6U_bGDb62TfZvtkyIycM1LPapjZ28';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6cXl0aHdmcm1qYWtodm1vcHlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEwMTkwMDQsImV4cCI6MjA1NjU5NTAwNH0.QZRgjjtxLlXsH-6U_bGDb62TfZvtkyIycM1LPapjZ28';
 
-export const supabase = createClient(supabaseUrl, anonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-  db: {
-    schema: 'public'
-  },
-  storage: {
-    storageBackend: 'file',
-    autoInitialize: true,
-    retryAttempts: 3,
-    retryInterval: 1000
-  }
-});
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
-export const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false
-  },
-  db: {
-    schema: 'public'
-  }
-});
+// Initialize storage bucket for resumes with retry logic
+export const initializeStorage = async (retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      // Check if bucket exists
+      const { data: buckets, error: listError } = await supabase
+        .storage
+        .listBuckets();
 
-// Initialize storage bucket
-export const initializeStorage = async () => {
-  try {
-    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-    
-    if (listError) {
-      console.error('Error listing buckets:', listError);
-      throw listError;
+      if (listError) throw listError;
+
+      const resumesBucket = buckets?.find(bucket => bucket.name === 'resumes');
+      
+      if (!resumesBucket) {
+        // Create the bucket if it doesn't exist
+        const { data, error: createError } = await supabase
+          .storage
+          .createBucket('resumes', {
+            public: false, // Keep private for security
+            fileSizeLimit: 5242880, // 5MB limit
+            allowedMimeTypes: [
+              'application/pdf',
+              'application/msword',
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ]
+          });
+
+        if (createError) throw createError;
+        console.log('Created resumes storage bucket');
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Storage initialization attempt ${i + 1} failed:`, error);
+      if (i === retries - 1) {
+        throw error; // Throw on final retry
+      }
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
     }
-
-    // Create default bucket if it doesn't exist
-    if (!buckets.find(b => b.name === 'blog-content')) {
-      const { data, error: createError } = await supabaseAdmin.storage.createBucket('blog-content', {
-        public: false,
-        allowedMimeTypes: ['image/*', 'application/pdf', 'text/plain', 'text/markdown'],
-        fileSizeLimit: 52428800
-      });
-
-      if (createError) throw createError;
-
-      console.log('Blog content bucket created successfully. Required SQL policies (run in SQL editor):');
-      console.log(`
-        -- Enable RLS for storage buckets
-        ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
-
-        -- Service role access policy for buckets
-        CREATE POLICY IF NOT EXISTS "Service role bucket access" ON storage.buckets
-        TO service_role
-        USING (true)
-        WITH CHECK (true);
-
-        -- Enable RLS for storage objects
-        ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-
-        -- Authenticated read access for blog content
-        CREATE POLICY IF NOT EXISTS "Authenticated read access" ON storage.objects
-        FOR SELECT
-        TO authenticated
-        USING (bucket_id = 'blog-content');
-      `);
-    }
-    return true;
-  } catch (error) {
-    console.error('Storage initialization error:', error);
-    throw error;
   }
 };
 
-// Helper function to handle Supabase errors
 export const handleSupabaseError = (error: any) => {
   console.error('Supabase error:', error);
   return {
-    error: error.message || 'An error occurred while connecting to the database',
-    status: error.code || 500
+    error: error?.message || error?.error_description || 'An unknown error occurred'
   };
 };

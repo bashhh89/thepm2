@@ -1,27 +1,66 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
 generator client {
   provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DB_URL")
+model Tenant {
+  id          String   @id @default(uuid())
+  name        String
+  domain      String   @unique
+  logo        String?
+  primaryColor String?
+  secondaryColor String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Tenant configuration
+  features    Json     @default("{}")
+  settings    Json     @default("{}")
+  
+  // Relationships
+  users       User[]
+  jobs        Job[]
+  companies   Company[]
+  candidates  Candidate[]
+  applications JobApplication[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  role      String   @default("recruiter")
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
 }
 
 model Company {
-  id              String   @id @default(uuid())
-  name            String
-  logo            String?
-  description     String?
-  website         String?
-  industry        String?
-  size            String?  // e.g., "1-10", "11-50", "51-200", etc.
-  founded         Int?
-  headquarters    String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id          String   @id @default(uuid())
+  name        String
+  logo        String?
+  description String?
+  website     String?
+  industry    String?
+  size        String?
+  location    String?
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  jobs        Job[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
 }
 
 model BrandingContent {
@@ -39,36 +78,117 @@ model BrandingContent {
 }
 
 model Job {
-  id                    String      @id @default(uuid()) @db.Uuid
-  createdAt             DateTime    @default(now()) @map("created_at")
-  updatedAt             DateTime    @updatedAt
-  title                 String
-  description           String?
-  department            String
-  location              String
-  type                  String               // full-time, part-time, contract
-  experience            String               // entry, mid, senior, lead, etc.
-  requirements          String?
-  benefits              String?              // JSON array of benefits
-  salary                Json?                // { min: number, max: number, currency: string }
-  skills                Json?                // Array of { name: string, level: string }
-  status                String               @default("active") // active, filled, draft, archived
-  remotePolicy          String?              // remote, hybrid, on-site
-  workSchedule          String?
-  employmentType        String               // full-time, part-time, contract
-  teamSize              Int?
-  reportsTo             String?
-  applicationDeadline   DateTime?
-  aiGeneratedDescription  String?            @map("ai_generated_description")
-  trainingData          String?            @map("training_data")
-  careerPageContentId   String?             @map("career_page_content_id") @db.Uuid
-  careerPageContent     CareerPageContent?  @relation(fields: [careerPageContentId], references: [id])
-  aiSuggestions         Json?               @map("ai_suggestions") // Store AI-generated improvement suggestions
-  sourceData            Json?               @map("source_data")   // Store original data used to generate the job
-  keywordsTags          String[]            @default([])         // For improved searchability
-  applications          Application[]
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  requirements String
+  benefits    String?
+  department  String?
+  location    String
+  type        String
+  experience  String?
+  salary      Json?
+  status      String   @default("draft")
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  applications JobApplication[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  @@index([createdAt])
+  @@index([tenantId])
+  @@index([companyId])
+}
+
+model Candidate {
+  id          String   @id @default(uuid())
+  name        String
+  email       String
+  phone       String?
+  resumeUrl   String?
+  skills      String[]
+  experience  Json[]
+  education   Json[]
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  applications JobApplication[]
+  assessments Assessment[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([email])
+}
+
+model JobApplication {
+  id          String   @id @default(uuid())
+  jobId       String
+  job         Job      @relation(fields: [jobId], references: [id])
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  status      String   @default("pending")
+  stage       String   @default("new")
+  coverLetter String?
+  feedback    String?
+  rating      Int?
+  interviews  Interview[]
+  notes       Note[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([jobId])
+  @@index([candidateId])
+}
+
+model Interview {
+  id              String   @id @default(uuid())
+  applicationId   String
+  application     JobApplication @relation(fields: [applicationId], references: [id])
+  type           String   // video, phone, onsite
+  scheduledAt    DateTime
+  duration       Int      // in minutes
+  status         String   @default("scheduled")
+  feedback       String?
+  recording      String?  // URL to video recording if applicable
+  notes          Note[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([applicationId])
+}
+
+model Assessment {
+  id          String   @id @default(uuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  type        String   // skill_test, personality, coding_challenge
+  score       Int?
+  results     Json?
+  feedback    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([candidateId])
+}
+
+model Note {
+  id          String   @id @default(uuid())
+  content     String
+  type        String   @default("general") // general, feedback, interview
+  applicationId String?
+  application JobApplication? @relation(fields: [applicationId], references: [id])
+  interviewId String?
+  interview   Interview? @relation(fields: [interviewId], references: [id])
+  createdBy   String    // User ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([applicationId])
+  @@index([interviewId])
 }
 
 model CareerPageContent {
@@ -110,17 +230,4 @@ model Application {
   @@map("applications")
   @@index([jobId])
   @@index([createdAt])
-}
-
-model JobApplication {
-  id          String   @id @default(cuid())
-  jobId       String
-  job         Job      @relation(fields: [jobId], references: [id])
-  userName    String
-  applicationData Json
-  conversationHistory Json
-  feedback    String?
-  adminDashboardViewed Boolean @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 }

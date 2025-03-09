@@ -1,9 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from './Button';
-import { cn } from '../lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Menu,
+  X,
+  ChevronDown,
+  Sparkles,
+  Users,
+  BarChart3,
+  MessageCircle,
+  Rocket,
+  Lock,
+  Brain,
+  Video,
+  User,
+  Settings,
+  LogOut,
+  LayoutDashboard
+} from 'lucide-react';
 
 interface NavigationHeaderProps {
   isAuthenticated: boolean;
@@ -12,305 +27,256 @@ interface NavigationHeaderProps {
   onLogout: () => void;
 }
 
-interface MenuItem {
-  label: string;
-  href: string;
-  items?: SubMenuItem[];
-}
-
-interface SubMenuItem {
-  label: string;
-  href: string;
-  description?: string;
-}
-
-const menuItems: MenuItem[] = [
+const menuItems = [
   {
     label: 'Solutions',
-    href: '#',
     items: [
-      {
-        label: 'AI Assistant',
-        href: '/pages/product/ai-assistant',
-        description: 'Intelligent automation for your business'
-      },
-      {
-        label: 'Enterprise',
-        href: '/pages/product/enterprise',
-        description: 'Advanced solutions for large organizations'
-      },
-      {
-        label: 'Analytics',
-        href: '/pages/product/analytics',
-        description: 'Data insights and visualization'
-      }
+      { icon: Brain, label: 'AI Matching', description: 'Smart candidate screening' },
+      { icon: Video, label: 'Video Interviews', description: 'Remote interview platform' },
+      { icon: BarChart3, label: 'Analytics', description: 'Recruitment insights' },
+      { icon: Rocket, label: 'Automation', description: 'Workflow automation' },
     ]
   },
   {
     label: 'Resources',
-    href: '#',
     items: [
-      {
-        label: 'Documentation',
-        href: '/pages/resources/documentation',
-        description: 'Guides and API references'
-      },
-      {
-        label: 'Blog',
-        href: '/blog',
-        description: 'Latest updates and articles'
-      },
-      {
-        label: 'Community',
-        href: '/pages/resources/community',
-        description: 'Join our developer community'
-      }
-    ]
-  },
-  {
-    label: 'Company',
-    href: '#',
-    items: [
-      {
-        label: 'About',
-        href: '/pages/company/about',
-        description: 'Our story and mission'
-      },
-      {
-        label: 'Contact',
-        href: '/pages/company/contact',
-        description: 'Get in touch with us'
-      }
-    ]
-  },
-  {
-    label: 'Pricing',
-    href: '/pages/pricing/plans'
-  },
-  {
-    label: 'Careers',
-    href: '/careers',
-    items: [
-      {
-        label: 'Open Positions',
-        href: '/careers',
-        description: 'Browse available job opportunities'
-      },
-      {
-        label: 'Life at QanDu',
-        href: '/careers/culture',
-        description: 'Learn about our culture and values'
-      },
-      {
-        label: 'Benefits & Perks',
-        href: '/careers/benefits',
-        description: 'Discover what we offer'
-      }
+      { icon: Users, label: 'Success Stories', description: 'See how agencies grow' },
+      { icon: MessageCircle, label: 'Blog', description: 'Industry insights' },
+      { icon: Lock, label: 'Security', description: 'Enterprise-grade protection' }
     ]
   }
 ];
 
+const profileMenuItems = [
+  { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+  { icon: User, label: 'Profile', href: '/profile' },
+  { icon: Settings, label: 'Settings', href: '/settings' },
+];
+
 export function NavigationHeader({ isAuthenticated, onSignIn, onSignUp, onLogout }: NavigationHeaderProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
-  const location = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
-
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => {
-    setIsOpen(false);
-    setActiveDropdown(null);
-  }, [location.pathname]);
-
   return (
     <header 
-      className={cn(
-        "fixed top-0 w-full z-50 transition-all duration-200",
-        isScrolled 
-          ? "bg-background/80 backdrop-blur-lg shadow-sm" 
-          : "bg-transparent"
-      )}
+      className={`sticky top-0 z-50 transition-all duration-300 ${
+        isScrolled ? 'bg-background/80 backdrop-blur-lg shadow-sm' : 'bg-background'
+      }`}
     >
-      <nav className="container mx-auto px-4 h-16">
-        <div className="flex items-center justify-between h-full">
-          <div className="flex items-center gap-8">
-            <Link to="/" className="font-bold text-xl">
-              <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
-                QanDu
-              </span>
-            </Link>
-
-            {/* Desktop Menu */}
-            <div className="hidden md:flex items-center gap-6">
-              {menuItems.map((item) => (
-                <div
-                  key={item.label}
-                  className="relative"
-                  onMouseEnter={() => setActiveDropdown(item.label)}
-                  onMouseLeave={() => setActiveDropdown(null)}
-                >
-                  <Link
-                    to={item.href}
-                    className={cn(
-                      "flex items-center gap-1 px-2 py-2 text-sm font-medium text-muted-foreground",
-                      "hover:text-foreground transition-colors",
-                      activeDropdown === item.label && "text-foreground"
-                    )}
-                  >
-                    {item.label}
-                    {item.items && (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </Link>
-
-                  {item.items && (
-                    <AnimatePresence>
-                      {activeDropdown === item.label && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 10 }}
-                          transition={{ duration: 0.2 }}
-                          className="absolute top-full left-0 w-64 pt-2"
-                        >
-                          <div className="bg-popover rounded-lg shadow-lg border p-4">
-                            <div className="grid gap-2">
-                              {item.items.map((subItem) => (
-                                <Link
-                                  key={subItem.label}
-                                  to={subItem.href}
-                                  className="block p-2 rounded-md hover:bg-accent"
-                                >
-                                  <div className="font-medium">{subItem.label}</div>
-                                  {subItem.description && (
-                                    <div className="text-xs text-muted-foreground mt-1">
-                                      {subItem.description}
-                                    </div>
-                                  )}
-                                </Link>
-                              ))}
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center gap-4">
-            {isAuthenticated ? (
-              <>
-                <Button variant="ghost" onClick={() => window.location.href = '/dashboard'}>
-                  Dashboard
-                </Button>
-                <Button variant="outline" onClick={onLogout}>
-                  Log out
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="ghost" onClick={onSignIn}>
-                  Sign in
-                </Button>
-                <Button onClick={onSignUp}>
-                  Get Started
-                </Button>
-              </>
-            )}
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden p-2 hover:bg-accent rounded-md"
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            {isOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
-          </button>
+      {/* AI Tools Banner - Only show when not scrolled */}
+      {!isScrolled && (
+        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent py-1 px-4 text-center text-sm border-b">
+          <span className="inline-flex items-center gap-1.5">
+            <Brain className="w-3.5 h-3.5" />
+            Now offering AI-powered recruitment tools
+          </span>
         </div>
+      )}
+      
+      <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
+        {/* Logo */}
+        <Link to="/" className="flex items-center space-x-2">
+          <div className="relative w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+            <span className="text-xl font-bold text-primary-foreground">Q</span>
+          </div>
+          <span className="text-xl font-bold">QanDu</span>
+        </Link>
+
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center space-x-8">
+          {menuItems.map((menu) => (
+            <div 
+              key={menu.label}
+              className="relative"
+              onMouseEnter={() => setOpenDropdown(menu.label)}
+              onMouseLeave={() => setOpenDropdown(null)}
+            >
+              <button className="flex items-center space-x-1 text-muted-foreground hover:text-foreground transition-colors">
+                <span>{menu.label}</span>
+                <ChevronDown className="w-4 h-4" />
+              </button>
+              <AnimatePresence>
+                {openDropdown === menu.label && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute top-full left-1/2 -translate-x-1/2 pt-4"
+                  >
+                    <div className="w-64 bg-background rounded-xl border shadow-lg p-4 grid gap-2">
+                      {menu.items.map((item) => (
+                        <Link
+                          key={item.label}
+                          to="#"
+                          className="flex items-start p-2 rounded-lg hover:bg-muted transition-colors group"
+                        >
+                          <item.icon className="w-5 h-5 text-primary mr-3 mt-0.5 transition-transform group-hover:scale-110" />
+                          <div>
+                            <div className="font-medium">{item.label}</div>
+                            <div className="text-sm text-muted-foreground">{item.description}</div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ))}
+        </div>
+
+        {/* Auth Buttons */}
+        <div className="hidden md:flex items-center space-x-4">
+          {isAuthenticated ? (
+            <div className="relative">
+              <Button 
+                variant="ghost" 
+                className="relative"
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+              >
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="w-4 h-4 text-primary" />
+                </div>
+              </Button>
+              <AnimatePresence>
+                {isProfileOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute right-0 mt-2 w-56 bg-background rounded-xl border shadow-lg py-2"
+                  >
+                    <div className="px-4 py-2 border-b">
+                      <div className="font-medium">John Doe</div>
+                      <div className="text-sm text-muted-foreground">john@example.com</div>
+                    </div>
+                    {profileMenuItems.map((item) => (
+                      <Link
+                        key={item.label}
+                        to={item.href}
+                        className="flex items-center px-4 py-2 text-sm hover:bg-muted transition-colors"
+                      >
+                        <item.icon className="w-4 h-4 mr-3" />
+                        {item.label}
+                      </Link>
+                    ))}
+                    <button
+                      onClick={onLogout}
+                      className="flex items-center w-full px-4 py-2 text-sm text-red-500 hover:bg-muted transition-colors"
+                    >
+                      <LogOut className="w-4 h-4 mr-3" />
+                      Sign Out
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={onSignIn}>Sign In</Button>
+              <Button onClick={onSignUp} className="group">
+                Get Started
+                <Sparkles className="ml-2 w-4 h-4 transition-transform group-hover:rotate-12" />
+              </Button>
+            </>
+          )}
+        </div>
+
+        {/* Mobile Menu Button */}
+        <button
+          className="md:hidden p-2 hover:bg-muted rounded-lg transition-colors"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        >
+          <AnimatePresence mode="wait">
+            {isMobileMenuOpen ? (
+              <motion.div
+                initial={{ rotate: -90 }}
+                animate={{ rotate: 0 }}
+                exit={{ rotate: 90 }}
+              >
+                <X className="w-6 h-6" />
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ rotate: 90 }}
+                animate={{ rotate: 0 }}
+                exit={{ rotate: -90 }}
+              >
+                <Menu className="w-6 h-6" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </button>
       </nav>
 
       {/* Mobile Menu */}
       <AnimatePresence>
-        {isOpen && (
+        {isMobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t bg-background"
+            className="md:hidden bg-background border-t"
           >
-            <div className="container px-4 py-4">
-              <div className="grid gap-4">
-                {menuItems.map((item) => (
-                  <div key={item.label}>
-                    {item.items ? (
-                      <div className="space-y-2">
-                        <div className="font-medium">{item.label}</div>
-                        <div className="grid gap-2 pl-4">
-                          {item.items.map((subItem) => (
-                            <Link
-                              key={subItem.label}
-                              to={subItem.href}
-                              className="flex items-center justify-between p-2 rounded-md hover:bg-accent"
-                            >
-                              <div>
-                                <div className="font-medium">{subItem.label}</div>
-                                {subItem.description && (
-                                  <div className="text-xs text-muted-foreground">
-                                    {subItem.description}
-                                  </div>
-                                )}
-                              </div>
-                              <ChevronRight className="h-4 w-4" />
-                            </Link>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
+            <div className="container mx-auto px-4 py-4 space-y-6">
+              {menuItems.map((menu) => (
+                <div key={menu.label} className="space-y-2">
+                  <div className="font-medium text-lg">{menu.label}</div>
+                  <div className="grid gap-2 pl-4">
+                    {menu.items.map((item) => (
                       <Link
-                        to={item.href}
-                        className="flex items-center justify-between p-2 rounded-md hover:bg-accent"
+                        key={item.label}
+                        to="#"
+                        className="flex items-start space-x-3 p-2 rounded-lg hover:bg-muted transition-colors"
                       >
-                        <span className="font-medium">{item.label}</span>
-                        <ChevronRight className="h-4 w-4" />
+                        <item.icon className="w-5 h-5 text-primary mt-0.5" />
+                        <div>
+                          <div className="font-medium">{item.label}</div>
+                          <div className="text-sm text-muted-foreground">{item.description}</div>
+                        </div>
                       </Link>
-                    )}
+                    ))}
                   </div>
-                ))}
-              </div>
-
-              <div className="grid gap-4 mt-6">
+                </div>
+              ))}
+              <div className="grid gap-4 pt-4 border-t">
                 {isAuthenticated ? (
                   <>
-                    <Button variant="outline" className="w-full" onClick={() => window.location.href = '/dashboard'}>
-                      Dashboard
-                    </Button>
-                    <Button variant="default" className="w-full" onClick={onLogout}>
-                      Log out
+                    {profileMenuItems.map((item) => (
+                      <Link
+                        key={item.label}
+                        to={item.href}
+                        className="flex items-center p-2 hover:bg-muted rounded-lg transition-colors"
+                      >
+                        <item.icon className="w-5 h-5 mr-3" />
+                        {item.label}
+                      </Link>
+                    ))}
+                    <Button 
+                      variant="ghost" 
+                      onClick={onLogout}
+                      className="justify-start text-red-500 hover:text-red-600"
+                    >
+                      <LogOut className="w-5 h-5 mr-3" />
+                      Sign Out
                     </Button>
                   </>
                 ) : (
                   <>
-                    <Button variant="outline" className="w-full" onClick={onSignIn}>
-                      Sign in
-                    </Button>
-                    <Button variant="default" className="w-full" onClick={onSignUp}>
+                    <Button variant="ghost" onClick={onSignIn}>Sign In</Button>
+                    <Button onClick={onSignUp} className="group">
                       Get Started
+                      <Sparkles className="ml-2 w-4 h-4 transition-transform group-hover:rotate-12" />
                     </Button>
                   </>
                 )}
@@ -322,3 +288,5 @@ export function NavigationHeader({ isAuthenticated, onSignIn, onSignUp, onLogout
     </header>
   );
 }
+
+export default NavigationHeader;

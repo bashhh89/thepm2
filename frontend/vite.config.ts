@@ -53,17 +53,10 @@ export default defineConfig({
     define: buildVariables(),
     plugins: [react(), splitVendorChunkPlugin(), tsConfigPaths(), injectHTML()],
     server: {
-        port: 5174,
         proxy: {
             "/routes": {
-                target: "http://localhost:5001",
+                target: "http://127.0.0.1:8000",
                 changeOrigin: true,
-                secure: false,
-                configure: (proxy, _options) => {
-                    proxy.on('error', (err, _req, _res) => {
-                        console.error('Backend proxy error:', err);
-                    });
-                }
             },
             "/auth/login": {
                 target: "http://localhost:5177",

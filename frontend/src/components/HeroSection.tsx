@@ -1,67 +1,124 @@
 import React from "react";
 import { Button } from "./Button";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { ArrowRight, Check } from "lucide-react";
 
 export function HeroSection() {
   return (
-    <section className="w-full py-12 md:py-24 lg:py-32 bg-background relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 pointer-events-none"></div>
+    <section className="w-full min-h-[90vh] flex items-center bg-gradient-to-b from-primary/5 via-background to-background relative overflow-hidden">
+      {/* Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-1/2 -right-1/2 w-[100rem] h-[100rem] opacity-30">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/5 to-transparent rounded-full blur-3xl"></div>
+        </div>
+        <div className="absolute -bottom-1/2 -left-1/2 w-[100rem] h-[100rem] opacity-30">
+          <div className="absolute inset-0 bg-gradient-to-tr from-secondary/20 via-secondary/5 to-transparent rounded-full blur-3xl"></div>
+        </div>
+      </div>
+
       <div className="container px-4 md:px-6 mx-auto relative z-10">
-        <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
-          <div className="flex flex-col justify-center space-y-4">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80">
-                QanDu Intelligence Platform
-              </h1>
-              <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                Transform your business with AI-powered insights. Featuring advanced analytics, 
-                intelligent content creation, and seamless integration with state-of-the-art AI models.
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 min-[400px]:flex-row">
-              <Button size="lg" className="px-8 bg-primary hover:bg-primary/90">
-                Start Free Trial
-              </Button>
-              <Link to="/blog">
-                <Button size="lg" variant="outline" className="px-8">
-                  Read Our Blog
-                </Button>
-              </Link>
-            </div>
-            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-              <div className="flex items-center">
-                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 6L9 17l-5-5"/>
-                </svg>
+        <div className="flex flex-col items-center text-center space-y-8 md:space-y-12">
+          {/* Overline */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+            </span>
+            <span className="text-sm font-medium">Now offering AI-powered recruitment tools</span>
+          </motion.div>
+
+          {/* Main Heading */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="max-w-5xl space-y-4"
+          >
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight">
+              Your Own{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
                 AI-Powered
+              </span>
+              <br />
+              Recruitment Platform
+            </h1>
+            <p className="max-w-2xl mx-auto text-xl text-muted-foreground">
+              Transform your recruitment agency with a fully branded platform featuring AI matching, 
+              video interviews, and automated workflows.
+            </p>
+          </motion.div>
+
+          {/* CTA Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="flex flex-col sm:flex-row gap-4 w-full max-w-md mx-auto"
+          >
+            <Button size="lg" className="w-full sm:w-auto group">
+              Get Started Free
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
+            <Button size="lg" variant="outline" className="w-full sm:w-auto">
+              Watch Demo
+            </Button>
+          </motion.div>
+
+          {/* Trust Indicators */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="pt-8 grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 max-w-4xl mx-auto"
+          >
+            <div className="flex flex-col items-center space-y-2">
+              <span className="text-3xl font-bold text-primary">50+</span>
+              <span className="text-sm text-muted-foreground">Active Agencies</span>
+            </div>
+            <div className="flex flex-col items-center space-y-2">
+              <span className="text-3xl font-bold text-primary">10k+</span>
+              <span className="text-sm text-muted-foreground">Placements Made</span>
+            </div>
+            <div className="flex flex-col items-center space-y-2">
+              <span className="text-3xl font-bold text-primary">60%</span>
+              <span className="text-sm text-muted-foreground">Time Saved</span>
+            </div>
+            <div className="flex flex-col items-center space-y-2">
+              <span className="text-3xl font-bold text-primary">98%</span>
+              <span className="text-sm text-muted-foreground">Client Satisfaction</span>
+            </div>
+          </motion.div>
+
+          {/* Trust Badges */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.8 }}
+            className="pt-12 flex flex-col items-center space-y-4"
+          >
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <Check className="h-4 w-4 text-primary" />
+                <span>Free 14-day trial</span>
               </div>
-              <div className="flex items-center">
-                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 6L9 17l-5-5"/>
-                </svg>
-                Blog Creation
+              <div className="h-1 w-1 rounded-full bg-muted-foreground/30" />
+              <div className="flex items-center gap-1.5">
+                <Check className="h-4 w-4 text-primary" />
+                <span>No credit card required</span>
               </div>
-              <div className="flex items-center">
-                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 6L9 17l-5-5"/>
-                </svg>
-                Analytics
+              <div className="h-1 w-1 rounded-full bg-muted-foreground/30" />
+              <div className="flex items-center gap-1.5">
+                <Check className="h-4 w-4 text-primary" />
+                <span>Cancel anytime</span>
               </div>
             </div>
-          </div>
-          <div className="flex justify-center lg:justify-end">
-            <div className="relative w-full max-w-[500px] aspect-square rounded-xl overflow-hidden border shadow-xl bg-background/50 backdrop-blur-sm">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 z-10"></div>
-              <div className="absolute inset-0">
-                <div className="absolute top-1/4 left-1/4 w-1/2 h-1/2 bg-primary/10 rounded-lg animate-pulse"></div>
-                <div className="absolute top-1/3 left-1/3 w-1/3 h-1/3 bg-secondary/10 rounded-full animate-pulse" style={{ animationDelay: '500ms' }}></div>
-                <div className="absolute bottom-1/4 right-1/4 w-1/4 h-1/4 bg-accent/10 rounded-md animate-pulse" style={{ animationDelay: '1000ms' }}></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">QanDu AI</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>

@@ -1,61 +1,115 @@
 import React from "react";
 import { Button } from "./Button";
-import { Link } from "react-router-dom";
-import { ArrowRight, BookOpen, Newspaper } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowRight, Star } from "lucide-react";
 
-export default function CTASection() {
+export function CTASection() {
   return (
-    <section className="w-full py-12 md:py-24 bg-primary/5">
-      <div className="container px-4 md:px-6 mx-auto">
-        <div className="grid lg:grid-cols-2 gap-8 items-center">
-          <div className="flex flex-col items-start space-y-4">
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-              Ready to Transform Your Business?
-            </h2>
-            <p className="text-muted-foreground md:text-xl max-w-[600px]">
-              Join hundreds of businesses using QanDu to streamline operations, create engaging content, 
-              and drive growth with AI-powered tools.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 mt-2">
-              <Button size="lg" className="px-8">
-                Get Started
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-              <Link to="/blog">
-                <Button size="lg" variant="outline" className="px-8">
-                  <Newspaper className="mr-2 h-4 w-4" />
-                  Read Our Blog
-                </Button>
-              </Link>
+    <section className="w-full py-20 md:py-32 bg-primary/5 relative overflow-hidden">
+      {/* Background Elements */}
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-grid-white/10 bg-[size:30px_30px] [mask-image:radial-gradient(white,transparent_85%)]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
+      </div>
+
+      <div className="container px-4 md:px-6 mx-auto relative z-10">
+        <div className="flex flex-col items-center text-center space-y-8 md:space-y-12">
+          {/* Testimonial */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="flex items-center gap-2 px-4 py-2"
+          >
+            <div className="flex -space-x-2">
+              <img
+                src="https://randomuser.me/api/portraits/women/79.jpg"
+                alt="User"
+                className="w-10 h-10 rounded-full border-2 border-background"
+              />
+              <img
+                src="https://randomuser.me/api/portraits/men/82.jpg"
+                alt="User"
+                className="w-10 h-10 rounded-full border-2 border-background"
+              />
+              <img
+                src="https://randomuser.me/api/portraits/women/76.jpg"
+                alt="User"
+                className="w-10 h-10 rounded-full border-2 border-background"
+              />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-6 bg-background rounded-lg border shadow-sm">
-              <BookOpen className="h-10 w-10 text-primary mb-4" />
-              <h3 className="font-semibold mb-2">Content Creation</h3>
-              <p className="text-sm text-muted-foreground">
-                Create engaging blog posts and documents with AI assistance
-              </p>
-            </div>
-            <div className="p-6 bg-background rounded-lg border shadow-sm">
-              <Newspaper className="h-10 w-10 text-primary mb-4" />
-              <h3 className="font-semibold mb-2">Blog Management</h3>
-              <p className="text-sm text-muted-foreground">
-                Manage your blog with powerful tools and analytics
-              </p>
-            </div>
-            <div className="p-6 bg-background rounded-lg border shadow-sm col-span-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium mb-1">Join Our Newsletter</p>
-                  <p className="text-xs text-muted-foreground">Stay updated with our latest features and tips</p>
-                </div>
-                <Button variant="outline" size="sm">Subscribe</Button>
+            <div className="flex items-center gap-1 text-sm">
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-4 h-4 fill-primary text-primary" />
+                ))}
               </div>
+              <span className="font-medium">from 100+ agencies</span>
             </div>
-          </div>
+          </motion.div>
+
+          {/* Main Content */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="max-w-3xl space-y-4"
+          >
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight">
+              Transform Your Agency with AI-Powered Recruitment
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Join the growing number of agencies using our platform to streamline their recruitment process and place candidates faster.
+            </p>
+          </motion.div>
+
+          {/* CTA Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.4 }}
+            className="flex flex-col sm:flex-row gap-4 w-full max-w-md mx-auto"
+          >
+            <Button size="lg" className="w-full sm:w-auto group">
+              Start Your Free Trial
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
+            <Button size="lg" variant="outline" className="w-full sm:w-auto">
+              Schedule a Demo
+            </Button>
+          </motion.div>
+
+          {/* Trust Badges */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.6 }}
+            className="pt-8 grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 max-w-4xl mx-auto"
+          >
+            <div className="flex flex-col items-center space-y-2">
+              <span className="text-3xl font-bold">14 Days</span>
+              <span className="text-sm text-muted-foreground">Free Trial</span>
+            </div>
+            <div className="flex flex-col items-center space-y-2">
+              <span className="text-3xl font-bold">24/7</span>
+              <span className="text-sm text-muted-foreground">Support</span>
+            </div>
+            <div className="flex flex-col items-center space-y-2">
+              <span className="text-3xl font-bold">1-Click</span>
+              <span className="text-sm text-muted-foreground">Setup</span>
+            </div>
+            <div className="flex flex-col items-center space-y-2">
+              <span className="text-3xl font-bold">100%</span>
+              <span className="text-sm text-muted-foreground">Satisfaction</span>
+            </div>
+          </motion.div>
         </div>
       </div>
     </section>
   );
 }
+
+export default CTASection;

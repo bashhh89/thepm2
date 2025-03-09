@@ -161,3 +161,281 @@ interface BlogPost {
    - Full-text search
    - Automated backups
    - Version control for posts
+
+# QanDu White-Label Recruitment Platform - Technical Documentation
+
+## Architecture Overview
+
+### Multi-Tenant System
+- Database-per-tenant strategy
+- Row-level security (RLS)
+- Tenant isolation
+- Custom domain routing
+
+### Frontend Architecture
+- React with TypeScript
+- Module Federation for white-label customization
+- Dynamic theme injection
+- Micro-frontend approach for scalability
+
+### Backend Services
+- Node.js/Express API
+- PostgreSQL with Prisma ORM
+- Redis for caching
+- AWS S3 for file storage
+- Elasticsearch for search
+
+## Implementation Details
+
+### White-Label Implementation
+```typescript
+interface TenantConfig {
+  name: string;
+  domain: string;
+  branding: {
+    colors: {
+      primary: string;
+      secondary: string;
+      accent?: string;
+    };
+    typography: {
+      headingFont: string;
+      bodyFont: string;
+    };
+    layout: {
+      navStyle: 'default' | 'minimal' | 'centered';
+    };
+  };
+}
+```
+
+### Multi-Tenant Database Schema
+```prisma
+model Tenant {
+  id            String   @id @default(uuid())
+  name          String
+  domain        String   @unique
+  features      Json
+  settings      Json
+  users         User[]
+  jobs          Job[]
+  candidates    Candidate[]
+}
+
+model User {
+  id        String   @id
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  role      String
+  @@index([tenantId])
+}
+```
+
+### Authentication Flow
+1. Custom domain resolution
+2. Tenant identification
+3. User authentication
+4. Role-based access control
+5. Session management
+
+### Theme Engine
+- Runtime CSS variable injection
+- Dynamic style loading
+- Component-level theming
+- Font loading optimization
+
+## Security Measures
+
+### Tenant Isolation
+- Database level isolation
+- Storage bucket isolation
+- API route isolation
+- Cache isolation
+
+### Data Protection
+- End-to-end encryption
+- GDPR compliance tools
+- Data retention policies
+- Audit logging
+
+### API Security
+- JWT authentication
+- Rate limiting
+- CORS policies
+- Input validation
+
+## Performance Optimization
+
+### Frontend Performance
+- Code splitting
+- Lazy loading
+- Image optimization
+- Cache strategies
+- Bundle optimization
+
+### Database Performance
+- Indexing strategy
+- Query optimization
+- Connection pooling
+- Read replicas
+
+### Caching Strategy
+- Redis caching
+- Browser caching
+- Static asset caching
+- API response caching
+
+## Development Workflow
+
+### Local Development
+1. Clone repository
+2. Install dependencies
+3. Setup local database
+4. Configure environment
+5. Start development servers
+
+### Deployment Pipeline
+1. Code review
+2. Automated testing
+3. Staging deployment
+4. QA verification
+5. Production deployment
+
+### Testing Strategy
+- Unit tests (Jest)
+- Integration tests (Cypress)
+- E2E tests (Playwright)
+- Load testing (k6)
+- Security testing
+
+## API Documentation
+
+### RESTful Endpoints
+```typescript
+interface JobAPI {
+  POST   /api/v1/jobs           // Create job
+  GET    /api/v1/jobs           // List jobs
+  GET    /api/v1/jobs/:id       // Get job
+  PUT    /api/v1/jobs/:id       // Update job
+  DELETE /api/v1/jobs/:id       // Delete job
+}
+
+interface CandidateAPI {
+  POST   /api/v1/candidates     // Create candidate
+  GET    /api/v1/candidates     // List candidates
+  GET    /api/v1/candidates/:id // Get candidate
+  PUT    /api/v1/candidates/:id // Update candidate
+  DELETE /api/v1/candidates/:id // Delete candidate
+}
+```
+
+### WebSocket Events
+```typescript
+interface WebSocketEvents {
+  'application:new'    // New application received
+  'interview:scheduled'// Interview scheduled
+  'message:new'       // New message received
+  'status:changed'    // Application status changed
+}
+```
+
+## Error Handling
+
+### Frontend Errors
+- Global error boundary
+- Toast notifications
+- Retry mechanisms
+- Offline support
+
+### Backend Errors
+- Error logging
+- Status codes
+- Error responses
+- Fallback strategies
+
+## Monitoring & Logging
+
+### Metrics Collection
+- User actions
+- Performance metrics
+- Error rates
+- API usage
+
+### Logging System
+- Application logs
+- Access logs
+- Error logs
+- Audit logs
+
+## Infrastructure
+
+### AWS Services
+- EC2 for application servers
+- RDS for databases
+- S3 for file storage
+- CloudFront for CDN
+- Route53 for DNS
+
+### DevOps Tools
+- Docker containers
+- Kubernetes orchestration
+- Terraform for IaC
+- GitHub Actions for CI/CD
+
+## Scalability Considerations
+
+### Horizontal Scaling
+- Stateless applications
+- Load balancing
+- Database sharding
+- Cache distribution
+
+### Vertical Scaling
+- Resource optimization
+- Query optimization
+- Memory management
+- CPU utilization
+
+## Backup & Recovery
+
+### Database Backups
+- Daily snapshots
+- Point-in-time recovery
+- Cross-region replication
+- Backup retention
+
+### Disaster Recovery
+- Failover strategy
+- Data recovery
+- Service restoration
+- Business continuity
+
+## Integration Points
+
+### External Services
+- Payment gateways
+- Email providers
+- SMS services
+- Analytics tools
+
+### Third-Party APIs
+- Calendar integration
+- Video conferencing
+- Document processing
+- Background checks
+
+## Future Technical Considerations
+
+### AI Integration
+- Machine learning models
+- Natural language processing
+- Computer vision
+- Recommendation systems
+
+### Mobile Development
+- Progressive Web App
+- React Native app
+- Mobile-first design
+- Offline capabilities
+
+Updates to this documentation will be made as the technical implementation progresses.

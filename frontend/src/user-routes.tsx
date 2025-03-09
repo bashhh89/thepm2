@@ -18,19 +18,16 @@ const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const DocumentsPage = lazy(() => import("./pages/DocumentsPage.tsx"));
 const DocumentCreatePage = lazy(() => import("./pages/create/DocumentCreatePage.tsx"));
 const DocumentViewPage = lazy(() => import("./pages/DocumentViewPage.tsx"));
-const JobsPage = lazy(() => import("./pages/JobsPage.tsx")); // Add Jobs page import
+const JobsPage = lazy(() => import("./pages/JobsPage.tsx"));
 const LeadsPage = lazy(() => import("./pages/LeadsPage.tsx"));
-const Login = lazy(() => import("./pages/Login.tsx"));
 const Profile = lazy(() => import("./pages/Profile.tsx"));
-const Register = lazy(() => import("./pages/Register.tsx"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage.tsx"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin.tsx"));
 const AdminDashboard = lazy(() => import("./components/AdminDashboard.tsx"));
 const SignIn = lazy(() => import("./pages/SignIn.tsx"));
 const SignUp = lazy(() => import("./pages/Register.tsx"));
 const CareersPage = lazy(() => import("./pages/company/CareersPage.tsx"));
-const ApplicantsPage = lazy(() => import("./pages/ApplicantsPage.tsx")); // Add Applicants page import
-const CareerCompanionChat = lazy(() => import("./components/CareerCompanionChat.tsx"));
+const ApplicantsPage = lazy(() => import("./pages/ApplicantsPage.tsx"));
 
 export const userRoutes: RouteObject[] = [
   { 
@@ -66,21 +63,20 @@ export const userRoutes: RouteObject[] = [
     ),
     children: [
       { index: true, element: <SuspenseWrapper><Dashboard /></SuspenseWrapper> },
-      { path: "blog", element: <SuspenseWrapper><BlogPage /></SuspenseWrapper> },
-      { path: "blog-posts", element: <SuspenseWrapper><BlogPostsPage /></SuspenseWrapper> },
-      { path: "blog-posts/new", element: <SuspenseWrapper><BlogPostEditorPage /></SuspenseWrapper> },
-      { path: "blog-posts/edit/:id", element: <SuspenseWrapper><BlogPostEditorPage /></SuspenseWrapper> },
+      { path: "jobs", element: <SuspenseWrapper><JobsPage /></SuspenseWrapper> },
+      { path: "applicants", element: <SuspenseWrapper><ApplicantsPage /></SuspenseWrapper> },
       { path: "chat", element: <SuspenseWrapper><Chat /></SuspenseWrapper> },
       { path: "chat-history", element: <SuspenseWrapper><ChatHistoryPage /></SuspenseWrapper> },
       { path: "documents", element: <SuspenseWrapper><DocumentsPage /></SuspenseWrapper> },
       { path: "documents/create", element: <SuspenseWrapper><DocumentCreatePage /></SuspenseWrapper> },
       { path: "documents/:id", element: <SuspenseWrapper><DocumentViewPage /></SuspenseWrapper> },
-      { path: "jobs", element: <SuspenseWrapper><JobsPage /></SuspenseWrapper> }, // Add Jobs page route
       { path: "leads", element: <SuspenseWrapper><LeadsPage /></SuspenseWrapper> },
+      { path: "blog", element: <SuspenseWrapper><BlogPage /></SuspenseWrapper> },
+      { path: "blog-posts", element: <SuspenseWrapper><BlogPostsPage /></SuspenseWrapper> },
+      { path: "blog-posts/new", element: <SuspenseWrapper><BlogPostEditorPage /></SuspenseWrapper> },
+      { path: "blog-posts/edit/:id", element: <SuspenseWrapper><BlogPostEditorPage /></SuspenseWrapper> },
       { path: "profile", element: <SuspenseWrapper><Profile /></SuspenseWrapper> },
-      { path: "settings", element: <SuspenseWrapper><SettingsPage /></SuspenseWrapper> },
-      { path: "applicants", element: <SuspenseWrapper><ApplicantsPage /></SuspenseWrapper> }, // Add Applicants page route
-      { path: "career-companion/chat", element: <SuspenseWrapper><CareerCompanionChat /></SuspenseWrapper> }
+      { path: "settings", element: <SuspenseWrapper><SettingsPage /></SuspenseWrapper> }
     ]
   },
   { 

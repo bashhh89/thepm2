@@ -26,10 +26,6 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
 
     const newJob = await prisma.job.create({
       data: {
-        // @ts-ignore
-tenantId: (req as any).tenantId,
-        // TODO: Remove 'as any' and use proper type definition
-
         title,
         description,
         requirements,
@@ -38,8 +34,7 @@ tenantId: (req as any).tenantId,
         type,
         experience,
         benefits,
-        // @ts-ignore
-trainingData: trainingData,
+        training_data: trainingData,
       },
     });
 
@@ -58,9 +53,6 @@ trainingData: trainingData,
 router.get('/', async (req: Request, res: Response) => {
   try {
     const jobs = await prisma.job.findMany({
-      where: { // @ts-ignore
-tenantId: (req as any).tenantId, },
-      // TODO: Remove 'as any' and use proper type definition
       orderBy: { createdAt: 'desc' }
     });
     res.json(jobs);
@@ -79,8 +71,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const jobId = req.params.id;
     const job = await prisma.job.findUnique({
-      where: { id: jobId, // @ts-ignore
-tenantId: (req as any).tenantId, },
+      where: { id: jobId },
     });
 
     if (!job) {
@@ -105,14 +96,12 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
     const { title, description, requirements, trainingData } = req.body;
 
     const updatedJob = await prisma.job.update({
-      where: { id: jobId, // @ts-ignore
-tenantId: (req as any).tenantId, },
+      where: { id: jobId },
       data: {
         title,
         description,
         requirements,
-        // @ts-ignore
-trainingData: trainingData,
+        training_data: trainingData,
       },
     });
 
@@ -132,8 +121,7 @@ router.delete('/:id', authenticateToken, async (req: Request, res: Response) => 
   try {
     const jobId = req.params.id;
     await prisma.job.delete({
-      where: { id: jobId, // @ts-ignore
-tenantId: (req as any).tenantId, },
+      where: { id: jobId },
     });
     res.status(204).send();
   } catch (error: any) {

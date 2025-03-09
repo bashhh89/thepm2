@@ -1,27 +1,32 @@
 import React, { useState } from 'react';
-import { NavLink, useLocation, Link } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { buttonVariants } from "./ui/Button";
 import { 
   FileText, 
   MessageSquare, 
   Users, 
   LayoutDashboard, 
-  Settings, 
-  Newspaper, 
-  Lightbulb,
-  UserCircle,
+  Settings,
+  Briefcase,
+  Building2,
+  Calendar,
+  PieChart,
   ChevronRight,
   ChevronDown,
-  Briefcase,
-  Shield,
-  UserX,
-  Sparkles
+  Trophy,
+  GraduationCap,
+  Mail,
+  Layout
 } from 'lucide-react';
-import { useAuthStore } from '../utils/auth-store';
 
 interface DashboardNavProps {
   collapsed?: boolean;
+  features?: {
+    jobPosting?: boolean;
+    candidateTracking?: boolean;
+    interviews?: boolean;
+    analytics?: boolean;
+  };
 }
 
 interface NavSection {
@@ -34,10 +39,16 @@ interface NavSection {
   }[];
 }
 
-export function DashboardNav({ collapsed = false }: DashboardNavProps) {
-  const location = useLocation();
-  const { isAdmin } = useAuthStore();
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['main', 'content', 'management']));
+export function DashboardNav({ 
+  collapsed = false,
+  features = {
+    jobPosting: true,
+    candidateTracking: true,
+    interviews: true,
+    analytics: true
+  }
+}: DashboardNavProps) {
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Overview']));
 
   const baseClasses = "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground";
   const activeClasses = "bg-accent text-accent-foreground";
@@ -53,128 +64,114 @@ export function DashboardNav({ collapsed = false }: DashboardNavProps) {
       return next;
     });
   };
+
   const navSections: NavSection[] = [
     {
-      title: "Main",
+      title: "Overview",
       items: [
         {
           icon: <LayoutDashboard className="h-4 w-4" />,
-          title: "Overview & Analytics",
+          title: "Dashboard",
           to: "/dashboard",
           end: true
         }
       ]
     },
-    {
-      title: "Content",
+    ...(features.jobPosting ? [{
+      title: "Recruitment",
       items: [
-        {
-          icon: <FileText className="h-4 w-4" />,
-          title: "Documents",
-          to: "/dashboard/documents"
-        },
-        {
-          icon: <Newspaper className="h-4 w-4" />,
-          title: "Blog Posts",
-          to: "/dashboard/blog-posts"
-        }
-      ]
-    },
-    {
-      title: "Communication",
-      items: [
-        {
-          icon: <MessageSquare className="h-4 w-4" />,
-          title: "Chat",
-          to: "/dashboard/chat"
-        },
-        {
-          icon: <MessageSquare className="h-4 w-4" />,
-          title: "Chat History",
-          to: "/dashboard/chat-history"
-        }
-      ]
-    },
-    {
-      title: "Management",
-      items: [
-        {
-          icon: <Lightbulb className="h-4 w-4" />,
-          title: "Leads",
-          to: "/dashboard/leads"
-        },
         {
           icon: <Briefcase className="h-4 w-4" />,
-          title: "Jobs",
+          title: "Job Postings",
           to: "/dashboard/jobs"
         },
         {
           icon: <Users className="h-4 w-4" />,
-          title: "Applications",
-          to: "/dashboard/applicants"
+          title: "Candidates",
+          to: "/dashboard/candidates"
+        },
+        {
+          icon: <Trophy className="h-4 w-4" />,
+          title: "Talent Pool",
+          to: "/dashboard/talent-pool"
+        },
+        {
+          icon: <Building2 className="h-4 w-4" />,
+          title: "Client Companies",
+          to: "/dashboard/companies"
         }
       ]
-    },
-    {
-      title: "Career Companion",
+    }] : []),
+    ...(features.interviews ? [{
+      title: "Pipeline",
       items: [
         {
-          icon: <Sparkles className="h-4 w-4" />,
-          title: "Career Companion",
-          to: "/dashboard/career-companion/chat"
+          icon: <Calendar className="h-4 w-4" />,
+          title: "Interviews",
+          to: "/dashboard/interviews"
+        },
+        {
+          icon: <GraduationCap className="h-4 w-4" />,
+          title: "Assessments",
+          to: "/dashboard/assessments"
+        },
+        {
+          icon: <MessageSquare className="h-4 w-4" />,
+          title: "Conversations",
+          to: "/dashboard/messages"
         }
       ]
-    },
-    {
-      title: "Settings",
+    }] : []),
+    ...(features.analytics ? [{
+      title: "Business",
       items: [
         {
-          icon: <UserCircle className="h-4 w-4" />,
-          title: "Profile",
-          to: "/dashboard/profile"
+          icon: <PieChart className="h-4 w-4" />,
+          title: "Analytics",
+          to: "/dashboard/analytics"
+        },
+        {
+          icon: <FileText className="h-4 w-4" />,
+          title: "Reports",
+          to: "/dashboard/reports"
+        },
+        {
+          icon: <Mail className="h-4 w-4" />,
+          title: "Email Templates",
+          to: "/dashboard/email-templates"
+        }
+      ]
+    }] : []),
+    {
+      title: "Configuration",
+      items: [
+        {
+          icon: <Building2 className="h-4 w-4" />,
+          title: "Agency Profile",
+          to: "/dashboard/agency"
+        },
+        {
+          icon: <Layout className="h-4 w-4" />,
+          title: "Career Site",
+          to: "/dashboard/career-site"
+        },
+        {
+          icon: <Settings className="h-4 w-4" />,
+          title: "Settings",
+          to: "/dashboard/settings"
         }
       ]
     }
   ];
-  // Add admin-only sections
-  if (isAdmin) {
-    navSections.push({
-      title: "Admin",
-      items: [
-        {
-          icon: <Shield className="w-4 h-4" />,
-          title: "Job Applications",
-          to: "/dashboard/admin/applications"
-        },
-        {
-          icon: <Settings className="h-4 w-4" />,
-          title: "Admin Settings",
-          to: "/dashboard/admin/settings"
-        }
-      ]
-    });
-
-    navSections.push({
-      title: "Guest",
-      items: [
-        {
-          icon: <UserX className="h-4 w-4" />,
-          title: "Guest Users",
-          to: "/dashboard/guest-users"
-        }
-      ]
-    });
-  }
-
   
   return (
     <div
       data-collapsed={collapsed}
       className="group flex flex-col gap-4 py-2"
     >
-      <nav className="grid gap-2 px-2">
+      <nav className="grid gap-1 px-2">
         {navSections.map((section, index) => (
-          <div key={section.title} className="space-y-1">
+          <div key={section.title} className={cn("space-y-1", index > 0 && "mt-4")}>
             <div
               className={cn(
                 "flex items-center justify-between px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground",
@@ -182,19 +179,15 @@ export function DashboardNav({ collapsed = false }: DashboardNavProps) {
               )}
               onClick={() => !collapsed && toggleSection(section.title)}
             >
-              <span>{section.title}</span>
+              <span>{!collapsed ? section.title : "•"}</span>
               {!collapsed && (
-                <button className="h-4 w-4 rounded-md hover:bg-accent">
-                  {expandedSections.has(section.title) ? (
-                    <ChevronDown className="h-3 w-3" />
-                  ) : (
-                    <ChevronRight className="h-3 w-3" />
-                  )}
-                </button>
+                expandedSections.has(section.title) ? 
+                  <ChevronDown className="h-4 w-4" /> : 
+                  <ChevronRight className="h-4 w-4" />
               )}
             </div>
 
-            {(collapsed || expandedSections.has(section.title)) && (
+            {(!collapsed || expandedSections.has(section.title)) && (
               <div className="space-y-1">
                 {section.items.map((item) => (
                   <NavLink
@@ -211,7 +204,7 @@ export function DashboardNav({ collapsed = false }: DashboardNavProps) {
                 ))}
               </div>
             )}
-
+            
             {index < navSections.length - 1 && (
               <div className="my-3 h-px bg-border" />
             )}

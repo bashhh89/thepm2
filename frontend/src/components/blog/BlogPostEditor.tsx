@@ -4,7 +4,7 @@ import { Button } from '../Button';
 import { Card } from '../Card';
 import { useBlogStore, type BlogPost } from '../../utils/blog-store';
 import { useAuthStore } from '../../utils/auth-store';
-import { supabase, initializeStorage } from '../../lib/supabase';
+import { supabase } from '../../AppWrapper';
 
 interface BlogPostEditorProps {
   postId?: string; // If editing an existing post
@@ -13,7 +13,7 @@ interface BlogPostEditorProps {
 export default function BlogPostEditor({ postId }: BlogPostEditorProps) {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuthStore();
-  const { getPost, createPost, updatePost, isSaving, isInitialized, loadPosts } = useBlogStore();
+  const { getPost, createPost, updatePost, isSaving, isInitialized } = useBlogStore();
   const [currentUser, setCurrentUser] = useState(null);
   const isEditing = !!postId;
 
@@ -62,14 +62,7 @@ export default function BlogPostEditor({ postId }: BlogPostEditorProps) {
       setIsLoading(false);
     }
   }, [postId, isEditing, getPost]);
-  
-  // Initialize blog store when component mounts
-  useEffect(() => {
-    if (!isInitialized) {
-      loadPosts();
-    }
-  }, [isInitialized, loadPosts]);
-  
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent, action: 'draft' | 'publish' = 'draft') => {
     e.preventDefault();
@@ -390,26 +383,13 @@ export default function BlogPostEditor({ postId }: BlogPostEditorProps) {
     }
   };
   
-  useEffect(() => {
-    // Check storage initialization status
-    if (!isInitialized) {
-      const checkInitialization = async () => {
-        try {
-          // Attempt to initialize storage if not already initialized
-          await initializeStorage();
-        } catch (error) {
-          console.error('Storage initialization failed:', error);
-        }
-      };
-      checkInitialization();
-    }
-  }, [isInitialized]);
-
-  if (isLoading) {
+  if (isLoading || !isInitialized) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-        <p className="text-muted-foreground">Loading post...</p>
+        <p className="text-muted-foreground">
+          {isLoading ? 'Loading post...' : 'Initializing storage system...'}
+        </p>
       </div>
     );
   }

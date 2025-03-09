@@ -7,13 +7,23 @@ import { supabase } from '../AppWrapper';
 import { Menu } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-const navigation = [
-  { name: 'Home', href: '/' },
-  { name: 'About', href: '/about' },
-  { name: 'Services', href: '/services' },
-  { name: 'Careers', href: '/careers' },
-  { name: 'Contact', href: '/contact' },
-  { name: 'Blog', href: '/blog' }
+const mainNavItems = [
+  {
+    title: "Home",
+    href: "/",
+  },
+  {
+    title: "Blog",
+    href: "/blog",
+  },
+  {
+    title: "Features",
+    href: "/#features",
+  },
+  {
+    title: "Pricing",
+    href: "/pricing",
+  }
 ];
 
 const Header: React.FC = () => {
@@ -114,7 +124,7 @@ const Header: React.FC = () => {
           <div className="absolute top-14 left-0 right-0 bg-background border-b md:hidden">
             <nav className="container py-4">
               <div className="flex flex-col space-y-4">
-                {navigation.map((item) => (
+                {mainNavItems.map((item) => (
                   <Link
                     key={item.href}
                     to={item.href}
@@ -127,7 +137,7 @@ const Header: React.FC = () => {
                     )}
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    {item.name}
+                    {item.title}
                   </Link>
                 ))}
                 {user ? (

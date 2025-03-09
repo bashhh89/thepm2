@@ -53,6 +53,11 @@ const updateStatusSchema = z.object({
 router.get('/api/applications', authenticateToken, isAdmin, async (req, res) => {
   try {
     const applications = await prisma.application.findMany({
+      where: {
+        job: { // @ts-ignore
+          tenantId: (req as any).tenantId,
+        },
+      },
       include: {
         job: true,
       },
@@ -104,6 +109,12 @@ router.post('/api/applications/:id/generate-cover-letter', authenticateToken, as
   try {
     const { id } = req.params;
     const application = await prisma.application.findUnique({
+      where: {
+        id: id,
+        job: { // @ts-ignore
+          tenantId: (req as any).tenantId,
+        },
+      },
       where: { id },
       include: { job: true }
     });
@@ -131,6 +142,12 @@ router.put('/api/applications/:id/status', authenticateToken, isAdmin, async (re
     const { status } = z.object({ status: applicationSchema.shape.status }).parse(req.body);
 
     const application = await prisma.application.update({
+      where: {
+        id: id,
+        job: { // @ts-ignore
+          tenantId: (req as any).tenantId,
+        },
+      },
       where: { id },
       data: { status },
       include: {
@@ -156,6 +173,12 @@ router.put('/api/applications/:id/notes', authenticateToken, isAdmin, async (req
     const { notes } = z.object({ notes: applicationSchema.shape.notes }).parse(req.body);
 
     const application = await prisma.application.update({
+      where: {
+        id: id,
+        job: { // @ts-ignore
+          tenantId: (req as any).tenantId,
+        },
+      },
       where: { id },
       data: { notes },
       include: {
@@ -178,8 +201,13 @@ router.put('/api/applications/:id/notes', authenticateToken, isAdmin, async (req
 router.get('/', async (req, res) => {
   try {
     const applications = await prisma.jobApplication.findMany({
+      where: {
+        job: { // @ts-ignore
+          tenantId: (req as any).tenantId,
+        },
+      },
       include: {
-        job: {
+        job: { // @ts-ignore
           select: {
             title: true,
             department: true

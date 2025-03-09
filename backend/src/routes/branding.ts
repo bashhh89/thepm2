@@ -46,6 +46,7 @@ const brandingContentSchema = z.object({
 router.get('/api/branding-content', async (req, res) => {
   try {
     const content = await prisma.brandingContent.findMany({
+      where: { tenantId: (req as any).tenantId },
       orderBy: { order: 'asc' },
     });
     res.json(content);
@@ -86,6 +87,7 @@ router.patch('/api/branding-content/:id', authenticateToken, isAdmin, async (req
     const updateData = brandingContentSchema.partial().parse(req.body);
 
     const content = await prisma.brandingContent.update({
+      where: { id, tenantId: (req as any).tenantId },
       where: { id },
       data: updateData,
     });
@@ -108,6 +110,7 @@ router.delete('/api/branding-content/:id', authenticateToken, isAdmin, async (re
 
     // Get the content to delete the file if it exists
     const content = await prisma.brandingContent.findUnique({
+      where: { id, tenantId: (req as any).tenantId },
       where: { id },
     });
 
@@ -116,6 +119,7 @@ router.delete('/api/branding-content/:id', authenticateToken, isAdmin, async (re
     }
 
     await prisma.brandingContent.delete({
+      where: { id, tenantId: (req as any).tenantId },
       where: { id },
     });
 

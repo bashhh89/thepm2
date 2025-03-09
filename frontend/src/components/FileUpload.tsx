@@ -1,69 +1,116 @@
-import React, { useRef } from 'react';
-import { Button } from './Button';
-import { Upload, Loader2, FileText } from 'lucide-react';
-import { toast } from 'sonner';
+import React, { forwardRef, useState } from 'react';
+import { cn } from '../lib/utils';
+import { Upload, X } from 'lucide-react';
 
-interface FileUploadProps {
-  accept: string;
-  maxSize: number;
-  onUpload: (file: File) => void;
-  isUploading?: boolean;
+interface FileUploadProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value'> {
+  label?: string;
+  error?: string;
+  helperText?: string;
+  value?: string;
+  onClear?: () => void;
+  maxSize?: number; // Add maxSize prop to FileUploadProps
 }
 
-export function FileUpload({ accept, maxSize, onUpload, isUploading }: FileUploadProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+export const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(
+  ({ className, label, error, helperText, value, onClear, onChange, accept, ...props }, ref) => {
+    const [preview, setPreview] = useState<string | null>(value || null);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
+      onChange?.(e);
+    };
 
-    if (file.size > maxSize) {
-      toast.error(`File size must be less than ${Math.round(maxSize / 1024 / 1024)}MB`);
-      return;
-    }
+    const handleClear = () => {
+      setPreview(null);
+      onClear?.();
+    };
 
-    onUpload(file);
-    if (inputRef.current) {
-      inputRef.current.value = '';
-    }
-  };
+    const isImage = accept?.includes('image/*');
 
-  return (
-    <div className="flex gap-2 items-center">
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        onChange={handleFileSelect}
-        className="hidden"
-      />
-      <Button
-        variant="outline"
-        onClick={() => inputRef.current?.click()}
-        disabled={isUploading}
-        className="flex items-center gap-2"
-      >
-        {isUploading ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Uploading...
-          </>
-        ) : (
-          <>
-            <Upload className="w-4 h-4" />
-            Upload Resume
-          </>
+    return (
+      <div className="space-y-2">
+        {label && (
+          <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            {label}
+          </label>
         )}
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => window.open('https://www.qandu.ai/resume-tips', '_blank')}
-        className="text-xs text-muted-foreground"
-      >
-        <FileText className="w-4 h-4 mr-1" />
-        Resume Tips
-      </Button>
-    </div>
-  );
-} 
+        <div className="relative">
+          <input
+            type="file"
+            className="hidden"
+            ref={ref}
+            onChange={handleChange}
+            accept={accept}
+            {...props}
+          />
+          <div
+            onClick={() => ref && (ref as React.MutableRefObject<HTMLInputElement>).current?.click()}
+            className={cn(
+              "flex min-h-[160px] cursor-pointer items-center justify-center rounded-lg border border-dashed border-input bg-background p-4",
+              "hover:bg-accent hover:text-accent-foreground",
+              error && "border-destructive",
+              className
+            )}
+          >
+            {preview ? (
+              isImage ? (
+                <div className="relative w-full h-full">
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="object-contain w-full h-full"
+                  />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleClear();
+                    }}
+                    className="absolute top-2 right-2 p-1 rounded-full bg-background/80 hover:bg-background"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">File uploaded</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleClear();
+                    }}
+                    className="p-1 rounded-full hover:bg-background"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+                <Upload className="h-8 w-8" />
+                <span>Click to upload or drag and drop</span>
+                {accept && <span className="text-xs">{accept.replace(',', ' or ')}</span>}
+              </div>
+            )}
+          </div>
+        </div>
+        {(error || helperText) && (
+          <p className={cn(
+            "text-sm",
+            error ? "text-destructive" : "text-muted-foreground"
+          )}>
+            {error || helperText}
+          </p>
+        )}
+      </div>
+    );
+  }
+);
