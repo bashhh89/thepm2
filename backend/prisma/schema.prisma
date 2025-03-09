@@ -28,7 +28,6 @@ model BrandingContent {
   id               String   @id @default(cuid())
   type             String   // 'image', 'video', 'text', 'image_prompt'
   title            String
-  tenantId              String   @default("default-tenant")
   content          String
   order            Int
   generatedImageUrl String?
@@ -43,7 +42,6 @@ model Job {
   id                    String      @id @default(uuid()) @db.Uuid
   createdAt             DateTime    @default(now()) @map("created_at")
   updatedAt             DateTime    @updatedAt
-  tenantId              String   @default("default-tenant")
   title                 String
   description           String?
   department            String
