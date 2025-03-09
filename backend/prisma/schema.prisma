@@ -28,6 +28,7 @@ model BrandingContent {
   id               String   @id @default(cuid())
   type             String   // 'image', 'video', 'text', 'image_prompt'
   title            String
+  tenantId              String   @default("default-tenant")
   content          String
   order            Int
   generatedImageUrl String?
