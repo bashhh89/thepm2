@@ -16,6 +16,7 @@ export interface Message {
   role: MessageRole
   content: string | MessageContent[]
   timestamp: number
+  thinking?: string
   metadata?: {
     command?: string
     args?: Record<string, string>
@@ -41,6 +42,7 @@ interface ChatState {
   error: string | null
   setInputValue: (value: string) => void
   addMessage: (role: MessageRole, content: string, metadata?: Message['metadata']) => void
+  addMessageWithThinking: (role: MessageRole, content: string, thinking: string, id?: string, metadata?: Message['metadata']) => void
   setIsGenerating: (isGenerating: boolean) => void
   createChat: () => string
   deleteChat: (chatId: string) => void
@@ -81,6 +83,36 @@ export const useChatStore = create<ChatState>()(
           role,
           content: typeof content === 'string' ? [{ type: 'text', content }] : content,
           timestamp: Date.now(),
+          metadata,
+        };
+
+        set((state) => ({
+          chatSessions: state.chatSessions.map(chat =>
+            chat.id === (activeChatId || state.activeChatId)
+              ? {
+                  ...chat,
+                  messages: [...chat.messages, newMessage],
+                  updatedAt: new Date(),
+                }
+              : chat
+          ),
+        }));
+      },
+      
+      addMessageWithThinking: (role, content, thinking, id, metadata) => {
+        const { activeChatId, chatSessions } = get();
+        if (!activeChatId) {
+          // If no active chat, create one
+          const newChatId = get().createChat();
+          set({ activeChatId: newChatId });
+        }
+
+        const newMessage: Message = {
+          id: id || Date.now().toString(),
+          role,
+          content: typeof content === 'string' ? [{ type: 'text', content }] : content,
+          timestamp: Date.now(),
+          thinking,
           metadata,
         };
 

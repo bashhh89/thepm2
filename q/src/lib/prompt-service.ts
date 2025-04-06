@@ -481,28 +481,30 @@ export const createVariable = (name: string, value: string): PromptVariable => (
 /**
  * Processes a message with any embedded commands
  */
-export const processMessage = async (message: string, systemPrompt?: string): Promise<PromptExecutionResult> => {
+export async function processMessage(message: string, systemMessage?: string): Promise<PromptExecutionResult> {
   try {
-    // Check if the message is a command
-    if (message.startsWith('/')) {
-      return await executeCommand(message);
+    const settingsStore = useSettingsStore.getState();
+    const activeModel = settingsStore.activeTextModel;
+    const activeAgent = settingsStore.activeAgent;
+
+    console.log("API Route: Received request with model:", activeModel);
+    
+    // Build the system prompt based on the active agent or default
+    let finalSystemPrompt = systemMessage || "You are a helpful AI assistant.";
+    
+    if (activeAgent) {
+      console.log("API Route - Using direct agent object:", activeAgent.name);
+      finalSystemPrompt = activeAgent.systemPrompt;
     }
 
-    // Otherwise, treat it as a regular message to the AI
-    try {
-      // Get the active chat messages from the store
-      const chatStore = useChatStore.getState();
-      const settingsStore = useSettingsStore.getState();
-      const messages = chatStore.getActiveChatMessages();
-      
-      const modelToUse = settingsStore.activeTextModel;
-      console.log('processMessage - Using model:', modelToUse);
-      
-      if (systemPrompt) {
-        console.log('processMessage - Using custom system prompt for web search');
-      }
+    console.log("API Route - Final model being used:", activeModel);
+    console.log("Final system prompt being used:", finalSystemPrompt);
 
-      // Call the AI model with the message and history
+    // Use a special system message to request thinking
+    const enhancedSystemPrompt = `${finalSystemPrompt}\n\nPlease provide your thinking process and reasoning separately before giving your final answer. Format your response with a "THINKING:" section followed by your reasoning process, and then an "ANSWER:" section with your final response.`;
+
+    // For OpenAI models
+    if (activeModel === 'openai' || activeModel === 'searchgpt') {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -510,53 +512,53 @@ export const processMessage = async (message: string, systemPrompt?: string): Pr
         },
         body: JSON.stringify({
           messages: [
-            ...messages.map((msg: Message) => ({
-              role: msg.role,
-              content: msg.content
-            })),
+            { role: 'system', content: enhancedSystemPrompt },
             { role: 'user', content: message }
           ],
-          model: modelToUse, // Use the selected model from settings
-          agent: settingsStore.activeAgent, // Send the active agent if any
-          systemPrompt: systemPrompt // Add system prompt for search instructions
+          model: activeModel,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get AI response');
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to process message");
       }
 
       const data = await response.json();
       
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to get AI response');
+      // Extract thinking and answer from the response
+      let thinking = '';
+      let answer = data.content || '';
+      
+      // Check if the response contains the THINKING and ANSWER sections
+      const thinkingMatch = answer.match(/THINKING:([\s\S]*?)(?=ANSWER:|$)/i);
+      const answerMatch = answer.match(/ANSWER:([\s\S]*?)$/i);
+      
+      if (thinkingMatch && answerMatch) {
+        thinking = thinkingMatch[1].trim();
+        answer = answerMatch[1].trim();
       }
-
+      
       return {
-        content: data.message,
         success: true,
-        metadata: {
-          type: 'text',
-          model: data.model || modelToUse,
-          timestamp: Date.now()
-        }
-      };
-    } catch (error) {
-      console.error('Error calling AI:', error);
-      return {
-        content: 'Failed to get AI response. Please try again.',
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        content: answer,
+        thinking: thinking,
+        message: answer // For backward compatibility
       };
     }
+    
+    // ... handle other models ...
+
+    throw new Error(`Model ${activeModel} is not supported`);
   } catch (error) {
+    console.error('Error processing message:', error);
     return {
-      content: error instanceof Error ? error.message : 'Failed to process message',
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to process message'
+      content: '',
+      error: error instanceof Error ? error.message : String(error)
     };
   }
-};
+}
 
 async function handleImageGeneration(template: string): Promise<PromptExecutionResult> {
   try {

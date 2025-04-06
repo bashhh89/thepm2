@@ -29,8 +29,7 @@ import { Message as StoreMessage } from '@/store/chatStore';
 // Configure marked options for security and features
 marked.setOptions({
   breaks: true,
-  gfm: true,
-  mangle: false
+  gfm: true
 });
 
 // Safely render markdown with image support
@@ -101,6 +100,11 @@ interface LocalMessage {
   timestamp: number;
 }
 
+// Add this interface for thinking content right after the LocalMessage interface
+interface MessageWithThinking extends LocalMessage {
+  thinking?: string;
+}
+
 export function ChatInterface() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -149,6 +153,17 @@ export function ChatInterface() {
   const messages = getActiveChatMessages();
   const { theme, setTheme } = useTheme();
   const router = useRouter();
+
+  // Add a state to track which messages have expanded thinking
+  const [expandedThinking, setExpandedThinking] = useState<Record<string, boolean>>({});
+
+  // Function to toggle thinking visibility for a specific message
+  const toggleThinking = (messageId: string) => {
+    setExpandedThinking(prev => ({
+      ...prev,
+      [messageId]: !prev[messageId]
+    }));
+  };
 
   // Initialize chat if none exists
   useEffect(() => {
@@ -348,9 +363,17 @@ Instructions for AI:
       // Process the message and get AI response
       const response = await processMessage(content, systemMessage);
 
-      // Add AI response
+      // Add AI response with thinking if available
       if (response.success) {
-        addMessage('assistant', response.message || response.content);
+        // Create a unique message ID
+        const messageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        
+        // Extract thinking from response if available
+        const thinking = response.thinking || '';
+        const finalResponse = response.message || response.content;
+        
+        // Add message with thinking property
+        useChatStore.getState().addMessageWithThinking('assistant', finalResponse, thinking, messageId);
       } else {
         addMessage('assistant', `Error: ${response.error || 'Unknown error'}`);
       }
@@ -393,8 +416,8 @@ Instructions for AI:
         onClose={() => setShowAgentManager(false)}
       />
       
-      {/* Header */}
-      <div className="flex-none border-b border-zinc-800 bg-zinc-900">
+      {/* Header - Make sticky */}
+      <div className="flex-none border-b border-zinc-800 bg-zinc-900 sticky top-0 z-10">
         <div className="flex justify-between items-center px-4 py-3">
           <div className="flex items-center gap-2">
             <h1 className="font-semibold text-zinc-100">Chat</h1>
@@ -530,144 +553,187 @@ Instructions for AI:
         </div>
       </div>
 
-      {/* Chat Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {isNewChat ? (
-          <div className="h-full flex flex-col items-center justify-center p-4 text-center">
-            <div className="mb-4">
-              <svg className="w-12 h-12 text-zinc-100 mx-auto" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12.0002 11.2424C14.3381 11.2424 16.2426 9.33785 16.2426 7C16.2426 4.66215 14.3381 2.75757 12.0002 2.75757C9.6623 2.75757 7.75772 4.66215 7.75772 7C7.75772 9.33785 9.6623 11.2424 12.0002 11.2424Z" fill="currentColor"/>
-                <path d="M11.9999 21.2424C16.142 21.2424 19.5832 17.7902 19.5832 13.6481C19.5832 9.50596 16.142 6.06482 11.9999 6.06482C7.85778 6.06482 4.41656 9.50596 4.41656 13.6481C4.41656 17.7902 7.85778 21.2424 11.9999 21.2424Z" fill="currentColor"/>
-              </svg>
-            </div>
-              <h1 className="text-3xl font-medium text-zinc-200 mb-3">
-                Start a New Conversation
-            </h1>
-              <p className="text-zinc-400 max-w-md mb-6">
-                Ask me anything - from creative writing to coding help, research questions, or just casual conversation.
-              </p>
-              <div className="flex gap-4">
-                <Button
-                  variant="outline"
-                  onClick={() => inputRef.current?.focus()}
-                  className="text-zinc-300 border-zinc-700 hover:bg-zinc-800"
-                >
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  Start Typing
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowKeyboardShortcuts(true)}
-                  className="text-zinc-300 border-zinc-700 hover:bg-zinc-800"
-                >
-                  <Keyboard className="w-4 h-4 mr-2" />
-                  View Shortcuts
-                </Button>
+      {/* Chat Content - Add reference and make it a scrollable container with flex-1 */}
+      <div 
+        ref={chatContainerRef}
+        className="flex-1 overflow-y-auto" 
+        style={{ paddingBottom: "120px" }}
+      >
+        <div className="p-4">
+          {isNewChat ? (
+            <div className="h-full flex flex-col items-center justify-center p-4 text-center">
+              <div className="mb-4">
+                <svg className="w-12 h-12 text-zinc-100 mx-auto" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12.0002 11.2424C14.3381 11.2424 16.2426 9.33785 16.2426 7C16.2426 4.66215 14.3381 2.75757 12.0002 2.75757C9.6623 2.75757 7.75772 4.66215 7.75772 7C7.75772 9.33785 9.6623 11.2424 12.0002 11.2424Z" fill="currentColor"/>
+                  <path d="M11.9999 21.2424C16.142 21.2424 19.5832 17.7902 19.5832 13.6481C19.5832 9.50596 16.142 6.06482 11.9999 6.06482C7.85778 6.06482 4.41656 9.50596 4.41656 13.6481C4.41656 17.7902 7.85778 21.2424 11.9999 21.2424Z" fill="currentColor"/>
+                </svg>
               </div>
-          </div>
-        ) : (
-            <div className="max-w-3xl mx-auto py-8 mb-[120px]">
-              <div className="space-y-6">
-            {messages.map((message, index) => (
-              <div 
-                key={index}
-                className={cn(
-                  "flex items-start gap-3",
-                  message.role === 'user' ? "flex-row-reverse" : "flex-row"
-                )}
-              >
-                <div className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
-                message.role === 'user' ? "bg-blue-600" : "bg-zinc-700"
+                <h1 className="text-3xl font-medium text-zinc-200 mb-3">
+                  Start a New Conversation
+              </h1>
+                <p className="text-zinc-400 max-w-md mb-6">
+                  Ask me anything - from creative writing to coding help, research questions, or just casual conversation.
+                </p>
+                <div className="flex gap-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => inputRef.current?.focus()}
+                    className="text-zinc-300 border-zinc-700 hover:bg-zinc-800"
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Start Typing
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowKeyboardShortcuts(true)}
+                    className="text-zinc-300 border-zinc-700 hover:bg-zinc-800"
+                  >
+                    <Keyboard className="w-4 h-4 mr-2" />
+                    View Shortcuts
+                  </Button>
+                </div>
+            </div>
+          ) : (
+              <div className="max-w-3xl mx-auto py-8 mb-[120px]">
+                <div className="space-y-6">
+              {messages.map((message, index) => (
+                <div 
+                  key={index}
+                  className={cn(
+                    "flex items-start gap-3",
+                    message.role === 'user' ? "flex-row-reverse" : "flex-row"
                   )}
                 >
-                  {message.role === 'user' ? (
-                    <span className="text-sm font-medium text-white">
-                      {userName.charAt(0).toUpperCase()}
-                    </span>
-                  ) : (
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
+                  message.role === 'user' ? "bg-blue-600" : "bg-zinc-700"
+                    )}
+                  >
+                    {message.role === 'user' ? (
+                      <span className="text-sm font-medium text-white">
+                        {userName.charAt(0).toUpperCase()}
+                      </span>
+                    ) : (
+                      <svg className="w-5 h-5 text-zinc-100" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12.0002 11.2424C14.3381 11.2424 16.2426 9.33785 16.2426 7C16.2426 4.66215 14.3381 2.75757 12.0002 2.75757C9.6623 2.75757 7.75772 4.66215 7.75772 7C7.75772 9.33785 9.6623 11.2424 12.0002 11.2424Z" fill="currentColor"/>
+                        <path d="M11.9999 21.2424C16.142 21.2424 19.5832 17.7902 19.5832 13.6481C19.5832 9.50596 16.142 6.06482 11.9999 6.06482C7.85778 6.06482 4.41656 9.50596 4.41656 13.6481C4.41656 17.7902 7.85778 21.2424 11.9999 21.2424Z" fill="currentColor"/>
+                      </svg>
+                    )}
+                  </div>
+
+                      <div 
+                        className={cn(
+                          "flex-1 px-4 py-2 rounded-lg overflow-hidden text-left",
+                          message.role === 'user' ? "bg-blue-600/20" : "bg-zinc-800"
+                        )}
+                        style={{
+                          maxWidth: 'calc(100% - 4rem)',
+                          wordBreak: 'break-word'
+                        }}
+                      >
+                    {Array.isArray(message.content) ? (
+                      message.content.map((item, i) => (
+                        <div key={i}>
+                          {item.type === 'text' && (
+                            <div 
+                              className="prose prose-invert prose-sm max-w-none"
+                              dangerouslySetInnerHTML={renderMarkdown(item.content)} 
+                            />
+                          )}
+                          {item.type === 'image' && (
+                            <div className="my-2">
+                              <img 
+                                src={item.content} 
+                                alt="Generated" 
+                                className="rounded-lg max-w-full h-auto" 
+                                loading="lazy"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <>
+                        <div 
+                          className="prose prose-invert prose-sm max-w-none"
+                          dangerouslySetInnerHTML={renderMarkdown(
+                            typeof message.content === 'string' 
+                              ? message.content 
+                              : JSON.stringify(message.content)
+                          )} 
+                        />
+                        
+                        {/* Show thinking toggle button only for assistant messages */}
+                        {message.role === 'assistant' && message.thinking && (
+                          <div className="mt-2 pt-2 border-t border-zinc-700">
+                            <button
+                              onClick={() => toggleThinking(message.id)}
+                              className="text-xs flex items-center gap-1 text-zinc-400 hover:text-zinc-300 transition-colors"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className={`transition-transform ${expandedThinking[message.id] ? 'rotate-180' : ''}`}
+                              >
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                              </svg>
+                              {expandedThinking[message.id] ? 'Hide thinking' : 'Show thinking'}
+                            </button>
+                            
+                            {expandedThinking[message.id] && (
+                              <div className="mt-2 p-3 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-400 overflow-auto max-h-60">
+                                <div 
+                                  className="prose prose-invert prose-sm max-w-none"
+                                  dangerouslySetInnerHTML={renderMarkdown(message.thinking)} 
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {isGenerating && (
+                <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center shrink-0">
                     <svg className="w-5 h-5 text-zinc-100" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M12.0002 11.2424C14.3381 11.2424 16.2426 9.33785 16.2426 7C16.2426 4.66215 14.3381 2.75757 12.0002 2.75757C9.6623 2.75757 7.75772 4.66215 7.75772 7C7.75772 9.33785 9.6623 11.2424 12.0002 11.2424Z" fill="currentColor"/>
                       <path d="M11.9999 21.2424C16.142 21.2424 19.5832 17.7902 19.5832 13.6481C19.5832 9.50596 16.142 6.06482 11.9999 6.06482C7.85778 6.06482 4.41656 9.50596 4.41656 13.6481C4.41656 17.7902 7.85778 21.2424 11.9999 21.2424Z" fill="currentColor"/>
                     </svg>
-                  )}
-                </div>
-
-                    <div 
-                      className={cn(
-                        "flex-1 px-4 py-2 rounded-lg overflow-hidden text-left",
-                  message.role === 'user' ? "bg-blue-600/20" : "bg-zinc-800"
-                      )}
-                      style={{
-                        maxWidth: 'calc(100% - 4rem)',
-                        wordBreak: 'break-word'
-                      }}
-                    >
-                  {Array.isArray(message.content) ? (
-                    message.content.map((item, i) => (
-                      <div key={i}>
-                        {item.type === 'text' && (
-                          <div 
-                            className="prose prose-invert prose-sm max-w-none"
-                            dangerouslySetInnerHTML={renderMarkdown(item.content)} 
-                          />
-                        )}
-                        {item.type === 'image' && (
-                          <div className="my-2">
-                            <img 
-                              src={item.content} 
-                              alt="Generated" 
-                              className="rounded-lg max-w-full h-auto" 
-                                  loading="lazy"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <div 
-                      className="prose prose-invert prose-sm max-w-none"
-                      dangerouslySetInnerHTML={renderMarkdown(
-                        typeof message.content === 'string' 
-                          ? message.content 
-                          : JSON.stringify(message.content)
-                      )} 
-                    />
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {isGenerating && (
-              <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5 text-zinc-100" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12.0002 11.2424C14.3381 11.2424 16.2426 9.33785 16.2426 7C16.2426 4.66215 14.3381 2.75757 12.0002 2.75757C9.6623 2.75757 7.75772 4.66215 7.75772 7C7.75772 9.33785 9.6623 11.2424 12.0002 11.2424Z" fill="currentColor"/>
-                    <path d="M11.9999 21.2424C16.142 21.2424 19.5832 17.7902 19.5832 13.6481C19.5832 9.50596 16.142 6.06482 11.9999 6.06482C7.85778 6.06482 4.41656 9.50596 4.41656 13.6481C4.41656 17.7902 7.85778 21.2424 11.9999 21.2424Z" fill="currentColor"/>
-                  </svg>
-                </div>
-                    <div className="px-4 py-2 rounded-lg bg-zinc-800 w-auto">
-                  <div className="flex gap-2">
-                    <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                      <div className="px-4 py-2 rounded-lg bg-zinc-800 w-auto">
+                    <div className="flex gap-2">
+                      <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-              </div>
-              
-              <div 
-                ref={messagesEndRef} 
-                className="h-px w-full" 
-                aria-hidden="true"
-              />
-          </div>
-        )}
+              )}
+                </div>
+                
+                <div 
+                  ref={messagesEndRef} 
+                  className="h-px w-full" 
+                  aria-hidden="true"
+                />
+            </div>
+          )}
+        </div>
       </div>
       
-      {/* Input Area */}
-      <div className="flex-none border-t border-zinc-800 bg-zinc-900 p-4">
+      {/* Input Area - Make sticky */}
+      <div className="flex-none border-t border-zinc-800 bg-zinc-900 p-4 sticky bottom-0 left-0 right-0 z-10">
         <div className="max-w-3xl mx-auto">
           <ChatInput 
             onSubmit={handleSubmit}

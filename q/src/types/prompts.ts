@@ -29,6 +29,8 @@ export interface PromptExecutionResult {
     type: string;
     [key: string]: any;
   };
+  message?: string;
+  thinking?: string;
   // Search-specific properties
   isSearchResult?: boolean;
   searchQuery?: string;
