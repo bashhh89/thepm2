@@ -10,7 +10,7 @@ import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 import { toasts } from '@/components/ui/toast-wrapper';
 import { useRouter } from 'next/navigation';
-import { AgentSwitcher } from './agent-switcher';
+import { AgentSwitcher, AgentManagerPanel } from './agent-switcher';
 import { ChatInput } from './chat-input-new';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUser } from '@/hooks/useUser';
@@ -121,6 +121,7 @@ export function ChatInterface() {
   const [isEditingTitle, setIsEditingTitle] = useState<string | null>(null);
   const [editedTitle, setEditedTitle] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const [showAgentManager, setShowAgentManager] = useState(false);
 
   const availableModels = MODEL_LIST.TEXT.map((model: ModelListType) => model.id);
   
@@ -385,7 +386,13 @@ Instructions for AI:
   }
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950">
+    <div className="relative min-h-screen bg-background flex flex-col">
+      {/* Agent Manager Panel */}
+      <AgentManagerPanel
+        isOpen={showAgentManager}
+        onClose={() => setShowAgentManager(false)}
+      />
+      
       {/* Header */}
       <div className="flex-none border-b border-zinc-800 bg-zinc-900">
         <div className="flex justify-between items-center px-4 py-3">
@@ -414,7 +421,7 @@ Instructions for AI:
 
             <Select value={activeAgent?.id || "default"} onValueChange={(agentId) => {
               if (agentId === "manage") {
-                router.push('/agents');
+                setShowAgentManager(true);
                 return;
               }
               
