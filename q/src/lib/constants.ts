@@ -140,12 +140,17 @@ export const MODEL_LIST = {
       name: "SearchGPT",
       type: "chat",
       censored: true,
-      description: "SearchGPT, provider: Azure",
+      description: "SearchGPT with realtime web search",
       baseModel: true,
       provider: "Azure",
       vision: true,
+      reasoning: true,
+      uncensored: false,
       inputModalities: ["text", "image"],
-      outputModalities: ["text"]
+      outputModalities: ["text"],
+      webSearch: true,
+      specialized: true,
+      icon: "globe"
     },
     {
       id: "evil",

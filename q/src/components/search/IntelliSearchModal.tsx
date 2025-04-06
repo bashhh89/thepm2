@@ -2,12 +2,23 @@
 
 import React, { useState } from 'react';
 import { Sparkles, Search, Loader2, X } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
 import { IntelliSearchResults } from './IntelliSearchResults';
-import { toast } from '@/components/ui/use-toast';
-import { IntelliSearchResult } from '@/lib/search/intelliSearchService';
+import { toast } from '../ui/use-toast';
+
+// Define the interface locally instead of importing it
+interface IntelliSearchResult {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  relevanceScore: number;
+  tags?: string[];
+  source?: string;
+  timestamp?: string;
+}
 
 interface IntelliSearchModalProps {
   isOpen: boolean;

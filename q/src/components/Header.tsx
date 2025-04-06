@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { IntelliSearchButton } from './search/IntelliSearchButton';
 
 interface HeaderProps {
   isMarketingLayout?: boolean;
@@ -215,11 +214,6 @@ const Header: React.FC<HeaderProps> = ({ isMarketingLayout = false }) => {
 
           {/* Right Section with Theme Toggle and IntelliSearch */}
           <div className="flex items-center space-x-3">
-            {/* IntelliSearchButton - Only visible when authenticated and not on marketing layout */}
-            {isAuthenticated && !isMarketingLayout && (
-              <IntelliSearchButton variant="ghost" className="flex" />
-            )}
-            
             <button
               onClick={toggleTheme}
               className="rounded-md p-2 text-foreground hover:bg-muted qandu-transition-all"
@@ -302,13 +296,6 @@ const Header: React.FC<HeaderProps> = ({ isMarketingLayout = false }) => {
       {mobileMenuOpen && (
         <div className="md:hidden py-4 px-4 border-t border-border bg-background qandu-fade-in">
           <nav className="flex flex-col space-y-4">
-            {/* Add IntelliSearch Button to Mobile Menu */}
-            {isAuthenticated && !isMarketingLayout && (
-              <div className="mb-2">
-                <IntelliSearchButton variant="outline" className="w-full" />
-              </div>
-            )}
-
             {/* Authenticated Nav Items - Only on non-marketing layouts */}
             {isAuthenticated && !isMarketingLayout ? (
               <>

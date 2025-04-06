@@ -481,7 +481,7 @@ export const createVariable = (name: string, value: string): PromptVariable => (
 /**
  * Processes a message with any embedded commands
  */
-export const processMessage = async (message: string): Promise<PromptExecutionResult> => {
+export const processMessage = async (message: string, systemPrompt?: string): Promise<PromptExecutionResult> => {
   try {
     // Check if the message is a command
     if (message.startsWith('/')) {
@@ -497,6 +497,10 @@ export const processMessage = async (message: string): Promise<PromptExecutionRe
       
       const modelToUse = settingsStore.activeTextModel;
       console.log('processMessage - Using model:', modelToUse);
+      
+      if (systemPrompt) {
+        console.log('processMessage - Using custom system prompt for web search');
+      }
 
       // Call the AI model with the message and history
       const response = await fetch('/api/chat', {
@@ -513,7 +517,8 @@ export const processMessage = async (message: string): Promise<PromptExecutionRe
             { role: 'user', content: message }
           ],
           model: modelToUse, // Use the selected model from settings
-          agent: settingsStore.activeAgent // Send the active agent if any
+          agent: settingsStore.activeAgent, // Send the active agent if any
+          systemPrompt: systemPrompt // Add system prompt for search instructions
         }),
       });
 

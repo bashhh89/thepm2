@@ -19,7 +19,7 @@ import { generateImageUrl, generateAudioUrl, generatePollinationsAudio } from '@
 import { marked } from 'marked';
 import { showError, showSuccess, showInfo } from '@/components/ui/toast';
 import { logError } from '@/utils/errorLogging';
-import { Sparkle, Pencil, Plus, Menu, CircleUser, MessageSquare, Book, Settings as SettingsIcon, LogOut, Keyboard } from 'lucide-react';
+import { Sparkle, Pencil, Plus, Menu, CircleUser, MessageSquare, Book, Settings as SettingsIcon, LogOut, Keyboard, Globe } from 'lucide-react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { ModelSelector } from '@/components/chat/model-selector';
 import { TextModel } from '@/lib/constants';
@@ -104,6 +104,7 @@ interface LocalMessage {
 export function ChatInterface() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -296,20 +297,59 @@ export function ChatInterface() {
     setShowAllModels(prev => !prev);
   });
 
+  const handleWebSearchToggle = (enabled: boolean) => {
+    try {
+      setWebSearchEnabled(enabled);
+      if (enabled) {
+        const searchGptModel = MODEL_LIST.TEXT.find(m => m.id === 'searchgpt');
+        if (searchGptModel) {
+          handleModelChange('searchgpt');
+          showSuccess(`Web search enabled using ${searchGptModel.name}`);
+        }
+      } else {
+        handleModelChange('openai');
+        showSuccess('Web search disabled');
+      }
+    } catch (error) {
+      logError({
+        error: error instanceof Error ? error.toString() : 'Failed to toggle web search',
+        context: 'Web Search Toggle'
+      });
+      showError('Could not toggle web search. Please try again.');
+    }
+  };
+
   const handleSubmit = async (content: string) => {
     if (!content.trim()) return;
 
     try {
+      // Add web search instructions if enabled
+      let processedContent = content;
+      let systemMessage = '';
+      
+      if (webSearchEnabled && activeTextModel === 'searchgpt') {
+        systemMessage = `
+---
+Instructions for AI:
+1. Please thoroughly answer the question based on current information from the web.
+2. Perform a web search to gather relevant details from multiple reliable sources.
+3. Synthesize key findings into a comprehensive, well-structured response.
+4. Do not just list search results or links. Explain the information clearly.
+5. If possible, cite source URLs for key pieces of information within your explanation.
+6. Format the answer for readability (e.g., use paragraphs, bullet points if helpful).
+7. Aim to provide an informative summary reflecting current web knowledge on the topic.`;
+      }
+
       // Add user message
       addMessage('user', content);
       setIsGenerating(true);
 
       // Process the message and get AI response
-      const response = await processMessage(content);
+      const response = await processMessage(content, systemMessage);
 
       // Add AI response
       if (response.success) {
-        addMessage('assistant', response.content);
+        addMessage('assistant', response.message || response.content);
       } else {
         addMessage('assistant', `Error: ${response.error || 'Unknown error'}`);
       }
@@ -352,116 +392,132 @@ export function ChatInterface() {
           <div className="flex items-center gap-2">
             <h1 className="font-semibold text-zinc-100">Chat</h1>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <ModelSelector
-                selectedModel={MODEL_LIST.TEXT.find((m: ModelListType) => m.id === activeTextModel)}
-                onModelSelect={(model) => handleModelChange(model.id)}
-              />
+          
+          <div className="flex items-center gap-3">
+            {/* Web Search Toggle */}
+            <button
+              onClick={() => handleWebSearchToggle(!webSearchEnabled)}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-sm border ${
+                webSearchEnabled 
+                  ? 'bg-blue-900/40 border-blue-700 text-blue-300' 
+                  : 'bg-transparent border-zinc-700 text-zinc-400 hover:text-zinc-300'
+              }`}
+            >
+              <Globe size={16} />
+              <span>Web Search</span>
+            </button>
 
-              <Select value={activeAgent?.id || "default"} onValueChange={(agentId) => {
-                if (agentId === "manage") {
-                  router.push('/agents');
-                  return;
-                }
-                
-                if (agentId === "default") {
-                  setActiveAgent(null);
-                  return;
-                }
-                
-                const selectedAgent = agents.find(a => a.id === agentId);
-                if (selectedAgent) {
-                  setActiveAgent(selectedAgent);
-                  toasts.success(`Agent ${selectedAgent.name} selected`);
-                }
-              }}>
-                <SelectTrigger className="h-9 pl-3 pr-2 text-sm font-medium border border-zinc-700 bg-zinc-800 hover:bg-zinc-700/60 focus:ring-0 focus:border-zinc-600 rounded-md text-zinc-100 max-w-[180px]">
-                  <div className="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="8" r="5" />
-                      <path d="M20 21a8 8 0 0 0-16 0" />
-                    </svg>
-                    <span className="truncate max-w-[120px]">{activeAgent?.name || "Default Agent"}</span>
-                  </div>
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700 text-zinc-100">
-                  <SelectItem value="default" className="text-sm hover:bg-zinc-700 focus:bg-zinc-700">
-                    Default Agent
-                  </SelectItem>
-                  <div className="py-1 border-t border-zinc-700">
-                    <div className="px-2 pt-1 pb-1 text-xs text-zinc-500 font-medium">My Agents</div>
-                    {agents.length === 0 ? (
-                      <div className="px-2 py-2 text-xs text-zinc-400">
-                        No custom agents found
-                      </div>
-                    ) : (
-                      agents.map((agent) => (
-                        <SelectItem key={agent.id} value={agent.id} className="text-sm hover:bg-zinc-700 focus:bg-zinc-700">
-                          {agent.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </div>
-                  <div className="py-1 border-t border-zinc-700">
-                    <SelectItem value="manage" className="text-sm hover:bg-zinc-700 focus:bg-zinc-700 text-blue-400">
-                      Manage Agents...
-                    </SelectItem>
-                  </div>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="text-zinc-400 hover:text-zinc-100 rounded-full"
-                  onClick={() => setShowAccountMenu(!showAccountMenu)}
-                >
-                  <CircleUser size={22} />
-                </Button>
-                
-                {showAccountMenu && (
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg overflow-hidden z-50">
-                    <div className="p-2 border-b border-zinc-700 text-sm text-zinc-300">
-                      {userName || 'User Account'}
+            <ModelSelector
+              selectedModel={MODEL_LIST.TEXT.find((m: ModelListType) => m.id === activeTextModel)}
+              onModelSelect={(model) => handleModelChange(model.id)}
+            />
+
+            <Select value={activeAgent?.id || "default"} onValueChange={(agentId) => {
+              if (agentId === "manage") {
+                router.push('/agents');
+                return;
+              }
+              
+              if (agentId === "default") {
+                setActiveAgent(null);
+                return;
+              }
+              
+              const selectedAgent = agents.find(a => a.id === agentId);
+              if (selectedAgent) {
+                setActiveAgent(selectedAgent);
+                toasts.success(`Agent ${selectedAgent.name} selected`);
+              }
+            }}>
+              <SelectTrigger className="h-9 pl-3 pr-2 text-sm font-medium border border-zinc-700 bg-zinc-800 hover:bg-zinc-700/60 focus:ring-0 focus:border-zinc-600 rounded-md text-zinc-100 max-w-[180px]">
+                <div className="flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="8" r="5" />
+                    <path d="M20 21a8 8 0 0 0-16 0" />
+                  </svg>
+                  <span className="truncate max-w-[120px]">{activeAgent?.name || "Default Agent"}</span>
+                </div>
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-800 border-zinc-700 text-zinc-100">
+                <SelectItem value="default" className="text-sm hover:bg-zinc-700 focus:bg-zinc-700">
+                  Default Agent
+                </SelectItem>
+                <div className="py-1 border-t border-zinc-700">
+                  <div className="px-2 pt-1 pb-1 text-xs text-zinc-500 font-medium">My Agents</div>
+                  {agents.length === 0 ? (
+                    <div className="px-2 py-2 text-xs text-zinc-400">
+                      No custom agents found
                     </div>
-                    <ul>
-                      <li>
-                        <Link href="/dashboard" className="flex items-center gap-2 px-4 py-2 text-zinc-300 hover:bg-zinc-700">
-                          <MessageSquare size={16} />
-                          <span>Dashboard</span>
-                        </Link>
-                      </li>
-                      <li>
-                        <Link href="/settings" className="flex items-center gap-2 px-4 py-2 text-zinc-300 hover:bg-zinc-700">
-                          <SettingsIcon size={16} />
-                          <span>Settings</span>
-                        </Link>
-                      </li>
-                      <li className="border-t border-zinc-700">
-                        <button 
-                          className="flex items-center gap-2 px-4 py-2 text-red-400 hover:bg-zinc-700 w-full text-left"
-                          onClick={() => {
-                            router.push('/logout');
-                          }}
-                        >
-                          <LogOut size={16} />
-                          <span>Sign Out</span>
-                        </button>
-                      </li>
-                    </ul>
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => setShowKeyboardShortcuts(true)}
-                className="p-2 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
-                title="Keyboard shortcuts"
+                  ) : (
+                    agents.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id} className="text-sm hover:bg-zinc-700 focus:bg-zinc-700">
+                        <span className="truncate">{agent.name}</span>
+                      </SelectItem>
+                    ))
+                  )}
+                </div>
+                <div className="border-t border-zinc-700 pt-1">
+                  <SelectItem value="manage" className="text-sm text-blue-400 hover:bg-zinc-700 focus:bg-zinc-700">
+                    <div className="flex items-center gap-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                      <span>Manage Agents</span>
+                    </div>
+                  </SelectItem>
+                </div>
+              </SelectContent>
+            </Select>
+
+            <button
+              onClick={() => setShowKeyboardShortcuts(true)}
+              className="text-zinc-400 hover:text-zinc-300 h-9 w-9 flex items-center justify-center rounded-full"
+              title="Keyboard shortcuts"
+            >
+              <Keyboard size={18} />
+            </button>
+
+            <div className="relative">
+              <button 
+                onClick={() => setShowAccountMenu(!showAccountMenu)}
+                className="text-zinc-400 hover:text-zinc-300 h-9 w-9 flex items-center justify-center rounded-full"
               >
-                <Keyboard size={20} />
+                <CircleUser size={18} />
               </button>
+              
+              {showAccountMenu && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg overflow-hidden z-50">
+                  <div className="p-2 border-b border-zinc-700 text-sm text-zinc-300">
+                    {userName || 'User Account'}
+                  </div>
+                  <ul>
+                    <li>
+                      <Link href="/dashboard" className="flex items-center gap-2 px-4 py-2 text-zinc-300 hover:bg-zinc-700">
+                        <MessageSquare size={16} />
+                        <span>Dashboard</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link href="/settings" className="flex items-center gap-2 px-4 py-2 text-zinc-300 hover:bg-zinc-700">
+                        <SettingsIcon size={16} />
+                        <span>Settings</span>
+                      </Link>
+                    </li>
+                    <li className="border-t border-zinc-700">
+                      <button 
+                        className="flex items-center gap-2 px-4 py-2 text-red-400 hover:bg-zinc-700 w-full text-left"
+                        onClick={() => {
+                          router.push('/logout');
+                        }}
+                      >
+                        <LogOut size={16} />
+                        <span>Sign Out</span>
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -606,16 +662,17 @@ export function ChatInterface() {
       {/* Input Area */}
       <div className="flex-none border-t border-zinc-800 bg-zinc-900 p-4">
         <div className="max-w-3xl mx-auto">
-      <ChatInput 
-        onSubmit={handleSubmit}
-        ref={inputRef}
-      />
-      <p className="text-xs text-zinc-500 text-center mt-2">
-        AI assistants may display inaccurate info, including about people, so double-check responses. 
-        <Link href="/privacy" className="underline hover:text-zinc-400 mx-1">Privacy policy</Link>
-        <Link href="/terms" className="underline hover:text-zinc-400 mx-1">Terms of service</Link>
-      </p>
-    </div>
+          <ChatInput 
+            onSubmit={handleSubmit}
+            ref={inputRef}
+            webSearchEnabled={webSearchEnabled}
+          />
+          <p className="text-xs text-zinc-500 text-center mt-2">
+            AI assistants may display inaccurate info, including about people, so double-check responses. 
+            <Link href="/privacy" className="underline hover:text-zinc-400 mx-1">Privacy policy</Link>
+            <Link href="/terms" className="underline hover:text-zinc-400 mx-1">Terms of service</Link>
+          </p>
+        </div>
       </div>
 
     {showKeyboardShortcuts && <KeyboardShortcutsModal />}

@@ -5,7 +5,7 @@ import { useSettingsStore, Agent, defaultAgents } from "@/store/settingsStore"
 import { useChatStore, ChatSession } from "@/store/chatStore"
 import { toasts } from '@/components/ui/toast-wrapper'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, MessageSquare, ChevronDown, ChevronRight, Folder, Users, Bot, Wrench, Presentation, Palette, LayoutPanelLeft, Trash2, Pencil, Check, X, FileText } from "lucide-react"
+import { Home, MessageSquare, ChevronDown, ChevronRight, Folder, Users, Bot, Wrench, Presentation, Palette, LayoutPanelLeft, Trash2, Pencil, Check, X, FileText, Search, BookOpen } from "lucide-react"
 import type { LucideIcon } from 'lucide-react'
 import React from 'react'
 import { useAuth } from "@/context/AuthContext"
@@ -13,6 +13,7 @@ import { useSidebarStore } from "@/store/sidebarStore"
 import { FiSettings, FiShield, FiLogOut } from 'react-icons/fi'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { IntelliSearchButton } from './search/IntelliSearchButton'
 
 interface User {
   id: string;
@@ -137,7 +138,7 @@ export default function Sidebar() {
     }
   }, [darkMode, mounted])
 
-  // Focus input when editing starts (Moved BEFORE early return)
+  // Focus input when editing starts
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
       titleInputRef.current.focus();
@@ -167,6 +168,16 @@ export default function Sidebar() {
       name: "Chat",
       path: "/chat",
       icon: MessageSquare,
+    },
+    {
+      name: "IntelliSearch",
+      path: "/search",
+      icon: Search,
+    },
+    {
+      name: "Advanced Research",
+      path: "/advanced-search",
+      icon: BookOpen,
     },
     {
       name: "Projects",
@@ -366,15 +377,6 @@ export default function Sidebar() {
     }
   }
 
-  // Show a minimal sidebar while client-side hydration is happening
-  if (!mounted) {
-    return (
-      <aside className="fixed inset-y-0 left-0 z-50 w-16 overflow-hidden">
-        <div className="h-full bg-zinc-900 border-r border-zinc-700/50" />
-      </aside>
-    )
-  }
-
   return (
     <aside className="fixed inset-y-0 left-0 z-50 flex flex-col h-full">
       <div 
@@ -397,263 +399,309 @@ export default function Sidebar() {
             strokeLinejoin="round"
             className={`w-3 h-3 ${isExpanded ? 'rotate-180' : ''}`}
           >
-            <path d="m9 18 6-6-6-6"/>
+            <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
 
-        {/* Logo */}
-        <div className="p-4">
-          <div className="flex items-center">
-            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-sm">
-              Q
-            </div>
-            {isExpanded && (
-              <span className="ml-2 text-lg font-semibold whitespace-nowrap text-zinc-100">QanDuAI</span>
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-y-auto py-4 space-y-6">
+          {/* Logo / Branding */}
+          <div className={`px-3 flex items-center ${isExpanded ? 'justify-start' : 'justify-center'}`}>
+            {isExpanded ? (
+              <h1 className="text-xl font-semibold text-white">QanDu AI</h1>
+            ) : (
+              <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
+                Q
+              </div>
             )}
           </div>
-        </div>
+          
+          {/* New Chat Button */}
+          <div className="px-3">
+            <button
+              onClick={handleNewChat}
+              className={`bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center transition-all p-2 ${
+                isExpanded ? 'w-full justify-center space-x-2' : 'w-full justify-center'
+              }`}
+            >
+              <MessageSquare className="h-4 w-4" />
+              {isExpanded && <span>New Chat</span>}
+            </button>
+          </div>
 
-        {/* Main Navigation */}
-        <div className="flex-1 flex flex-col h-[calc(100vh-8rem)] overflow-hidden">
-          {/* Quick Actions */}
-          <div className="px-2 py-2 border-b border-zinc-700/50">
-          <button
-            onClick={handleNewChat}
-            className={`w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition-colors text-sm`}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 5v14M5 12h14"/>
-            </svg>
-            {isExpanded && <span>New Chat</span>}
-          </button>
-        </div>
-
-          {/* Conversations Section - Accordion */}
-          {isExpanded && chatSessions.length > 0 && (
-            <div className="flex-shrink-0 overflow-hidden border-b border-zinc-700/50 pb-2 mb-2">
-              {/* Accordion Header Button */}
-              <button 
-                className="px-3 py-2 flex items-center justify-between w-full text-left hover:bg-zinc-800/50 rounded-md" 
+          {/* Chat History */}
+          <div className="px-2">
+            <div className="flex items-center justify-between px-2 mb-2 text-xs text-zinc-400 uppercase tracking-wide">
+              <button
                 onClick={() => setIsChatListExpanded(!isChatListExpanded)}
+                className="flex items-center space-x-1 hover:text-white transition-colors"
               >
-                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Conversations</span>
-                <div className='flex items-center'>
-                  {chatSessions.length > 5 && (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => { 
-                        e.stopPropagation();
-                        setShowAllChats(!showAllChats); 
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.stopPropagation();
-                          setShowAllChats(!showAllChats);
-                        }
-                      }}
-                      className="text-xs text-zinc-400 hover:text-zinc-300 mr-2 cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
-                    >
-                      {showAllChats ? 'Less' : 'All'}
-                    </span>
-                  )}
-                  {isChatListExpanded ? <ChevronDown size={14} className="text-zinc-400" /> : <ChevronRight size={14} className="text-zinc-400" />}
-                </div>
+                {isChatListExpanded ? (
+                  <ChevronDown className="h-3 w-3" />
+                ) : (
+                  <ChevronRight className="h-3 w-3" />
+                )}
+                <span>{isExpanded ? 'Recent Chats' : ''}</span>
               </button>
-              {/* Collapsible Chat List */}
-              {isChatListExpanded && (
-                <div className="space-y-1 overflow-y-auto max-h-[30vh] px-2 mt-1">
-                  {(showAllChats ? chatSessions : chatSessions.slice(0, 5)).map((chat, index) => (
-                    <div
-                      key={chat.id}
-                      className={cn(
-                        "flex items-center justify-between group px-2 py-1.5 rounded-md cursor-pointer",
-                        activeChatId === chat.id && !isEditingTitle ? "bg-zinc-800/50" : "hover:bg-zinc-800/50",
-                        isEditingTitle === chat.id ? "bg-zinc-800" : ""
-                      )}
-                      onClick={() => {
-                        if (!isEditingTitle && confirmingDeleteId !== chat.id) {
-                           handleChatSelect(chat.id);
-                        } else if (confirmingDeleteId && confirmingDeleteId !== chat.id) {
-                          setConfirmingDeleteId(null);
-                          handleChatSelect(chat.id);
-                        } else if (isEditingTitle === chat.id) {
-                        } else {
-                           setConfirmingDeleteId(null);
-                        }
-                      }}
-                    >
-                      {isEditingTitle === chat.id ? (
-                        <input
-                          ref={titleInputRef}
-                          type="text"
-                          value={editedTitle}
-                          onChange={(e) => setEditedTitle(e.target.value)}
-                          onBlur={() => {
-                            setTimeout(() => {
-                               if (document.activeElement !== titleInputRef.current) {
-                                 handleRenameChatConfirm(chat.id)
-                               }
-                            }, 100);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleRenameChatConfirm(chat.id);
-                            } else if (e.key === 'Escape') {
-                              setIsEditingTitle(null);
-                              setEditedTitle('');
-                            }
-                          }}
-                          className="flex-1 bg-transparent px-0 py-0 border-none focus:ring-0 outline-none text-zinc-100 min-w-0 text-sm"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <span
-                          className="flex-1 text-left truncate text-sm text-zinc-100"
-                          title={chat.name || `Chat ${index + 1}`}
-                        >
-                          {chat.name || `Chat ${index + 1}`}
-                        </span>
-                      )}
-
-                      <div className="flex items-center gap-1 chat-item-actions">
-                         {isEditingTitle === chat.id ? (
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               handleRenameChatConfirm(chat.id);
-                             }}
-                             className="p-1 text-zinc-400 hover:text-zinc-100 rounded-md hover:bg-zinc-700/50"
-                             title="Save name"
-                           >
-                             <Check size={14} />
-                           </button>
-                         ) : confirmingDeleteId === chat.id ? (
-                           <>
-                             <button
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 deleteChat(chat.id);
-                                 setConfirmingDeleteId(null);
-                               }}
-                               className="p-1 text-green-500 hover:text-green-400 rounded-md hover:bg-zinc-700/50"
-                               title="Confirm delete"
-                             >
-                               <Check size={14} />
-                             </button>
-                             <button
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 setConfirmingDeleteId(null);
-                               }}
-                               className="p-1 text-red-500 hover:text-red-400 rounded-md hover:bg-zinc-700/50"
-                               title="Cancel delete"
-                             >
-                               <X size={14} />
-                             </button>
-                           </>
-                         ) : (
-                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <button
-                               onClick={(e) => {
-                                 e.stopPropagation(); 
-                                 setIsEditingTitle(chat.id);
-                                 setEditedTitle(chat.name || `Chat ${index + 1}`);
-                                 setConfirmingDeleteId(null);
-                               }}
-                               className="p-1 text-zinc-400 hover:text-zinc-100 rounded-md hover:bg-zinc-700/50"
-                               title="Rename chat"
-                             >
-                               <Pencil size={14} />
-                             </button>
-                             <button
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 setConfirmingDeleteId(chat.id);
-                                 setIsEditingTitle(null);
-                               }}
-                               className="p-1 text-zinc-400 hover:text-zinc-100 rounded-md hover:bg-zinc-700/50"
-                               title="Delete chat"
-                             >
-                               <Trash2 size={14} />
-                             </button>
-                           </div>
-                         )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              
+              {isExpanded && (
+                <button
+                  onClick={() => setShowAllChats(!showAllChats)}
+                  className="text-xs hover:text-white transition-colors"
+                >
+                  {showAllChats ? 'Show Less' : 'Show All'}
+                </button>
               )}
             </div>
-          )}
-
-          {/* Main Navigation Items */}
-          <nav className="flex-1 px-2 py-2 space-y-1 overflow-y-auto">
-            {navItems.map((item) => (
-              <button
-                key={item.path}
-                onClick={() => router.push(item.path)}
-                className={`w-full flex items-center ${isExpanded ? 'space-x-2' : 'justify-center'} px-3 py-1.5 text-sm rounded-md transition-colors ${
-                  pathname.startsWith(item.path)
-                    ? 'bg-blue-600 text-white'
-                    : 'text-zinc-300 hover:bg-zinc-800'
-                }`}
-              >
-                {React.createElement(item.icon, { className: "h-4 w-4 flex-shrink-0" })}
-        {isExpanded && (
-                  <span className="text-sm">{item.name}</span>
-                )}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        {/* Footer Items */}
-        <div className="flex-shrink-0 border-t border-zinc-700/50">
-          {/* Tools Section */}
-          <div className="px-2 py-2">
-            <button
-              onClick={() => router.push('/test-tools')}
-              className={`w-full flex items-center ${isExpanded ? 'space-x-2' : 'justify-center'} px-3 py-1.5 text-sm rounded-md text-zinc-300 hover:bg-zinc-800`}
-            >
-              <Wrench className="h-4 w-4 flex-shrink-0" />
-              {isExpanded && <span>Tools</span>}
-            </button>
+            
+            {isChatListExpanded && (
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                {(showAllChats ? chatSessions : chatSessions?.slice(0, 5))?.map((chat) => (
+                  <div key={chat.id} className="flex items-center group">
+                    <button
+                      onClick={() => handleChatSelect(chat.id)}
+                      className={`flex-1 text-left px-2 py-1.5 rounded-md ${
+                        isExpanded ? 'text-sm' : 'justify-center'
+                      } ${
+                        chat.id === activeChatId
+                          ? 'bg-zinc-800 text-white'
+                          : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        <MessageSquare className={`h-4 w-4 flex-shrink-0 ${!isExpanded ? 'mx-auto' : 'mr-2'}`} />
+                        
+                        {isExpanded && (
+                          isEditingTitle === chat.id ? (
+                            <input
+                              ref={titleInputRef}
+                              type="text"
+                              value={editedTitle}
+                              onChange={(e) => setEditedTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleRenameChatConfirm(chat.id);
+                                } else if (e.key === 'Escape') {
+                                  setIsEditingTitle(null);
+                                  setEditedTitle('');
+                                }
+                              }}
+                              onBlur={() => handleRenameChatConfirm(chat.id)}
+                              className="bg-zinc-700 text-white px-1 rounded w-full"
+                              autoFocus
+                            />
+                          ) : (
+                            <span className="truncate w-32">
+                              {chat.title || 'New Chat'}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    </button>
+                    
+                    {isExpanded && chat.id === activeChatId && !isEditingTitle && (
+                      <div className="flex space-x-1 mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => {
+                            setIsEditingTitle(chat.id);
+                            setEditedTitle(chat.title || 'New Chat');
+                          }}
+                          className="p-0.5 text-zinc-400 hover:text-white rounded-sm"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        
+                        {confirmingDeleteId === chat.id ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                deleteChat(chat.id);
+                                setConfirmingDeleteId(null);
+                              }}
+                              className="p-0.5 text-red-400 hover:text-red-300 rounded-sm"
+                            >
+                              <Check className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => setConfirmingDeleteId(null)}
+                              className="p-0.5 text-zinc-400 hover:text-white rounded-sm"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmingDeleteId(chat.id)}
+                            className="p-0.5 text-zinc-400 hover:text-red-400 rounded-sm"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Settings & Account */}
-          <div className="px-2 py-2 space-y-1">
-            <button
-              onClick={() => router.push('/settings')}
-              className={`w-full flex items-center ${isExpanded ? 'space-x-2' : 'justify-center'} px-3 py-1.5 text-sm rounded-md text-zinc-300 hover:bg-zinc-800`}
-            >
-              <FiSettings className="h-4 w-4 flex-shrink-0" />
-              {isExpanded && <span>Settings</span>}
-            </button>
-            
-            {user && 'role' in user && user.role === 'admin' && (
-              <button
-                onClick={() => router.push('/admin')}
-                className={`w-full flex items-center ${isExpanded ? 'space-x-2' : 'justify-center'} px-3 py-1.5 text-sm rounded-md text-zinc-300 hover:bg-zinc-800`}
-              >
-                <FiShield className="h-4 w-4 flex-shrink-0" />
-                {isExpanded && <span>Admin</span>}
-              </button>
-            )}
-
-            <button
-              onClick={() => router.push('/account')}
-              className={`w-full flex items-center ${isExpanded ? 'space-x-2' : 'justify-center'} px-3 py-1.5 text-sm rounded-md text-zinc-300 hover:bg-zinc-800`}
-            >
-              <div className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
-                      <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                  </div>
-              {isExpanded && <span>Account</span>}
-              </button>
+          {/* Main Navigation */}
+          <div className="px-2 space-y-1">
+            <div className="flex items-center px-2 mb-1 text-xs text-zinc-400 uppercase tracking-wide">
+              {isExpanded && <span>Navigation</span>}
             </div>
+
+            {navItems.map((item) => (
+              <div key={item.path}>
+                <button
+                  onClick={() => router.push(item.path)}
+                  className={`w-full flex items-center ${
+                    isExpanded ? 'justify-between' : 'justify-center'
+                  } px-2 py-1.5 rounded-md ${
+                    isActive(item.path)
+                      ? 'bg-zinc-800 text-white'
+                      : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <item.icon className={`h-4 w-4 ${!isExpanded ? '' : 'mr-3'}`} />
+                    {isExpanded && <span>{item.name}</span>}
+                  </div>
+                  {isExpanded && item.submenu && (
+                    <ChevronDown className="h-3 w-3" />
+                  )}
+                </button>
+
+                {/* Submenu */}
+                {isExpanded && item.submenu && (
+                  <div className="ml-8 mt-1 space-y-1">
+                    {item.submenu.map((subitem) => (
+                      <button
+                        key={subitem.path}
+                        onClick={() => router.push(subitem.path)}
+                        className={`w-full text-left px-2 py-1 text-sm rounded-md ${
+                          isActive(subitem.path)
+                            ? 'bg-zinc-800 text-white'
+                            : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                        }`}
+                      >
+                        {subitem.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Agents Section */}
+          <div className="px-2">
+            <div className="flex items-center justify-between px-2 mb-2 text-xs text-zinc-400 uppercase tracking-wide">
+              {isExpanded && <span>Assistants</span>}
+              {isExpanded && (
+                <button
+                  onClick={() => {
+                    setAgentName("");
+                    setAgentPrompt("");
+                    setEditingAgent(null);
+                    setShowAgentForm(true);
+                  }}
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  + New
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              {agents.map((agent) => (
+                <div key={agent.id} className="flex group items-center">
+                  <button
+                    onClick={() => setSelectedAgentId(agent.id)}
+                    className={`flex-1 flex items-center ${
+                      isExpanded ? 'justify-between' : 'justify-center'
+                    } px-2 py-1.5 rounded-md ${
+                      agent.id === selectedAgentId
+                        ? 'bg-zinc-800 text-white'
+                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <Bot className={`h-4 w-4 ${!isExpanded ? '' : 'mr-3'}`} />
+                      {isExpanded && <span>{agent.name}</span>}
+                    </div>
+                  </button>
+                  
+                  {isExpanded && agent.id === selectedAgentId && (
+                    <div className="flex space-x-1 mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {!defaultAgents.find(a => a.id === agent.id) && (
+                        <>
+                          <button
+                            onClick={() => handleEditAgent(agent)}
+                            className="p-0.5 text-zinc-400 hover:text-white rounded-sm"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteAgent(agent.id)}
+                            className="p-0.5 text-zinc-400 hover:text-red-400 rounded-sm"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </>
+                      )}
+                      
+                      <button
+                        onClick={() => setShowAgentModelPrefs(true)}
+                        className="p-0.5 text-zinc-400 hover:text-white rounded-sm"
+                      >
+                        <Wrench className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Settings & Account */}
+        <div className="px-2 py-2 space-y-1">
+          <IntelliSearchButton 
+            variant="ghost" 
+            className={`w-full justify-start ${isExpanded ? '' : 'justify-center'}`}
+          />
+          
+          <button
+            onClick={() => router.push('/settings')}
+            className={`w-full flex items-center ${isExpanded ? 'space-x-2' : 'justify-center'} px-3 py-1.5 text-sm rounded-md text-zinc-300 hover:bg-zinc-800`}
+          >
+            <FiSettings className="h-4 w-4 flex-shrink-0" />
+            {isExpanded && <span>Settings</span>}
+          </button>
+          
+          {user && 'role' in user && user.role === 'admin' && (
+            <button
+              onClick={() => router.push('/admin')}
+              className={`w-full flex items-center ${isExpanded ? 'space-x-2' : 'justify-center'} px-3 py-1.5 text-sm rounded-md text-zinc-300 hover:bg-zinc-800`}
+            >
+              <FiShield className="h-4 w-4 flex-shrink-0" />
+              {isExpanded && <span>Admin</span>}
+            </button>
+          )}
+
+          <button
+            onClick={() => router.push('/account')}
+            className={`w-full flex items-center ${isExpanded ? 'space-x-2' : 'justify-center'} px-3 py-1.5 text-sm rounded-md text-zinc-300 hover:bg-zinc-800`}
+          >
+            <div className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            {isExpanded && <span>Account</span>}
+          </button>
         </div>
       </div>
 
@@ -680,5 +728,5 @@ export default function Sidebar() {
         </div>
       )}
     </aside>
-  )
-}
+  );
+} 

@@ -5,25 +5,19 @@ import { Sparkles } from 'lucide-react';
 import { Button } from '../ui/button';
 import { IntelliSearchModal } from './IntelliSearchModal';
 
-interface IntelliSearchButtonProps {
-  className?: string;
-  variant?: 'default' | 'outline' | 'ghost' | 'link';
-}
-
-export function IntelliSearchButton({ className, variant = 'default' }: IntelliSearchButtonProps) {
+export function IntelliSearchFloatingButton() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   return (
     <>
       <Button 
-        id="intelliSearchTrigger"
-        variant={variant}
+        id="intelliSearchFloating"
+        variant="default"
         size="sm"
-        className={className}
+        className="fixed bottom-4 right-4 z-50 shadow-lg rounded-full p-3 h-12 w-12 flex items-center justify-center"
         onClick={() => setIsModalOpen(true)}
       >
-        <Sparkles className="h-4 w-4 mr-2" />
-        IntelliSearch
+        <Sparkles className="h-5 w-5" />
       </Button>
       
       <IntelliSearchModal 

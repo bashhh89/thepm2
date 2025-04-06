@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect, KeyboardEvent, ChangeEvent, useMemo, useCallback } from 'react';
-import { Send, Mic, Save, BookOpen } from 'lucide-react';
+import React, { useState, useRef, useEffect, KeyboardEvent, ChangeEvent, useMemo, useCallback, forwardRef } from 'react';
+import { Send, Mic, Save, BookOpen, Globe } from 'lucide-react';
 import { useChatStore } from "@/store/chatStore";
 import { useMcpRequest } from "@/lib/mcpHelper";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -12,6 +12,8 @@ import { logError } from '@/utils/errorLogging';
 import { cn } from '@/lib/utils';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { processMessage } from '@/lib/prompt-service';
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 // Types for saved prompts
 interface SavedPrompt {
@@ -60,11 +62,14 @@ const savePromptToStorage = (prompts: SavedPrompt[]) => {
 
 interface ChatInputProps {
   onSubmit: (message: string) => void;
-  ref: React.RefObject<HTMLTextAreaElement>;
+  isGenerating?: boolean;
+  className?: string;
+  webSearchEnabled?: boolean;
 }
 
 // Add forwardRef to make the input ref accessible from parent
-export function ChatInput({ onSubmit, ref }: ChatInputProps) {
+export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(function ChatInput(props, ref) {
+  const { onSubmit, isGenerating = false, className, webSearchEnabled = false } = props;
   const { sendRequest } = useMcpRequest();
   const addMessage = useChatStore(state => state.addMessage);
   const setIsGenerating = useChatStore(state => state.setIsGenerating);
@@ -319,9 +324,22 @@ export function ChatInput({ onSubmit, ref }: ChatInputProps) {
     }
   };
   
+  // Add the render function to display web search indicator when enabled
+  const renderWebSearchIndicator = () => {
+    if (!webSearchEnabled) return null;
+    
+    return (
+      <div className="text-xs text-blue-400 flex items-center gap-1 mb-2 px-2">
+        <Globe className="h-3 w-3" />
+        <span>Web search enabled - Your question will be answered with information from the internet</span>
+      </div>
+    );
+  };
+  
   // Render the input component
   return (
-    <div className="relative">
+    <div className={cn("relative", className)}>
+      {renderWebSearchIndicator()}
       {/* Save prompt dialog */}
       {showSavePromptDialog && (
         <div className="absolute bottom-full mb-4 w-full bg-zinc-800 border border-zinc-700 rounded-lg p-4 z-20">
@@ -502,4 +520,4 @@ export function ChatInput({ onSubmit, ref }: ChatInputProps) {
       )}
     </div>
   );
-}
+});
