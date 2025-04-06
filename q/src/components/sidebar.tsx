@@ -58,6 +58,7 @@ interface NavItem {
   name: string;
   path: string;
   icon: React.ElementType;
+  category?: string;
   submenu?: SubMenuItem[];
 }
 
@@ -158,41 +159,58 @@ export default function Sidebar() {
   const isActive = (path: string) => pathname === path
 
   const navItems: NavItem[] = [
-    // Main Features
+    // Core Tools
     {
       name: "Dashboard",
       path: "/dashboard",
       icon: Home,
+      category: "core"
     },
     {
       name: "Chat",
       path: "/chat",
       icon: MessageSquare,
+      category: "core"
     },
     {
       name: "IntelliSearch",
       path: "/search",
       icon: Search,
+      category: "core"
     },
     {
       name: "Advanced Research",
       path: "/advanced-search",
       icon: BookOpen,
+      category: "core"
     },
+    
+    // Project Management
     {
       name: "Projects",
       path: "/projects",
       icon: Folder,
+      category: "projects"
     },
     {
       name: "Products",
       path: "/products",
       icon: Wrench,
+      category: "projects"
     },
+    {
+      name: "Proposals",
+      path: "/proposals",
+      icon: FileText,
+      category: "projects"
+    },
+    
+    // Creation Tools
     {
       name: "Presentations",
       path: "/tools/presentation-generator",
       icon: Presentation,
+      category: "creation",
       submenu: [
         {
           name: "New Presentation",
@@ -205,31 +223,30 @@ export default function Sidebar() {
       ]
     },
     {
-      name: "Proposals",
-      path: "/proposals",
-      icon: FileText,
-    },
-    {
       name: "Website Builder",
       path: "/website-builder",
       icon: LayoutPanelLeft,
+      category: "creation"
     },
 
-    // Content & Marketing
+    // Marketing
     {
       name: "Blog",
       path: "/dashboard/blog-posts",
       icon: Folder,
+      category: "marketing"
     },
     {
       name: "Company",
       path: "/company",
       icon: Palette,
+      category: "marketing"
     },
     {
       name: "Leads",
       path: "/leads",
       icon: Users,
+      category: "marketing"
     },
   ]
 
@@ -377,6 +394,11 @@ export default function Sidebar() {
     }
   }
 
+  const handleEditTitle = (chat: ChatSession) => {
+    setIsEditingTitle(chat.id);
+    setEditedTitle(chat.name || 'New Chat');
+  };
+
   return (
     <aside className="fixed inset-y-0 left-0 z-50 flex flex-col h-full">
       <div 
@@ -492,7 +514,7 @@ export default function Sidebar() {
                             />
                           ) : (
                             <span className="truncate w-32">
-                              {chat.title || 'New Chat'}
+                              {chat.name || 'New Chat'}
                             </span>
                           )
                         )}
@@ -504,7 +526,7 @@ export default function Sidebar() {
                         <button 
                           onClick={() => {
                             setIsEditingTitle(chat.id);
-                            setEditedTitle(chat.title || 'New Chat');
+                            setEditedTitle(chat.name || 'New Chat');
                           }}
                           className="p-0.5 text-zinc-400 hover:text-white rounded-sm"
                         >
@@ -545,73 +567,251 @@ export default function Sidebar() {
             )}
           </div>
 
-          {/* Main Navigation */}
-          <div className="px-2 space-y-1">
-            <div className="flex items-center px-2 mb-1 text-xs text-zinc-400 uppercase tracking-wide">
-              {isExpanded && <span>Navigation</span>}
-            </div>
-
-            {navItems.map((item) => (
-              <div key={item.path}>
-                <button
-                  onClick={() => router.push(item.path)}
-                  className={`w-full flex items-center ${
-                    isExpanded ? 'justify-between' : 'justify-center'
-                  } px-2 py-1.5 rounded-md ${
-                    isActive(item.path)
-                      ? 'bg-zinc-800 text-white'
-                      : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <item.icon className={`h-4 w-4 ${!isExpanded ? '' : 'mr-3'}`} />
-                    {isExpanded && <span>{item.name}</span>}
-                  </div>
-                  {isExpanded && item.submenu && (
-                    <ChevronDown className="h-3 w-3" />
-                  )}
-                </button>
-
-                {/* Submenu */}
-                {isExpanded && item.submenu && (
-                  <div className="ml-8 mt-1 space-y-1">
-                    {item.submenu.map((subitem) => (
-                      <button
-                        key={subitem.path}
-                        onClick={() => router.push(subitem.path)}
-                        className={`w-full text-left px-2 py-1 text-sm rounded-md ${
-                          isActive(subitem.path)
-                            ? 'bg-zinc-800 text-white'
-                            : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-                        }`}
-                      >
-                        {subitem.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
+          {/* Main Navigation - Grouped by Category */}
+          
+          {/* Core Tools Section */}
+          <div className="px-2 space-y-1 mb-3">
+            {isExpanded && (
+              <div className="flex items-center px-2 mb-1">
+                <div className="h-px bg-zinc-700/50 flex-grow mr-2"></div>
+                <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Core Tools</span>
+                <div className="h-px bg-zinc-700/50 flex-grow ml-2"></div>
               </div>
-            ))}
+            )}
+
+            {navItems
+              .filter(item => item.category === "core")
+              .map((item) => (
+                <div key={item.path}>
+                  <button
+                    onClick={() => router.push(item.path)}
+                    className={`w-full flex items-center ${
+                      isExpanded ? 'justify-between' : 'justify-center'
+                    } px-2 py-1.5 rounded-md ${
+                      isActive(item.path)
+                        ? 'bg-zinc-800 text-white'
+                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <item.icon className={`h-4 w-4 ${!isExpanded ? '' : 'mr-3'}`} />
+                      {isExpanded && <span>{item.name}</span>}
+                    </div>
+                    {isExpanded && item.submenu && (
+                      <ChevronDown className="h-3 w-3" />
+                    )}
+                  </button>
+
+                  {/* Submenu */}
+                  {isExpanded && item.submenu && (
+                    <div className="ml-8 mt-1 space-y-1">
+                      {item.submenu.map((subitem) => (
+                        <button
+                          key={subitem.path}
+                          onClick={() => router.push(subitem.path)}
+                          className={`w-full text-left px-2 py-1 text-sm rounded-md ${
+                            isActive(subitem.path)
+                              ? 'bg-zinc-800 text-white'
+                              : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                          }`}
+                        >
+                          {subitem.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
+
+          {/* Project Management Section */}
+          <div className="px-2 space-y-1 mb-3">
+            {isExpanded && (
+              <div className="flex items-center px-2 mb-1">
+                <div className="h-px bg-zinc-700/50 flex-grow mr-2"></div>
+                <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Projects</span>
+                <div className="h-px bg-zinc-700/50 flex-grow ml-2"></div>
+              </div>
+            )}
+
+            {navItems
+              .filter(item => item.category === "projects")
+              .map((item) => (
+                <div key={item.path}>
+                  <button
+                    onClick={() => router.push(item.path)}
+                    className={`w-full flex items-center ${
+                      isExpanded ? 'justify-between' : 'justify-center'
+                    } px-2 py-1.5 rounded-md ${
+                      isActive(item.path)
+                        ? 'bg-zinc-800 text-white'
+                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <item.icon className={`h-4 w-4 ${!isExpanded ? '' : 'mr-3'}`} />
+                      {isExpanded && <span>{item.name}</span>}
+                    </div>
+                    {isExpanded && item.submenu && (
+                      <ChevronDown className="h-3 w-3" />
+                    )}
+                  </button>
+
+                  {/* Submenu */}
+                  {isExpanded && item.submenu && (
+                    <div className="ml-8 mt-1 space-y-1">
+                      {item.submenu.map((subitem) => (
+                        <button
+                          key={subitem.path}
+                          onClick={() => router.push(subitem.path)}
+                          className={`w-full text-left px-2 py-1 text-sm rounded-md ${
+                            isActive(subitem.path)
+                              ? 'bg-zinc-800 text-white'
+                              : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                          }`}
+                        >
+                          {subitem.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
+
+          {/* Creation Tools Section */}
+          <div className="px-2 space-y-1 mb-3">
+            {isExpanded && (
+              <div className="flex items-center px-2 mb-1">
+                <div className="h-px bg-zinc-700/50 flex-grow mr-2"></div>
+                <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Creation</span>
+                <div className="h-px bg-zinc-700/50 flex-grow ml-2"></div>
+              </div>
+            )}
+
+            {navItems
+              .filter(item => item.category === "creation")
+              .map((item) => (
+                <div key={item.path}>
+                  <button
+                    onClick={() => router.push(item.path)}
+                    className={`w-full flex items-center ${
+                      isExpanded ? 'justify-between' : 'justify-center'
+                    } px-2 py-1.5 rounded-md ${
+                      isActive(item.path)
+                        ? 'bg-zinc-800 text-white'
+                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <item.icon className={`h-4 w-4 ${!isExpanded ? '' : 'mr-3'}`} />
+                      {isExpanded && <span>{item.name}</span>}
+                    </div>
+                    {isExpanded && item.submenu && (
+                      <ChevronDown className="h-3 w-3" />
+                    )}
+                  </button>
+
+                  {/* Submenu */}
+                  {isExpanded && item.submenu && (
+                    <div className="ml-8 mt-1 space-y-1">
+                      {item.submenu.map((subitem) => (
+                        <button
+                          key={subitem.path}
+                          onClick={() => router.push(subitem.path)}
+                          className={`w-full text-left px-2 py-1 text-sm rounded-md ${
+                            isActive(subitem.path)
+                              ? 'bg-zinc-800 text-white'
+                              : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                          }`}
+                        >
+                          {subitem.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
+
+          {/* Marketing Section */}
+          <div className="px-2 space-y-1 mb-3">
+            {isExpanded && (
+              <div className="flex items-center px-2 mb-1">
+                <div className="h-px bg-zinc-700/50 flex-grow mr-2"></div>
+                <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Marketing</span>
+                <div className="h-px bg-zinc-700/50 flex-grow ml-2"></div>
+              </div>
+            )}
+
+            {navItems
+              .filter(item => item.category === "marketing")
+              .map((item) => (
+                <div key={item.path}>
+                  <button
+                    onClick={() => router.push(item.path)}
+                    className={`w-full flex items-center ${
+                      isExpanded ? 'justify-between' : 'justify-center'
+                    } px-2 py-1.5 rounded-md ${
+                      isActive(item.path)
+                        ? 'bg-zinc-800 text-white'
+                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <item.icon className={`h-4 w-4 ${!isExpanded ? '' : 'mr-3'}`} />
+                      {isExpanded && <span>{item.name}</span>}
+                    </div>
+                    {isExpanded && item.submenu && (
+                      <ChevronDown className="h-3 w-3" />
+                    )}
+                  </button>
+
+                  {/* Submenu */}
+                  {isExpanded && item.submenu && (
+                    <div className="ml-8 mt-1 space-y-1">
+                      {item.submenu.map((subitem) => (
+                        <button
+                          key={subitem.path}
+                          onClick={() => router.push(subitem.path)}
+                          className={`w-full text-left px-2 py-1 text-sm rounded-md ${
+                            isActive(subitem.path)
+                              ? 'bg-zinc-800 text-white'
+                              : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                          }`}
+                        >
+                          {subitem.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
           </div>
 
           {/* Agents Section */}
-          <div className="px-2">
-            <div className="flex items-center justify-between px-2 mb-2 text-xs text-zinc-400 uppercase tracking-wide">
-              {isExpanded && <span>Assistants</span>}
-              {isExpanded && (
-                <button
-                  onClick={() => {
-                    setAgentName("");
-                    setAgentPrompt("");
-                    setEditingAgent(null);
-                    setShowAgentForm(true);
-                  }}
-                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                >
-                  + New
-                </button>
-              )}
-            </div>
+          <div className="px-2 space-y-1 mb-3">
+            {isExpanded && (
+              <div className="flex items-center px-2 mb-1">
+                <div className="h-px bg-zinc-700/50 flex-grow mr-2"></div>
+                <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Assistants</span>
+                <div className="h-px bg-zinc-700/50 flex-grow ml-2"></div>
+              </div>
+            )}
+
+            {isExpanded && (
+              <button
+                onClick={() => {
+                  setAgentName("");
+                  setAgentPrompt("");
+                  setEditingAgent(null);
+                  setShowAgentForm(true);
+                }}
+                className="flex items-center w-full text-xs text-blue-400 hover:text-blue-300 mb-2 justify-center py-1 rounded hover:bg-zinc-800 transition-colors"
+              >
+                <span className="mr-1">+</span> New Assistant
+              </button>
+            )}
 
             <div className="space-y-1">
               {agents.map((agent) => (
@@ -663,10 +863,11 @@ export default function Sidebar() {
               ))}
             </div>
           </div>
+
         </div>
 
         {/* Settings & Account */}
-        <div className="px-2 py-2 space-y-1">
+        <div className="border-t border-zinc-800 py-3 px-2 space-y-2">
           <IntelliSearchButton 
             variant="ghost" 
             className={`w-full justify-start ${isExpanded ? '' : 'justify-center'}`}
@@ -702,31 +903,16 @@ export default function Sidebar() {
             </div>
             {isExpanded && <span>Account</span>}
           </button>
+          
+          <button 
+            onClick={() => signOut()}
+            className={`w-full flex items-center ${isExpanded ? 'space-x-2' : 'justify-center'} px-3 py-1.5 text-sm rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800`}
+          >
+            <FiLogOut className="h-4 w-4 flex-shrink-0" />
+            {isExpanded && <span>Sign Out</span>}
+          </button>
         </div>
       </div>
-
-      {isExpanded && (
-        <div className={`bg-zinc-900 border-r border-t border-zinc-700/50 py-2 transition-all duration-200 ease-in-out ${isExpanded ? 'w-56' : 'w-16'}`}>
-          <button 
-            onClick={() => signOut()}
-            className="flex items-center gap-3 w-full px-3 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
-          >
-            <FiLogOut className="h-4 w-4" />
-            <span>Sign Out</span>
-          </button>
-        </div>
-      )}
-
-      {!isExpanded && (
-        <div className={`bg-zinc-900 border-r border-t border-zinc-700/50 py-2 transition-all duration-200 ease-in-out ${isExpanded ? 'w-56' : 'w-16'}`}>
-          <button 
-            onClick={() => signOut()}
-            className="flex items-center justify-center w-full px-3 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
-          >
-            <FiLogOut className="h-4 w-4" />
-          </button>
-        </div>
-      )}
     </aside>
   );
 } 
