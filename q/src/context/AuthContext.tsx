@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import type { Session, User } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -21,6 +21,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initializationError, setInitializationError] = useState<Error | null>(null);
 
   const createUserProfile = async (userId: string, email: string) => {
     console.log('Creating user profile for:', { userId, email });
@@ -77,7 +78,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         details: error.details,
         hint: error.hint
       });
-      throw error;
+      // Don't throw the error to avoid breaking the auth flow
+      // Just log it and continue
     }
   };
 
@@ -90,39 +92,103 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log("AuthProvider: Safety timeout reached, forcing loading to false");
         setLoading(false);
       }
-    }, 7000); // Increased timeout to 7 seconds
+    }, 10000); // Increased timeout to 10 seconds
+    
+    let authStateSubscription: { data: { subscription: { unsubscribe: () => void } } } | null = null;
     
     // 1. Check for initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("AuthProvider: Initial session check complete", !!session);
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-
-      // 2. Set up the auth state change listener
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (_event, session) => {
-          console.log("Auth state changed:", _event, session?.user?.email);
-          setSession(session);
-          setUser(session?.user ?? null);
+    const initializeAuth = async () => {
+      try {
+        // Trying to get existing session
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error("Error retrieving session:", sessionError);
+          setInitializationError(sessionError);
           setLoading(false);
-
-          // If this is a new signup or first login, create the user profile
-          if ((_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') && session?.user) {
-            try {
-              await createUserProfile(session.user.id, session.user.email || '');
-            } catch (error) {
-              console.error('Failed to create/verify user profile:', error);
-            }
+          return;
+        }
+        
+        const currentSession = sessionData?.session;
+        console.log("AuthProvider: Initial session check complete", !!currentSession);
+        
+        // Set the session and user state
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        
+        // If we have a user but for some reason their token is expired, try to refresh it
+        if (currentSession?.user && currentSession.expires_at && (new Date(currentSession.expires_at * 1000) < new Date())) {
+          console.log("Session token expired, attempting refresh");
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (refreshError) {
+            console.error("Failed to refresh session:", refreshError);
+          } else if (refreshData.session) {
+            console.log("Session refreshed successfully");
+            setSession(refreshData.session);
+            setUser(refreshData.session.user);
           }
         }
-      );
-
-      return () => {
-        subscription.unsubscribe();
-        clearTimeout(safetyTimeout);
-      };
-    });
+        
+        // 2. Set up the auth state change listener
+        authStateSubscription = supabase.auth.onAuthStateChange(
+          async (_event, newSession) => {
+            console.log("Auth state changed:", _event, newSession?.user?.email);
+            
+            // Update the auth state in the context
+            setSession(newSession);
+            setUser(newSession?.user ?? null);
+            
+            // If this is a new signup or first login, create the user profile
+            if ((_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') && newSession?.user) {
+              try {
+                await createUserProfile(newSession.user.id, newSession.user.email || '');
+              } catch (error) {
+                console.error('Failed to create/verify user profile:', error);
+                // Continue with auth flow even if profile creation fails
+              }
+            }
+          }
+        );
+        
+      } catch (error) {
+        console.error("Unexpected error during auth initialization:", error);
+        setInitializationError(error instanceof Error ? error : new Error(String(error)));
+      } finally {
+        // Finish loading regardless of outcome
+        setLoading(false);
+      }
+    };
+    
+    // Start the initialization
+    initializeAuth();
+    
+    // Setup a periodic session refresh (every 5 minutes)
+    const refreshInterval = setInterval(async () => {
+      if (session) {
+        try {
+          const { data, error } = await supabase.auth.refreshSession();
+          if (error) {
+            console.error("Failed to refresh session:", error);
+          } else if (data.session) {
+            console.log("Session refreshed via interval");
+            setSession(data.session);
+            setUser(data.session.user);
+          }
+        } catch (e) {
+          console.error("Error during interval session refresh:", e);
+        }
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+    
+    // Cleanup function for useEffect
+    return () => {
+      clearTimeout(safetyTimeout);
+      clearInterval(refreshInterval);
+      if (authStateSubscription) {
+        authStateSubscription.data.subscription.unsubscribe();
+      }
+    };
   }, []);
 
   const signOut = async () => {

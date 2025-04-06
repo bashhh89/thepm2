@@ -1,23 +1,19 @@
 import React from 'react';
-import AdvancedSearchForm from '../../components/search/AdvancedSearchForm';
+import AdvancedSearchUI from '../../components/search/AdvancedSearchUI';
 
 export const metadata = {
-  title: 'Advanced Search | QanDu AI',
-  description: 'AI-powered search with comprehensive answers from the web',
+  title: 'Advanced Research | QanDu AI',
+  description: 'AI-powered guided research and analysis for business decisions',
 };
 
 export default function AdvancedSearchPage() {
   return (
-    <div className="container py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Advanced Search</h1>
-        <p className="text-muted-foreground">
-          Powered by Pollinations SearchGPT, this tool searches the web and synthesizes 
-          comprehensive answers to your questions.
-        </p>
-      </div>
-      
-      <AdvancedSearchForm />
+    <div className="pt-4">
+      <h1 className="text-2xl md:text-3xl font-bold mb-1">Advanced Research</h1>
+      <p className="text-muted-foreground mb-6">
+        Our AI-powered research assistant helps you discover insights and make better decisions.
+      </p>
+      <AdvancedSearchUI />
     </div>
   );
 } 
