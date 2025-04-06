@@ -3,6 +3,7 @@
 import React from 'react'
 import Sidebar from '../../components/sidebar'
 import { useAuth } from '../../context/AuthContext'
+import { useSidebarStore } from '../../store/sidebarStore'
 import { useRouter, usePathname } from 'next/navigation'
 
 export default function AdvancedSearchLayout({
@@ -13,6 +14,7 @@ export default function AdvancedSearchLayout({
   const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
+  const { isExpanded } = useSidebarStore()
   
   // If still loading auth state, show loading spinner
   if (loading) {
@@ -33,8 +35,14 @@ export default function AdvancedSearchLayout({
             <Sidebar />
           </div>
           
-          {/* Main content with proper sidebar spacing */}
-          <main className="flex-1 ml-16 md:ml-64 lg:ml-64 px-6 py-6 overflow-y-auto">
+          {/* Main content with responsive sidebar spacing */}
+          <main 
+            className={`flex-1 transition-all duration-300 px-6 py-6 overflow-y-auto ${
+              isExpanded 
+                ? "ml-64" // Expanded sidebar (default)
+                : "ml-16" // Collapsed sidebar
+            }`}
+          >
             {children}
           </main>
         </div>
