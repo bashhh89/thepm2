@@ -1,0 +1,362 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import 'katex/dist/katex.min.css';
+
+/* Force dark mode by default */
+:root {
+  color-scheme: dark;
+}
+
+html {
+  @apply dark;
+}
+
+/* Animation utilities */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.delay-1000 {
+  animation-delay: 1s;
+}
+
+.delay-2000 {
+  animation-delay: 2s;
+}
+
+/* QanDu Custom Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(10px); }
+  10% { opacity: 1; transform: translateY(0); }
+  90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+
+.qandu-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.qandu-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-fade-in-out {
+  animation: fadeInOut 2s ease-in-out forwards;
+}
+
+/* Transition helper classes */
+.qandu-transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 250ms;
+}
+
+.qandu-transition-transform {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 250ms;
+}
+
+/* Markdown rendering styling */
+.markdown-content {
+  @apply text-zinc-200 leading-relaxed;
+}
+
+.markdown-content h1 {
+  @apply text-2xl font-bold mb-4 mt-6 text-zinc-100;
+}
+
+.markdown-content h2 {
+  @apply text-xl font-bold mb-3 mt-5 text-zinc-100;
+}
+
+.markdown-content h3 {
+  @apply text-lg font-bold mb-2 mt-4 text-zinc-100;
+}
+
+.markdown-content h4, .markdown-content h5, .markdown-content h6 {
+  @apply font-bold mb-2 mt-3 text-zinc-100;
+}
+
+.markdown-content p {
+  @apply mb-4;
+}
+
+.markdown-content ul {
+  @apply list-disc pl-5 mb-4 space-y-1;
+}
+
+.markdown-content ol {
+  @apply list-decimal pl-5 mb-4 space-y-1;
+}
+
+.markdown-content li > ul, .markdown-content li > ol {
+  @apply mb-0 mt-1;
+}
+
+.markdown-content blockquote {
+  @apply border-l-4 border-zinc-600 pl-4 italic mb-4 text-zinc-300;
+}
+
+.markdown-content code {
+  @apply bg-zinc-800 rounded px-1 py-0.5 font-mono text-sm text-zinc-200;
+}
+
+.markdown-content pre {
+  @apply bg-zinc-800 rounded p-3 overflow-x-auto mb-4;
+}
+
+.markdown-content pre code {
+  @apply bg-transparent p-0 text-zinc-200;
+}
+
+.markdown-content table {
+  @apply w-full border-collapse mb-4;
+}
+
+.markdown-content th {
+  @apply bg-zinc-800 px-4 py-2 text-left font-bold border border-zinc-700;
+}
+
+.markdown-content td {
+  @apply px-4 py-2 border border-zinc-700;
+}
+
+.markdown-content img {
+  @apply max-w-full h-auto rounded-md my-4;
+}
+
+.markdown-content hr {
+  @apply border-zinc-700 my-6;
+}
+
+.markdown-content a {
+  @apply text-blue-400 hover:text-blue-300 underline;
+}
+
+.image-preview {
+  @apply my-4 rounded-md overflow-hidden;
+}
+
+/* Global styles */
+:root {
+  /* QanDu light theme */
+  --background: 210 20% 98%; /* Light gray background */
+  --foreground: 215 25% 27%; /* Dark text for contrast */
+  --card: 0 0% 100%;
+  --card-foreground: 215 25% 27%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 215 25% 27%;
+  --primary: 202 84% 50%; /* QanDu Blue */
+  --primary-foreground: 210 40% 98%;
+  --secondary: 261 51% 51%; /* QanDu Purple */
+  --secondary-foreground: 210 40% 98%;
+  --muted: 210 20% 96%;
+  --muted-foreground: 215 25% 40%;
+  --accent: 261 51% 51%; /* QanDu Purple as accent */
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 84% 60%; /* Red */
+  --destructive-foreground: 210 40% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 202 84% 50%;
+  --radius: 0.5rem; /* Consistent border radius */
+
+  /* Semantic colors */
+  --success: 142 69% 58%;
+  --warning: 38 92% 50%;
+  --error: 0 84% 60%;
+  --info: 202 84% 50%;
+}
+
+.dark {
+  /* QanDu zinc dark theme - matching Gemini chat interface */
+  --background: 240 4% 16%; /* zinc-900 */
+  --foreground: 0 0% 90%; /* zinc-100 */
+  --card: 240 3.7% 21.4%; /* zinc-800 */
+  --card-foreground: 0 0% 90%; /* zinc-100 */
+  --popover: 240 3.7% 21.4%; /* zinc-800 */
+  --popover-foreground: 0 0% 90%; /* zinc-100 */
+  --primary: 217 91% 60%; /* blue-500/blue-600 */
+  --primary-foreground: 0 0% 100%; /* white */
+  --secondary: 240 3.7% 31%; /* zinc-700 */
+  --secondary-foreground: 0 0% 90%; /* zinc-100 */
+  --muted: 240 3.7% 15.9%; /* zinc-850 - darker than zinc-800 but lighter than zinc-900 */
+  --muted-foreground: 240 5% 65%; /* zinc-400 */
+  --accent: 240 3.7% 21.4%; /* zinc-800 */
+  --accent-foreground: 0 0% 90%; /* zinc-100 */
+  --destructive: 0 84% 60%; /* Red */
+  --destructive-foreground: 0 0% 100%; /* white */
+  --border: 240 3.7% 26%; /* zinc-700/50 */
+  --input: 240 3.7% 26%; /* zinc-700/50 */
+  --ring: 217 91% 60%; /* blue-500/blue-600 */
+
+  /* Semantic colors - adjusted for zinc theme */
+  --success: 142 70% 45%;
+  --warning: 38 95% 60%;
+  --error: 0 90% 60%;
+  --info: 217 91% 60%; /* blue-500/blue-600 */
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  }
+
+  /* QanDu custom focus styles */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+}
+
+/* QanDu component classes */
+@layer components {
+  .qandu-card {
+    @apply bg-card text-card-foreground rounded-lg border border-border shadow-sm transition-all hover:shadow-md;
+  }
+  
+  .qandu-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .qandu-heading-1 {
+    @apply text-3xl font-bold tracking-tight sm:text-4xl text-foreground;
+  }
+  
+  .qandu-heading-2 {
+    @apply text-2xl font-semibold tracking-tight sm:text-3xl text-foreground;
+  }
+  
+  .qandu-heading-3 {
+    @apply text-xl font-semibold tracking-tight sm:text-2xl text-foreground;
+  }
+  
+  .qandu-text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary;
+  }
+}
+
+/* Add custom styles for markdown content */
+.prose {
+  @apply text-foreground;
+}
+
+.prose table {
+  @apply w-full border-collapse;
+}
+
+.prose thead {
+  @apply bg-muted/50;
+}
+
+.prose th,
+.prose td {
+  @apply border p-2 text-left;
+}
+
+.prose pre {
+  @apply bg-muted p-4 rounded-lg overflow-x-auto;
+}
+
+.prose code {
+  @apply bg-muted px-1.5 py-0.5 rounded text-sm;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-muted pl-4 italic;
+}
+
+.prose img {
+  @apply rounded-lg my-4 max-w-full h-auto;
+}
+
+.prose a {
+  @apply text-primary hover:opacity-80 underline;
+}
+
+.prose ul {
+  @apply list-disc pl-6 my-4;
+}
+
+.prose ol {
+  @apply list-decimal pl-6 my-4;
+}
+
+.prose li {
+  @apply my-1;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  @apply font-semibold;
+}
+
+.prose h1 {
+  @apply text-4xl mb-6 mt-8;
+}
+
+.prose h2 {
+  @apply text-3xl mb-4 mt-6;
+}
+
+.prose h3 {
+  @apply text-2xl mb-3 mt-5;
+}
+
+.prose h4 {
+  @apply text-xl mb-2 mt-4;
+}
+
+.prose p {
+  @apply my-3 leading-relaxed;
+}
+
+/* Dark mode adjustments */
+.dark .prose {
+  @apply prose-invert;
+}
+
+.dark .prose pre {
+  @apply bg-muted/80;
+}
+
+.dark .prose code {
+  @apply bg-muted/80;
+}
+
+.dark .prose thead {
+  @apply bg-muted/80;
+}
+
+.dark .prose blockquote {
+  @apply border-muted/80;
+}
