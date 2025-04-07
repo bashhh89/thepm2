@@ -19,12 +19,13 @@ import { generateImageUrl, generateAudioUrl, generatePollinationsAudio } from '@
 import { marked } from 'marked';
 import { showError, showSuccess, showInfo } from '@/components/ui/toast';
 import { logError } from '@/utils/errorLogging';
-import { Sparkle, Pencil, Plus, Menu, CircleUser, MessageSquare, Book, Settings as SettingsIcon, LogOut, Keyboard, Globe } from 'lucide-react';
+import { Sparkle, Pencil, Plus, Menu, CircleUser, MessageSquare, Book, Settings as SettingsIcon, LogOut, Keyboard, Globe, Sparkles, Image as ImageIcon, Wind, Zap } from 'lucide-react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { ModelSelector } from '@/components/chat/model-selector';
 import { TextModel } from '@/lib/constants';
 import { processMessage } from '@/lib/prompt-service';
-import { Message as StoreMessage } from '@/store/chatStore';
+import { Message as StoreMessage, MessageContent } from '@/store/chatStore';
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 // Configure marked options for security and features
 marked.setOptions({
@@ -126,6 +127,7 @@ export function ChatInterface() {
   const [editedTitle, setEditedTitle] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [showAgentManager, setShowAgentManager] = useState(false);
+  const [expandedThinking, setExpandedThinking] = useState<Record<string, boolean>>({});
 
   const availableModels = MODEL_LIST.TEXT.map((model: ModelListType) => model.id);
   
@@ -142,6 +144,7 @@ export function ChatInterface() {
   const { 
     getActiveChatMessages, 
     addMessage, 
+    addMessageWithThinking, 
     isGenerating, 
     createChat,
     resetAll,
@@ -154,8 +157,10 @@ export function ChatInterface() {
   const { theme, setTheme } = useTheme();
   const router = useRouter();
 
-  // Add a state to track which messages have expanded thinking
-  const [expandedThinking, setExpandedThinking] = useState<Record<string, boolean>>({});
+  // === NEW State for Image Generation Popover ===
+  const [showImageOptions, setShowImageOptions] = useState(false);
+  const [imageOptionsAnchor, setImageOptionsAnchor] = useState<HTMLButtonElement | null>(null); // To position popover
+  const [currentInputForImage, setCurrentInputForImage] = useState(""); // Store input when button clicked
 
   // Function to toggle thinking visibility for a specific message
   const toggleThinking = (messageId: string) => {
@@ -373,6 +378,95 @@ Instructions for AI:
       });
       // Optionally show a generic toast error, but avoid adding another chat message.
       showError('An unexpected error occurred. Please check the chat for details.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // === NEW Functions for Image Generation ===
+
+  // Function to open the image options popover
+  const handleOpenImageOptions = (currentInputValue: string) => {
+    // We need a reference to the button in chat-input-new to anchor the popover
+    // For now, we'll just toggle visibility and store the input
+    // TODO: Get the actual button element reference passed up or find it.
+    setCurrentInputForImage(currentInputValue);
+    setShowImageOptions(true); 
+    // In a real implementation with ShadCN Popover, PopoverTrigger handles this.
+    // This state variable might be redundant if using Popover correctly.
+  };
+
+  // Function to enhance the prompt using the current text model
+  const handleEnhancePrompt = async () => {
+    if (!currentInputForImage.trim()) return;
+    setShowImageOptions(false);
+    setIsGenerating(true);
+    
+    addMessage('user', `Enhance prompt: "${currentInputForImage}"`);
+    
+    const enhancementSystemPrompt = "Rewrite the following user input as a highly detailed prompt suitable for an AI image generator. Focus on subject, setting, lighting, style (e.g., photorealistic, cinematic, illustration), mood, and composition. Output ONLY the rewritten prompt.";
+    
+    try {
+      // Use processMessage, it handles adding the response to the store
+      await processMessage(currentInputForImage, enhancementSystemPrompt);
+    } catch (error) {
+      console.error('Error enhancing prompt:', error);
+      // processMessage already adds error to chat
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Function to generate image using a specific model (flux, turbo, default)
+  const handleGenerateImage = async (imageModel: 'flux.schnell' | 'turbo' | 'default') => {
+    if (!currentInputForImage.trim()) return;
+    setShowImageOptions(false);
+    setIsGenerating(true);
+    
+    const actualModel = imageModel === 'default' ? 'flux.schnell' : imageModel;
+    
+    // Add user message indicating the action
+    addMessage('user', `Generate image (${actualModel}): "${currentInputForImage}"`);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isImageGeneration: true,
+          model: actualModel,
+          imagePrompt: currentInputForImage,
+          agent: activeAgent 
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to generate image with ${actualModel}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.imageUrl) {
+        // Explicitly define the type here
+        const imageContentArray: MessageContent[] = [
+          { type: 'image', content: data.imageUrl as string }, // Assert imageUrl is string
+          { 
+            type: 'text', 
+            content: `Image generated using ${data.model}. Prompt: "${currentInputForImage.substring(0, 100)}..."` 
+          }
+        ];
+        
+        // Use addMessageWithThinking, passing the correctly typed array
+        // And provide an empty string for the thinking parameter to match its type signature
+        addMessageWithThinking('assistant', imageContentArray, ''); 
+      } else {
+        throw new Error(data.error || 'Image generation failed, no URL received.');
+      }
+    } catch (error) {
+      console.error('Error generating image:', error);
+      // Use the regular addMessage for simple error strings
+      addMessage('assistant', `Error generating image: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsGenerating(false);
     }
@@ -724,11 +818,36 @@ Instructions for AI:
       
       {/* Input Area - Make sticky */}
       <div className="flex-none border-t border-zinc-800 bg-zinc-900 p-4 sticky bottom-0 left-0 right-0 z-10">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto relative">
+          
+          {/* === Popover for Image Options === */}
+          {showImageOptions && (
+              <div 
+                className="absolute bottom-full right-[40px] mb-2 w-auto bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl p-2 z-20 flex flex-col gap-1"
+              >
+                <Button variant="ghost" size="sm" onClick={handleEnhancePrompt} className="justify-start gap-2 text-zinc-200 hover:bg-zinc-700">
+                  <Sparkles size={16} className="text-yellow-400" /> Enhance Prompt
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => handleGenerateImage('flux.schnell')} className="justify-start gap-2 text-zinc-200 hover:bg-zinc-700">
+                  <Wind size={16} className="text-blue-400" /> Generate (Flux)
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => handleGenerateImage('turbo')} className="justify-start gap-2 text-zinc-200 hover:bg-zinc-700">
+                  <Zap size={16} className="text-purple-400" /> Generate (Turbo)
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => handleGenerateImage('default')} className="justify-start gap-2 text-zinc-200 hover:bg-zinc-700">
+                  <ImageIcon size={16} className="text-gray-400" /> Generate (Default)
+                </Button>
+              </div>
+          )}
+
           <ChatInput 
             onSubmit={handleSubmit}
             ref={inputRef}
             webSearchEnabled={webSearchEnabled}
+            onImageButtonClick={() => {
+                 const currentVal = inputRef.current ? inputRef.current.value : ""; 
+                 handleOpenImageOptions(currentVal);
+            }}
           />
           <p className="text-xs text-zinc-500 text-center mt-2">
             AI assistants may display inaccurate info, including about people, so double-check responses. 
