@@ -41,8 +41,8 @@ interface ChatState {
   isLoading: boolean
   error: string | null
   setInputValue: (value: string) => void
-  addMessage: (role: MessageRole, content: string, metadata?: Message['metadata']) => void
-  addMessageWithThinking: (role: MessageRole, content: string, thinking: string, id?: string, metadata?: Message['metadata']) => void
+  addMessage: (role: MessageRole, content: string | MessageContent[], metadata?: Message['metadata']) => void
+  addMessageWithThinking: (role: MessageRole, content: string | MessageContent[], thinking: string, id?: string, metadata?: Message['metadata']) => void
   setIsGenerating: (isGenerating: boolean) => void
   createChat: () => string
   deleteChat: (chatId: string) => void

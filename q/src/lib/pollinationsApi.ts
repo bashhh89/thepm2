@@ -62,6 +62,9 @@ export const AVAILABLE_MODELS = {
   ],
   IMAGE: [
     { id: 'flux', name: 'Flux' },
+    { id: 'flux-realism', name: 'Flux Realism' },
+    { id: 'flux-anime', name: 'Flux Anime' },
+    { id: 'flux-3d', name: 'Flux 3D' },
     { id: 'turbo', name: 'Turbo' }
   ]
 };

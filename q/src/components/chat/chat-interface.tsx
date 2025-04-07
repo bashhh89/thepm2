@@ -19,7 +19,7 @@ import { generateImageUrl, generateAudioUrl, generatePollinationsAudio } from '@
 import { marked } from 'marked';
 import { showError, showSuccess, showInfo } from '@/components/ui/toast';
 import { logError } from '@/utils/errorLogging';
-import { Sparkle, Pencil, Plus, Menu, CircleUser, MessageSquare, Book, Settings as SettingsIcon, LogOut, Keyboard, Globe, Sparkles, Image as ImageIcon, Wind, Zap } from 'lucide-react';
+import { Sparkle, Pencil, Plus, Menu, CircleUser, MessageSquare, Book, Settings as SettingsIcon, LogOut, Keyboard, Globe, Sparkles, Image as ImageIcon, Wind, Zap, Wand2, Image } from 'lucide-react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { ModelSelector } from '@/components/chat/model-selector';
 import { TextModel } from '@/lib/constants';
@@ -128,6 +128,9 @@ export function ChatInterface() {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [showAgentManager, setShowAgentManager] = useState(false);
   const [expandedThinking, setExpandedThinking] = useState<Record<string, boolean>>({});
+  const [currentInputValue, setCurrentInputValue] = useState("");
+  const [currentInputForImage, setCurrentInputForImage] = useState("");
+  const [showImageOptions, setShowImageOptions] = useState(false);
 
   const availableModels = MODEL_LIST.TEXT.map((model: ModelListType) => model.id);
   
@@ -156,11 +159,6 @@ export function ChatInterface() {
   const messages = getActiveChatMessages();
   const { theme, setTheme } = useTheme();
   const router = useRouter();
-
-  // === NEW State for Image Generation Popover ===
-  const [showImageOptions, setShowImageOptions] = useState(false);
-  const [imageOptionsAnchor, setImageOptionsAnchor] = useState<HTMLButtonElement | null>(null); // To position popover
-  const [currentInputForImage, setCurrentInputForImage] = useState(""); // Store input when button clicked
 
   // Function to toggle thinking visibility for a specific message
   const toggleThinking = (messageId: string) => {
@@ -224,6 +222,23 @@ export function ChatInterface() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showAccountMenu, setShowAccountMenu]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      const isImageButton = target.closest('[data-image-button]');
+      const isImageOptions = target.closest('[data-image-options]');
+      
+      if (!isImageButton && !isImageOptions) {
+        setShowImageOptions(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleNewChat = () => {
     try {
@@ -318,37 +333,130 @@ export function ChatInterface() {
     setShowAllModels(prev => !prev);
   });
 
-  const handleWebSearchToggle = (enabled: boolean) => {
-    try {
-      setWebSearchEnabled(enabled);
-      if (enabled) {
-        const searchGptModel = MODEL_LIST.TEXT.find(m => m.id === 'searchgpt');
-        if (searchGptModel) {
-          handleModelChange('searchgpt');
-          showSuccess(`Web search enabled using ${searchGptModel.name}`);
-        }
+  const handleWebSearchToggle = () => {
+    const newState = !webSearchEnabled;
+    setWebSearchEnabled(newState);
+    
+    // Optionally auto-select the search model when enabling web search
+    if (newState && activeTextModel !== 'searchgpt') {
+      const searchGptModel = MODEL_LIST.TEXT.find(m => m.id === 'searchgpt');
+      if (searchGptModel) {
+        handleModelChange('searchgpt');
+        showInfo(`Web search enabled with ${searchGptModel.name}`);
       } else {
-        handleModelChange('openai');
-        showSuccess('Web search disabled');
+        showSuccess('Web search enabled');
+      }
+    } else if (!newState) {
+      showInfo('Web search disabled');
+    }
+  };
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = event.target.value;
+    setCurrentInputValue(newValue);
+    setCurrentInputForImage(newValue);
+  };
+
+  const handleEnhancePromptAndUpdateInput = async () => {
+    const promptToEnhance = currentInputValue;
+    if (!promptToEnhance.trim()) {
+      showInfo("Please type a prompt first before enhancing.");
+      return;
+    }
+    
+    setIsGenerating(true);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enhanceOnly: true,
+          promptToEnhance: promptToEnhance,
+          model: activeTextModel
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to enhance prompt: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.enhancedPrompt) {
+        const enhancedPromptText = data.enhancedPrompt;
+        setCurrentInputValue(enhancedPromptText);
+        setCurrentInputForImage(enhancedPromptText);
+        showSuccess("Prompt enhanced in input field.");
+        inputRef.current?.focus();
+      } else {
+        throw new Error(data.error || 'Enhancement failed - no prompt received');
       }
     } catch (error) {
-      logError({
-        error: error instanceof Error ? error.toString() : 'Failed to toggle web search',
-        context: 'Web Search Toggle'
+      console.error('Error enhancing prompt:', error);
+      showError(error instanceof Error ? error.message : 'Failed to enhance prompt');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateImage = async (imageModel: 'flux' | 'turbo') => {
+    if (!currentInputForImage.trim()) {
+      showInfo("Please type or enhance a prompt first before generating.");
+      return;
+    }
+    
+    setShowImageOptions(false);
+    setIsGenerating(true);
+    
+    addMessage('user', `Generate image with ${imageModel}: "${currentInputForImage}"`);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isImageGeneration: true,
+          model: imageModel,
+          imagePrompt: currentInputForImage,
+        }),
       });
-      showError('Could not toggle web search. Please try again.');
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to generate image: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.imageUrl) {
+        const messageContent: MessageContent[] = [
+          { type: 'image', content: data.imageUrl },
+          { type: 'text', content: `Image generated using ${data.model}.` }
+        ];
+        addMessageWithThinking('assistant', messageContent, `Generating image with ${data.model} based on prompt: ${currentInputForImage}`);
+      } else {
+        throw new Error(data.error || 'Image generation failed - no URL received');
+      }
+    } catch (error) {
+      console.error('Error generating image:', error);
+      showError(error instanceof Error ? error.message : 'Failed to generate image');
+      addMessage('assistant', `Error generating image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
   const handleSubmit = async (content: string) => {
-    if (!content.trim()) return;
+    const finalContent = content || currentInputValue;
+    if (!finalContent.trim()) return;
 
-    // Add user message immediately
-    addMessage('user', content);
+    addMessage('user', finalContent);
     setIsGenerating(true);
+    setCurrentInputValue("");
 
     try {
-      // Determine if web search needs specific instructions
       let systemMessage = '';
       if (webSearchEnabled && activeTextModel === 'searchgpt') {
         systemMessage = `
@@ -363,110 +471,14 @@ Instructions for AI:
 7. Aim to provide an informative summary reflecting current web knowledge on the topic.`;
       }
 
-      // Call processMessage - It will handle adding the response/error to the store
-      await processMessage(content, systemMessage);
-
-      // We no longer need to check response.success or add messages here,
-      // as processMessage now handles both success and error cases internally.
-
+      await processMessage(finalContent, systemMessage);
     } catch (error) {
-      // Log the error, but processMessage should have already added an error message to the chat.
       console.error('Error in handleSubmit after calling processMessage:', error);
       logError({
         error: error instanceof Error ? error.toString() : 'handleSubmit failed',
         context: 'Chat Submission'
       });
-      // Optionally show a generic toast error, but avoid adding another chat message.
       showError('An unexpected error occurred. Please check the chat for details.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  // === NEW Functions for Image Generation ===
-
-  // Function to open the image options popover
-  const handleOpenImageOptions = (currentInputValue: string) => {
-    // We need a reference to the button in chat-input-new to anchor the popover
-    // For now, we'll just toggle visibility and store the input
-    // TODO: Get the actual button element reference passed up or find it.
-    setCurrentInputForImage(currentInputValue);
-    setShowImageOptions(true); 
-    // In a real implementation with ShadCN Popover, PopoverTrigger handles this.
-    // This state variable might be redundant if using Popover correctly.
-  };
-
-  // Function to enhance the prompt using the current text model
-  const handleEnhancePrompt = async () => {
-    if (!currentInputForImage.trim()) return;
-    setShowImageOptions(false);
-    setIsGenerating(true);
-    
-    addMessage('user', `Enhance prompt: "${currentInputForImage}"`);
-    
-    const enhancementSystemPrompt = "Rewrite the following user input as a highly detailed prompt suitable for an AI image generator. Focus on subject, setting, lighting, style (e.g., photorealistic, cinematic, illustration), mood, and composition. Output ONLY the rewritten prompt.";
-    
-    try {
-      // Use processMessage, it handles adding the response to the store
-      await processMessage(currentInputForImage, enhancementSystemPrompt);
-    } catch (error) {
-      console.error('Error enhancing prompt:', error);
-      // processMessage already adds error to chat
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  // Function to generate image using a specific model (flux, turbo, default)
-  const handleGenerateImage = async (imageModel: 'flux.schnell' | 'turbo' | 'default') => {
-    if (!currentInputForImage.trim()) return;
-    setShowImageOptions(false);
-    setIsGenerating(true);
-    
-    const actualModel = imageModel === 'default' ? 'flux.schnell' : imageModel;
-    
-    // Add user message indicating the action
-    addMessage('user', `Generate image (${actualModel}): "${currentInputForImage}"`);
-
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          isImageGeneration: true,
-          model: actualModel,
-          imagePrompt: currentInputForImage,
-          agent: activeAgent 
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to generate image with ${actualModel}`);
-      }
-
-      const data = await response.json();
-
-      if (data.success && data.imageUrl) {
-        // Explicitly define the type here
-        const imageContentArray: MessageContent[] = [
-          { type: 'image', content: data.imageUrl as string }, // Assert imageUrl is string
-          { 
-            type: 'text', 
-            content: `Image generated using ${data.model}. Prompt: "${currentInputForImage.substring(0, 100)}..."` 
-          }
-        ];
-        
-        // Use addMessageWithThinking, passing the correctly typed array
-        // And provide an empty string for the thinking parameter to match its type signature
-        addMessageWithThinking('assistant', imageContentArray, ''); 
-      } else {
-        throw new Error(data.error || 'Image generation failed, no URL received.');
-      }
-    } catch (error) {
-      console.error('Error generating image:', error);
-      // Use the regular addMessage for simple error strings
-      addMessage('assistant', `Error generating image: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsGenerating(false);
     }
@@ -494,33 +506,14 @@ Instructions for AI:
 
   return (
     <div className="relative min-h-screen bg-background flex flex-col">
-      {/* Agent Manager Panel */}
       <AgentManagerPanel
         isOpen={showAgentManager}
         onClose={() => setShowAgentManager(false)}
       />
       
-      {/* Header - Make sticky */}
       <div className="flex-none border-b border-zinc-800 bg-zinc-900 sticky top-0 z-10">
-        <div className="flex justify-between items-center px-4 py-3">
-          <div className="flex items-center gap-2">
-            <h1 className="font-semibold text-zinc-100">Chat</h1>
-          </div>
-          
+        <div className="flex justify-end items-center px-4 py-2">
           <div className="flex items-center gap-3">
-            {/* Web Search Toggle */}
-            <button
-              onClick={() => handleWebSearchToggle(!webSearchEnabled)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-sm border ${
-                webSearchEnabled 
-                  ? 'bg-blue-900/40 border-blue-700 text-blue-300' 
-                  : 'bg-transparent border-zinc-700 text-zinc-400 hover:text-zinc-300'
-              }`}
-            >
-              <Globe size={16} />
-              <span>Web Search</span>
-            </button>
-
             <ModelSelector
               selectedModel={MODEL_LIST.TEXT.find((m: ModelListType) => m.id === activeTextModel)}
               onModelSelect={(model) => handleModelChange(model.id)}
@@ -584,14 +577,6 @@ Instructions for AI:
               </SelectContent>
             </Select>
 
-            <button
-              onClick={() => setShowKeyboardShortcuts(true)}
-              className="text-zinc-400 hover:text-zinc-300 h-9 w-9 flex items-center justify-center rounded-full"
-              title="Keyboard shortcuts"
-            >
-              <Keyboard size={18} />
-            </button>
-
             <div className="relative">
               <button 
                 onClick={() => setShowAccountMenu(!showAccountMenu)}
@@ -618,6 +603,15 @@ Instructions for AI:
                         <span>Settings</span>
                       </Link>
                     </li>
+                    <li>
+                      <button
+                        onClick={() => setShowKeyboardShortcuts(true)}
+                        className="flex items-center gap-2 px-4 py-2 text-zinc-300 hover:bg-zinc-700 w-full text-left"
+                      >
+                        <Keyboard size={16} />
+                        <span>Keyboard Shortcuts</span>
+                      </button>
+                    </li>
                     <li className="border-t border-zinc-700">
                       <button 
                         className="flex items-center gap-2 px-4 py-2 text-red-400 hover:bg-zinc-700 w-full text-left"
@@ -637,13 +631,12 @@ Instructions for AI:
         </div>
       </div>
 
-      {/* Chat Content - Add reference and make it a scrollable container with flex-1 */}
       <div 
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto" 
-        style={{ paddingBottom: "120px" }}
+        style={{ paddingBottom: "80px" }}
       >
-        <div className="p-4">
+        <div className="p-2">
           {isNewChat ? (
             <div className="h-full flex flex-col items-center justify-center p-4 text-center">
               <div className="mb-4">
@@ -652,44 +645,26 @@ Instructions for AI:
                   <path d="M11.9999 21.2424C16.142 21.2424 19.5832 17.7902 19.5832 13.6481C19.5832 9.50596 16.142 6.06482 11.9999 6.06482C7.85778 6.06482 4.41656 9.50596 4.41656 13.6481C4.41656 17.7902 7.85778 21.2424 11.9999 21.2424Z" fill="currentColor"/>
                 </svg>
               </div>
-                <h1 className="text-3xl font-medium text-zinc-200 mb-3">
-                  Start a New Conversation
+              <h1 className="text-3xl font-medium text-zinc-200 mb-3">
+                Start a New Conversation
               </h1>
-                <p className="text-zinc-400 max-w-md mb-6">
-                  Ask me anything - from creative writing to coding help, research questions, or just casual conversation.
-                </p>
-                <div className="flex gap-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => inputRef.current?.focus()}
-                    className="text-zinc-300 border-zinc-700 hover:bg-zinc-800"
-                  >
-                    <MessageSquare className="w-4 h-4 mr-2" />
-                    Start Typing
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowKeyboardShortcuts(true)}
-                    className="text-zinc-300 border-zinc-700 hover:bg-zinc-800"
-                  >
-                    <Keyboard className="w-4 h-4 mr-2" />
-                    View Shortcuts
-                  </Button>
-                </div>
+              <p className="text-zinc-400 max-w-md mb-6">
+                Ask me anything - from creative writing to coding help, research questions, or just casual conversation.
+              </p>
             </div>
           ) : (
-              <div className="max-w-3xl mx-auto py-8 mb-[120px]">
-                <div className="space-y-6">
+              <div className="max-w-3xl mx-auto py-4 mb-[80px]">
+                <div className="space-y-4">
               {messages.map((message, index) => (
                 <div 
                   key={index}
                   className={cn(
-                    "flex items-start gap-3",
+                    "flex items-start gap-2",
                     message.role === 'user' ? "flex-row-reverse" : "flex-row"
                   )}
                 >
                   <div className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
+                    "w-7 h-7 rounded-full flex items-center justify-center shrink-0",
                   message.role === 'user' ? "bg-blue-600" : "bg-zinc-700"
                     )}
                   >
@@ -698,7 +673,7 @@ Instructions for AI:
                         {userName.charAt(0).toUpperCase()}
                       </span>
                     ) : (
-                      <svg className="w-5 h-5 text-zinc-100" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <svg className="w-4 h-4 text-zinc-100" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12.0002 11.2424C14.3381 11.2424 16.2426 9.33785 16.2426 7C16.2426 4.66215 14.3381 2.75757 12.0002 2.75757C9.6623 2.75757 7.75772 4.66215 7.75772 7C7.75772 9.33785 9.6623 11.2424 12.0002 11.2424Z" fill="currentColor"/>
                         <path d="M11.9999 21.2424C16.142 21.2424 19.5832 17.7902 19.5832 13.6481C19.5832 9.50596 16.142 6.06482 11.9999 6.06482C7.85778 6.06482 4.41656 9.50596 4.41656 13.6481C4.41656 17.7902 7.85778 21.2424 11.9999 21.2424Z" fill="currentColor"/>
                       </svg>
@@ -707,11 +682,11 @@ Instructions for AI:
 
                       <div 
                         className={cn(
-                          "flex-1 px-4 py-2 rounded-lg overflow-hidden text-left",
+                          "flex-1 px-3 py-2 rounded-lg overflow-hidden text-left",
                           message.role === 'user' ? "bg-blue-600/20" : "bg-zinc-800"
                         )}
                         style={{
-                          maxWidth: 'calc(100% - 4rem)',
+                          maxWidth: 'calc(100% - 3rem)',
                           wordBreak: 'break-word'
                         }}
                       >
@@ -747,7 +722,6 @@ Instructions for AI:
                           )} 
                         />
                         
-                        {/* Show thinking toggle button only for assistant messages */}
                         {message.role === 'assistant' && message.thinking && (
                           <div className="mt-2 pt-2 border-t border-zinc-700">
                             <button
@@ -788,18 +762,18 @@ Instructions for AI:
               ))}
 
               {isGenerating && (
-                <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center shrink-0">
-                    <svg className="w-5 h-5 text-zinc-100" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <div className="flex items-start gap-2">
+                      <div className="w-7 h-7 rounded-full bg-zinc-700 flex items-center justify-center shrink-0">
+                    <svg className="w-4 h-4 text-zinc-100" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M12.0002 11.2424C14.3381 11.2424 16.2426 9.33785 16.2426 7C16.2426 4.66215 14.3381 2.75757 12.0002 2.75757C9.6623 2.75757 7.75772 4.66215 7.75772 7C7.75772 9.33785 9.6623 11.2424 12.0002 11.2424Z" fill="currentColor"/>
                       <path d="M11.9999 21.2424C16.142 21.2424 19.5832 17.7902 19.5832 13.6481C19.5832 9.50596 16.142 6.06482 11.9999 6.06482C7.85778 6.06482 4.41656 9.50596 4.41656 13.6481C4.41656 17.7902 7.85778 21.2424 11.9999 21.2424Z" fill="currentColor"/>
                     </svg>
                   </div>
-                      <div className="px-4 py-2 rounded-lg bg-zinc-800 w-auto">
-                    <div className="flex gap-2">
-                      <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                      <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      <div className="px-3 py-2 rounded-lg bg-zinc-800 w-auto">
+                    <div className="flex gap-1.5">
+                      <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                     </div>
                   </div>
                 </div>
@@ -816,40 +790,45 @@ Instructions for AI:
         </div>
       </div>
       
-      {/* Input Area - Make sticky */}
-      <div className="flex-none border-t border-zinc-800 bg-zinc-900 p-4 sticky bottom-0 left-0 right-0 z-10">
+      <div className="flex-none border-t border-zinc-800 bg-zinc-900 p-3 sticky bottom-0 left-0 right-0 z-10">
         <div className="max-w-3xl mx-auto relative">
           
-          {/* === Popover for Image Options === */}
           {showImageOptions && (
-              <div 
-                className="absolute bottom-full right-[40px] mb-2 w-auto bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl p-2 z-20 flex flex-col gap-1"
+            <div
+              data-image-options
+              className="absolute bottom-14 right-2 mb-1 w-auto bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl p-1.5 z-20 flex flex-col gap-1"
+            >
+              <button
+                onClick={() => handleGenerateImage('flux')}
+                className="flex items-center space-x-2 text-sm text-zinc-200 hover:bg-zinc-700 p-1.5 rounded whitespace-nowrap"
               >
-                <Button variant="ghost" size="sm" onClick={handleEnhancePrompt} className="justify-start gap-2 text-zinc-200 hover:bg-zinc-700">
-                  <Sparkles size={16} className="text-yellow-400" /> Enhance Prompt
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => handleGenerateImage('flux.schnell')} className="justify-start gap-2 text-zinc-200 hover:bg-zinc-700">
-                  <Wind size={16} className="text-blue-400" /> Generate (Flux)
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => handleGenerateImage('turbo')} className="justify-start gap-2 text-zinc-200 hover:bg-zinc-700">
-                  <Zap size={16} className="text-purple-400" /> Generate (Turbo)
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => handleGenerateImage('default')} className="justify-start gap-2 text-zinc-200 hover:bg-zinc-700">
-                  <ImageIcon size={16} className="text-gray-400" /> Generate (Default)
-                </Button>
-              </div>
+                <Image size={16} className="text-purple-400" />
+                <span>Generate (Flux)</span>
+              </button>
+              <button
+                onClick={() => handleGenerateImage('turbo')}
+                className="flex items-center space-x-2 text-sm text-zinc-200 hover:bg-zinc-700 p-1.5 rounded whitespace-nowrap"
+              >
+                <Zap size={16} className="text-purple-400" />
+                <span>Generate (Turbo)</span>
+              </button>
+            </div>
           )}
 
           <ChatInput 
+            value={currentInputValue}
+            onChange={handleInputChange}
             onSubmit={handleSubmit}
             ref={inputRef}
             webSearchEnabled={webSearchEnabled}
+            onWebSearchToggle={handleWebSearchToggle}
             onImageButtonClick={() => {
-                 const currentVal = inputRef.current ? inputRef.current.value : ""; 
-                 handleOpenImageOptions(currentVal);
+              setShowImageOptions(prev => !prev);
             }}
+            onEnhancePrompt={handleEnhancePromptAndUpdateInput}
+            isGenerating={isGenerating}
           />
-          <p className="text-xs text-zinc-500 text-center mt-2">
+          <p className="text-xs text-zinc-500 text-center mt-1.5">
             AI assistants may display inaccurate info, including about people, so double-check responses. 
             <Link href="/privacy" className="underline hover:text-zinc-400 mx-1">Privacy policy</Link>
             <Link href="/terms" className="underline hover:text-zinc-400 mx-1">Terms of service</Link>

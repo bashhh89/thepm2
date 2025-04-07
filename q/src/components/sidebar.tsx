@@ -5,7 +5,7 @@ import { useSettingsStore, Agent, defaultAgents } from "@/store/settingsStore"
 import { useChatStore, ChatSession } from "@/store/chatStore"
 import { toasts } from '@/components/ui/toast-wrapper'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, MessageSquare, ChevronDown, ChevronRight, Folder, Users, Bot, Wrench, Presentation, Palette, LayoutPanelLeft, Trash2, Pencil, Check, X, FileText, Search, BookOpen } from "lucide-react"
+import { Home, MessageSquare, ChevronDown, ChevronRight, Folder, Users, Bot, Wrench, Presentation, Palette, LayoutPanelLeft, Trash2, Pencil, Check, X, FileText, Search, BookOpen, ChevronLeft, Plus, Sun, Moon } from "lucide-react"
 import type { LucideIcon } from 'lucide-react'
 import React from 'react'
 import { useAuth } from "@/context/AuthContext"
@@ -158,14 +158,9 @@ export default function Sidebar() {
 
   const isActive = (path: string) => pathname === path
 
+  // Simplified navigation items with more focused categories
   const navItems: NavItem[] = [
-    // Core Tools
-    {
-      name: "Dashboard",
-      path: "/dashboard",
-      icon: Home,
-      category: "core"
-    },
+    // Core Tools - Most important, keep these at the top
     {
       name: "Chat",
       path: "/chat",
@@ -179,13 +174,13 @@ export default function Sidebar() {
       category: "core"
     },
     {
-      name: "Advanced Research",
-      path: "/advanced-search",
-      icon: BookOpen,
+      name: "Dashboard",
+      path: "/dashboard",
+      icon: Home,
       category: "core"
     },
     
-    // Project Management
+    // Projects & Work
     {
       name: "Projects",
       path: "/projects",
@@ -193,66 +188,44 @@ export default function Sidebar() {
       category: "projects"
     },
     {
-      name: "Products",
-      path: "/products",
-      icon: Wrench,
-      category: "projects"
-    },
-    {
-      name: "Proposals",
-      path: "/proposals",
-      icon: FileText,
-      category: "projects"
-    },
-    
-    // Creation Tools
-    {
-      name: "Presentations",
-      path: "/tools/presentation-generator",
-      icon: Presentation,
-      category: "creation",
-      submenu: [
-        {
-          name: "New Presentation",
-          path: "/tools/presentation-generator"
-        },
-        {
-          name: "My Presentations",
-          path: "/my-presentations"
-        }
-      ]
-    },
-    {
-      name: "Website Builder",
-      path: "/website-builder",
-      icon: LayoutPanelLeft,
-      category: "creation"
-    },
-
-    // Marketing
-    {
-      name: "Blog",
-      path: "/dashboard/blog-posts",
-      icon: Folder,
-      category: "marketing"
-    },
-    {
-      name: "Company",
-      path: "/company",
-      icon: Palette,
-      category: "marketing"
-    },
-    {
       name: "Leads",
       path: "/leads",
       icon: Users,
-      category: "marketing"
+      category: "projects"
     },
+    
+    // Creation Tools - Merge these into a single category
+    {
+      name: "Creation Tools",
+      path: "/creation",
+      icon: Palette,
+      category: "creation",
+      submenu: [
+        {
+          name: "Presentations",
+          path: "/tools/presentation-generator"
+        },
+        {
+          name: "Website Builder",
+          path: "/website-builder"
+        },
+        {
+          name: "Blog Posts",
+          path: "/dashboard/blog-posts"
+        }
+      ]
+    }
   ]
 
-  // Get current agent's model preferences
-  const currentAgent = agents.find(a => a.id === activeAgent?.id);
-  const agentPrefs = currentAgent?.modelPreferences || {};
+  // Group navigation items by category for better organization
+  const groupedNavItems: Record<string, NavItem[]> = navItems.reduce((acc, item) => {
+    const category = item.category || 'other'
+    if (!acc[category]) {
+      acc[category] = []
+    }
+    acc[category].push(item)
+    return acc
+  }, {} as Record<string, NavItem[]>)
 
   const toggleDarkMode = () => {
     const newMode = !darkMode
@@ -400,519 +373,409 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 flex flex-col h-full">
-      <div 
-        className={`h-full bg-zinc-900 border-r border-zinc-700/50 transition-all duration-200 ease-in-out overflow-hidden flex flex-col ${
-          isExpanded ? 'w-56' : 'w-16'
-        }`}
-      >
-        {/* Toggle Button */}
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="absolute right-0 top-4 z-50 bg-zinc-800 border border-zinc-700 rounded-full p-1 hover:bg-zinc-700 transform translate-x-1/2 text-zinc-300"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={`w-3 h-3 ${isExpanded ? 'rotate-180' : ''}`}
+    <aside 
+      className={cn(
+        "fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out",
+        isExpanded ? "w-64" : "w-16"
+      )}
+    >
+      <div className="h-full flex flex-col overflow-hidden bg-zinc-900 border-r border-zinc-700/50">
+        {/* Sidebar Header */}
+        <div className="px-4 py-4 flex items-center justify-between border-b border-zinc-800">
+          {isExpanded && (
+            <div className="text-lg font-semibold text-zinc-100">QanDu</div>
+          )}
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-zinc-400 hover:text-zinc-300 focus:outline-none p-1 rounded-md"
           >
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-
-        {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto py-4 space-y-6">
-          {/* Logo / Branding */}
-          <div className={`px-3 flex items-center ${isExpanded ? 'justify-start' : 'justify-center'}`}>
             {isExpanded ? (
-              <h1 className="text-xl font-semibold text-white">QanDu AI</h1>
+              <ChevronLeft className="h-5 w-5" />
             ) : (
-              <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                Q
-              </div>
+              <ChevronRight className="h-5 w-5" />
+            )}
+          </button>
+        </div>
+
+        {/* Chat Sessions Section */}
+        <div className="flex-shrink-0 border-b border-zinc-800">
+          <div 
+            className="p-3 flex items-center justify-between cursor-pointer"
+            onClick={() => setIsChatListExpanded(!isChatListExpanded)}
+          >
+            <div className="flex items-center">
+              {isChatListExpanded ? (
+                <ChevronDown className="h-4 w-4 text-zinc-400 mr-2" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-zinc-400 mr-2" />
+              )}
+              {isExpanded && <span className="text-sm font-medium text-zinc-300">Recent Chats</span>}
+            </div>
+            {isExpanded && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleNewChat()
+                }}
+                className="text-zinc-400 hover:text-zinc-300 p-1 rounded-md"
+                title="New Chat"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
             )}
           </div>
-          
-          {/* New Chat Button */}
-          <div className="px-3">
-            <button
-              onClick={handleNewChat}
-              className={`bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center transition-all p-2 ${
-                isExpanded ? 'w-full justify-center space-x-2' : 'w-full justify-center'
-              }`}
-            >
-              <MessageSquare className="h-4 w-4" />
-              {isExpanded && <span>New Chat</span>}
-            </button>
-          </div>
 
-          {/* Chat History */}
-          <div className="px-2">
-            <div className="flex items-center justify-between px-2 mb-2 text-xs text-zinc-400 uppercase tracking-wide">
-              <button
-                onClick={() => setIsChatListExpanded(!isChatListExpanded)}
-                className="flex items-center space-x-1 hover:text-white transition-colors"
-              >
-                {isChatListExpanded ? (
-                  <ChevronDown className="h-3 w-3" />
-                ) : (
-                  <ChevronRight className="h-3 w-3" />
-                )}
-                <span>{isExpanded ? 'Recent Chats' : ''}</span>
-              </button>
-              
-              {isExpanded && (
+          {(!isExpanded || isChatListExpanded) && (
+            <div className={cn("overflow-hidden", !isExpanded && "flex flex-col items-center")}>
+              {/* New Chat Button for collapsed view */}
+              {!isExpanded && (
                 <button
-                  onClick={() => setShowAllChats(!showAllChats)}
-                  className="text-xs hover:text-white transition-colors"
+                  onClick={handleNewChat}
+                  className="my-2 p-2 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                  title="New Chat"
                 >
-                  {showAllChats ? 'Show Less' : 'Show All'}
+                  <Plus className="h-4 w-4" />
                 </button>
               )}
-            </div>
-            
-            {isChatListExpanded && (
-              <div className="space-y-1 max-h-40 overflow-y-auto">
-                {(showAllChats ? chatSessions : chatSessions?.slice(0, 5))?.map((chat) => (
-                  <div key={chat.id} className="flex items-center group">
-                    <button
-                      onClick={() => handleChatSelect(chat.id)}
-                      className={`flex-1 text-left px-2 py-1.5 rounded-md ${
-                        isExpanded ? 'text-sm' : 'justify-center'
-                      } ${
-                        chat.id === activeChatId
-                          ? 'bg-zinc-800 text-white'
-                          : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-                      }`}
+              
+              <div className={cn("py-1", !isExpanded && "w-full flex flex-col items-center")}>
+                {chatSessions
+                  .slice(0, showAllChats ? undefined : 5)
+                  .map((chat) => (
+                    <div
+                      key={chat.id}
+                      className={cn(
+                        "group relative",
+                        !isExpanded && "w-full flex justify-center"
+                      )}
                     >
-                      <div className="flex items-center">
-                        <MessageSquare className={`h-4 w-4 flex-shrink-0 ${!isExpanded ? 'mx-auto' : 'mr-2'}`} />
-                        
+                      <button
+                        onClick={() => handleChatSelect(chat.id)}
+                        className={cn(
+                          "w-full flex items-center py-1.5 px-3 rounded-md overflow-hidden whitespace-nowrap",
+                          chat.id === activeChatId
+                            ? "bg-zinc-800 text-zinc-100"
+                            : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-300",
+                          !isExpanded && "justify-center px-1.5"
+                        )}
+                        title={chat.name || "Untitled Chat"}
+                      >
+                        <MessageSquare className={cn("h-4 w-4 flex-shrink-0", isExpanded && "mr-2")} />
                         {isExpanded && (
                           isEditingTitle === chat.id ? (
                             <input
                               ref={titleInputRef}
-                              type="text"
                               value={editedTitle}
                               onChange={(e) => setEditedTitle(e.target.value)}
+                              onBlur={() => handleRenameChatConfirm(chat.id)}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
-                                  handleRenameChatConfirm(chat.id);
-                                } else if (e.key === 'Escape') {
-                                  setIsEditingTitle(null);
-                                  setEditedTitle('');
+                                  handleRenameChatConfirm(chat.id)
                                 }
                               }}
-                              onBlur={() => handleRenameChatConfirm(chat.id)}
-                              className="bg-zinc-700 text-white px-1 rounded w-full"
-                              autoFocus
+                              className="w-full bg-zinc-700 text-zinc-100 rounded border-none py-0.5 px-1 text-sm"
+                              onClick={(e) => e.stopPropagation()}
                             />
                           ) : (
-                            <span className="truncate w-32">
-                              {chat.name || 'New Chat'}
+                            <span className="text-sm truncate">
+                              {chat.name || "Untitled Chat"}
                             </span>
                           )
                         )}
-                      </div>
-                    </button>
-                    
-                    {isExpanded && chat.id === activeChatId && !isEditingTitle && (
-                      <div className="flex space-x-1 mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={() => {
-                            setIsEditingTitle(chat.id);
-                            setEditedTitle(chat.name || 'New Chat');
-                          }}
-                          className="p-0.5 text-zinc-400 hover:text-white rounded-sm"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                        
-                        {confirmingDeleteId === chat.id ? (
-                          <>
-                            <button
-                              onClick={() => {
-                                deleteChat(chat.id);
-                                setConfirmingDeleteId(null);
-                              }}
-                              className="p-0.5 text-red-400 hover:text-red-300 rounded-sm"
-                            >
-                              <Check className="h-3 w-3" />
-                            </button>
-                            <button
-                              onClick={() => setConfirmingDeleteId(null)}
-                              className="p-0.5 text-zinc-400 hover:text-white rounded-sm"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </>
-                        ) : (
+                      </button>
+
+                      {/* Chat actions - Only show in expanded mode */}
+                      {isExpanded && chat.id === activeChatId && (
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
-                            onClick={() => setConfirmingDeleteId(chat.id)}
-                            className="p-0.5 text-zinc-400 hover:text-red-400 rounded-sm"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Main Navigation - Grouped by Category */}
-          
-          {/* Core Tools Section */}
-          <div className="px-2 space-y-1 mb-3">
-            {isExpanded && (
-              <div className="flex items-center px-2 mb-1">
-                <div className="h-px bg-zinc-700/50 flex-grow mr-2"></div>
-                <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Core Tools</span>
-                <div className="h-px bg-zinc-700/50 flex-grow ml-2"></div>
-              </div>
-            )}
-
-            {navItems
-              .filter(item => item.category === "core")
-              .map((item) => (
-                <div key={item.path}>
-                  <button
-                    onClick={() => router.push(item.path)}
-                    className={`w-full flex items-center ${
-                      isExpanded ? 'justify-between' : 'justify-center'
-                    } px-2 py-1.5 rounded-md ${
-                      isActive(item.path)
-                        ? 'bg-zinc-800 text-white'
-                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <item.icon className={`h-4 w-4 ${!isExpanded ? '' : 'mr-3'}`} />
-                      {isExpanded && <span>{item.name}</span>}
-                    </div>
-                    {isExpanded && item.submenu && (
-                      <ChevronDown className="h-3 w-3" />
-                    )}
-                  </button>
-
-                  {/* Submenu */}
-                  {isExpanded && item.submenu && (
-                    <div className="ml-8 mt-1 space-y-1">
-                      {item.submenu.map((subitem) => (
-                        <button
-                          key={subitem.path}
-                          onClick={() => router.push(subitem.path)}
-                          className={`w-full text-left px-2 py-1 text-sm rounded-md ${
-                            isActive(subitem.path)
-                              ? 'bg-zinc-800 text-white'
-                              : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-                          }`}
-                        >
-                          {subitem.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-          </div>
-
-          {/* Project Management Section */}
-          <div className="px-2 space-y-1 mb-3">
-            {isExpanded && (
-              <div className="flex items-center px-2 mb-1">
-                <div className="h-px bg-zinc-700/50 flex-grow mr-2"></div>
-                <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Projects</span>
-                <div className="h-px bg-zinc-700/50 flex-grow ml-2"></div>
-              </div>
-            )}
-
-            {navItems
-              .filter(item => item.category === "projects")
-              .map((item) => (
-                <div key={item.path}>
-                  <button
-                    onClick={() => router.push(item.path)}
-                    className={`w-full flex items-center ${
-                      isExpanded ? 'justify-between' : 'justify-center'
-                    } px-2 py-1.5 rounded-md ${
-                      isActive(item.path)
-                        ? 'bg-zinc-800 text-white'
-                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <item.icon className={`h-4 w-4 ${!isExpanded ? '' : 'mr-3'}`} />
-                      {isExpanded && <span>{item.name}</span>}
-                    </div>
-                    {isExpanded && item.submenu && (
-                      <ChevronDown className="h-3 w-3" />
-                    )}
-                  </button>
-
-                  {/* Submenu */}
-                  {isExpanded && item.submenu && (
-                    <div className="ml-8 mt-1 space-y-1">
-                      {item.submenu.map((subitem) => (
-                        <button
-                          key={subitem.path}
-                          onClick={() => router.push(subitem.path)}
-                          className={`w-full text-left px-2 py-1 text-sm rounded-md ${
-                            isActive(subitem.path)
-                              ? 'bg-zinc-800 text-white'
-                              : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-                          }`}
-                        >
-                          {subitem.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-          </div>
-
-          {/* Creation Tools Section */}
-          <div className="px-2 space-y-1 mb-3">
-            {isExpanded && (
-              <div className="flex items-center px-2 mb-1">
-                <div className="h-px bg-zinc-700/50 flex-grow mr-2"></div>
-                <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Creation</span>
-                <div className="h-px bg-zinc-700/50 flex-grow ml-2"></div>
-              </div>
-            )}
-
-            {navItems
-              .filter(item => item.category === "creation")
-              .map((item) => (
-                <div key={item.path}>
-                  <button
-                    onClick={() => router.push(item.path)}
-                    className={`w-full flex items-center ${
-                      isExpanded ? 'justify-between' : 'justify-center'
-                    } px-2 py-1.5 rounded-md ${
-                      isActive(item.path)
-                        ? 'bg-zinc-800 text-white'
-                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <item.icon className={`h-4 w-4 ${!isExpanded ? '' : 'mr-3'}`} />
-                      {isExpanded && <span>{item.name}</span>}
-                    </div>
-                    {isExpanded && item.submenu && (
-                      <ChevronDown className="h-3 w-3" />
-                    )}
-                  </button>
-
-                  {/* Submenu */}
-                  {isExpanded && item.submenu && (
-                    <div className="ml-8 mt-1 space-y-1">
-                      {item.submenu.map((subitem) => (
-                        <button
-                          key={subitem.path}
-                          onClick={() => router.push(subitem.path)}
-                          className={`w-full text-left px-2 py-1 text-sm rounded-md ${
-                            isActive(subitem.path)
-                              ? 'bg-zinc-800 text-white'
-                              : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-                          }`}
-                        >
-                          {subitem.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-          </div>
-
-          {/* Marketing Section */}
-          <div className="px-2 space-y-1 mb-3">
-            {isExpanded && (
-              <div className="flex items-center px-2 mb-1">
-                <div className="h-px bg-zinc-700/50 flex-grow mr-2"></div>
-                <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Marketing</span>
-                <div className="h-px bg-zinc-700/50 flex-grow ml-2"></div>
-              </div>
-            )}
-
-            {navItems
-              .filter(item => item.category === "marketing")
-              .map((item) => (
-                <div key={item.path}>
-                  <button
-                    onClick={() => router.push(item.path)}
-                    className={`w-full flex items-center ${
-                      isExpanded ? 'justify-between' : 'justify-center'
-                    } px-2 py-1.5 rounded-md ${
-                      isActive(item.path)
-                        ? 'bg-zinc-800 text-white'
-                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <item.icon className={`h-4 w-4 ${!isExpanded ? '' : 'mr-3'}`} />
-                      {isExpanded && <span>{item.name}</span>}
-                    </div>
-                    {isExpanded && item.submenu && (
-                      <ChevronDown className="h-3 w-3" />
-                    )}
-                  </button>
-
-                  {/* Submenu */}
-                  {isExpanded && item.submenu && (
-                    <div className="ml-8 mt-1 space-y-1">
-                      {item.submenu.map((subitem) => (
-                        <button
-                          key={subitem.path}
-                          onClick={() => router.push(subitem.path)}
-                          className={`w-full text-left px-2 py-1 text-sm rounded-md ${
-                            isActive(subitem.path)
-                              ? 'bg-zinc-800 text-white'
-                              : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-                          }`}
-                        >
-                          {subitem.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-          </div>
-
-          {/* Agents Section */}
-          <div className="px-2 space-y-1 mb-3">
-            {isExpanded && (
-              <div className="flex items-center px-2 mb-1">
-                <div className="h-px bg-zinc-700/50 flex-grow mr-2"></div>
-                <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">Assistants</span>
-                <div className="h-px bg-zinc-700/50 flex-grow ml-2"></div>
-              </div>
-            )}
-
-            {isExpanded && (
-              <button
-                onClick={() => {
-                  setAgentName("");
-                  setAgentPrompt("");
-                  setEditingAgent(null);
-                  setShowAgentForm(true);
-                }}
-                className="flex items-center w-full text-xs text-blue-400 hover:text-blue-300 mb-2 justify-center py-1 rounded hover:bg-zinc-800 transition-colors"
-              >
-                <span className="mr-1">+</span> New Assistant
-              </button>
-            )}
-
-            <div className="space-y-1">
-              {agents.map((agent) => (
-                <div key={agent.id} className="flex group items-center">
-                  <button
-                    onClick={() => setSelectedAgentId(agent.id)}
-                    className={`flex-1 flex items-center ${
-                      isExpanded ? 'justify-between' : 'justify-center'
-                    } px-2 py-1.5 rounded-md ${
-                      agent.id === selectedAgentId
-                        ? 'bg-zinc-800 text-white'
-                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <Bot className={`h-4 w-4 ${!isExpanded ? '' : 'mr-3'}`} />
-                      {isExpanded && <span>{agent.name}</span>}
-                    </div>
-                  </button>
-                  
-                  {isExpanded && agent.id === selectedAgentId && (
-                    <div className="flex space-x-1 mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {!defaultAgents.find(a => a.id === agent.id) && (
-                        <>
-                          <button
-                            onClick={() => handleEditAgent(agent)}
-                            className="p-0.5 text-zinc-400 hover:text-white rounded-sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleEditTitle(chat)
+                            }}
+                            className="p-1 text-zinc-400 hover:text-zinc-300 rounded-md"
                           >
                             <Pencil className="h-3 w-3" />
                           </button>
                           <button
-                            onClick={() => handleDeleteAgent(agent.id)}
-                            className="p-0.5 text-zinc-400 hover:text-red-400 rounded-sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setConfirmingDeleteId(chat.id)
+                            }}
+                            className="p-1 text-zinc-400 hover:text-red-400 rounded-md"
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
-                        </>
+                        </div>
                       )}
-                      
-                      <button
-                        onClick={() => setShowAgentModelPrefs(true)}
-                        className="p-0.5 text-zinc-400 hover:text-white rounded-sm"
-                      >
-                        <Wrench className="h-3 w-3" />
-                      </button>
+
+                      {/* Delete confirmation - Only in expanded mode */}
+                      {isExpanded && confirmingDeleteId === chat.id && (
+                        <div className="absolute right-0 top-full mt-1 bg-zinc-800 border border-zinc-700 rounded-md p-2 shadow-lg z-10 text-xs">
+                          <p className="text-zinc-300 mb-2">Delete this chat?</p>
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setConfirmingDeleteId(null)
+                              }}
+                              className="p-1 bg-zinc-700 hover:bg-zinc-600 rounded-md"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                deleteChat(chat.id)
+                                setConfirmingDeleteId(null)
+                              }}
+                              className="p-1 bg-red-600 hover:bg-red-700 rounded-md"
+                            >
+                              <Check className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
+                  ))}
+              </div>
+              
+              {isExpanded && chatSessions.length > 5 && (
+                <button
+                  onClick={() => setShowAllChats(!showAllChats)}
+                  className="w-full text-xs text-blue-400 hover:text-blue-300 py-1 px-3 text-left"
+                >
+                  {showAllChats ? "Show less" : `Show all (${chatSessions.length})`}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Main Navigation */}
+        <nav className="flex-1 overflow-y-auto py-2">
+          {/* Core Tools at the top */}
+          <div className={cn("mb-3", !isExpanded && "flex flex-col items-center")}>
+            {groupedNavItems['core']?.map((item) => (
+              <div 
+                key={item.path}
+                className={cn(!isExpanded && "flex justify-center w-full")}
+              >
+                <button
+                  onClick={() => router.push(item.path)}
+                  className={cn(
+                    "flex items-center py-2 px-3 rounded-md w-full",
+                    isActive(item.path)
+                      ? "bg-zinc-800 text-zinc-100"
+                      : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-300",
+                    !isExpanded && "justify-center px-1.5"
+                  )}
+                  title={item.name}
+                >
+                  <item.icon className={cn("h-5 w-5 flex-shrink-0", isExpanded && "mr-3")} />
+                  {isExpanded && <span className="text-sm">{item.name}</span>}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Divider between sections */}
+          <div className="mx-3 my-3 border-t border-zinc-800"></div>
+
+          {/* Projects section */}
+          {groupedNavItems['projects'] && (
+            <div className={cn("mb-3", !isExpanded && "flex flex-col items-center")}>
+              {isExpanded && (
+                <div className="px-3 pb-1">
+                  <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                    Projects
+                  </span>
+                </div>
+              )}
+              
+              {groupedNavItems['projects'].map((item) => (
+                <div 
+                  key={item.path}
+                  className={cn(!isExpanded && "flex justify-center w-full")}
+                >
+                  <button
+                    onClick={() => router.push(item.path)}
+                    className={cn(
+                      "flex items-center py-2 px-3 rounded-md w-full",
+                      isActive(item.path)
+                        ? "bg-zinc-800 text-zinc-100"
+                        : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-300",
+                      !isExpanded && "justify-center px-1.5"
+                    )}
+                    title={item.name}
+                  >
+                    <item.icon className={cn("h-5 w-5 flex-shrink-0", isExpanded && "mr-3")} />
+                    {isExpanded && <span className="text-sm">{item.name}</span>}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Creation Tools section with submenu */}
+          {groupedNavItems['creation'] && (
+            <div className={cn("mb-3", !isExpanded && "flex flex-col items-center")}>
+              {isExpanded && (
+                <div className="px-3 pb-1">
+                  <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                    Creation
+                  </span>
+                </div>
+              )}
+              
+              {groupedNavItems['creation'].map((item) => (
+                <div key={item.path} className={cn(!isExpanded && "w-full flex justify-center")}>
+                  {item.submenu ? (
+                    <div className="w-full">
+                      <button
+                        onClick={() => {
+                          // Toggle submenu
+                          const submenuId = `submenu-${item.name}`;
+                          const currentState = localStorage.getItem(submenuId) === 'true';
+                          localStorage.setItem(submenuId, (!currentState).toString());
+                          // Trigger rerender
+                          setMounted(prev => !prev);
+                        }}
+                        className={cn(
+                          "flex items-center justify-between py-2 px-3 w-full rounded-md",
+                          "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-300",
+                          !isExpanded && "justify-center px-1.5"
+                        )}
+                        title={item.name}
+                      >
+                        <div className="flex items-center">
+                          <item.icon className={cn("h-5 w-5 flex-shrink-0", isExpanded && "mr-3")} />
+                          {isExpanded && <span className="text-sm">{item.name}</span>}
+                        </div>
+                        {isExpanded && (
+                          localStorage.getItem(`submenu-${item.name}`) === 'true' ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )
+                        )}
+                      </button>
+                      
+                      {isExpanded && localStorage.getItem(`submenu-${item.name}`) === 'true' && (
+                        <div className="pl-9 pr-3 py-1 space-y-1">
+                          {item.submenu.map((subitem) => (
+                            <button
+                              key={subitem.path}
+                              onClick={() => router.push(subitem.path)}
+                              className={cn(
+                                "flex items-center py-1.5 px-2 rounded-md w-full text-sm",
+                                isActive(subitem.path)
+                                  ? "bg-zinc-800 text-zinc-100"
+                                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-300"
+                              )}
+                            >
+                              {subitem.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => router.push(item.path)}
+                      className={cn(
+                        "flex items-center py-2 px-3 rounded-md w-full",
+                        isActive(item.path)
+                          ? "bg-zinc-800 text-zinc-100"
+                          : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-300",
+                        !isExpanded && "justify-center px-1.5"
+                      )}
+                      title={item.name}
+                    >
+                      <item.icon className={cn("h-5 w-5 flex-shrink-0", isExpanded && "mr-3")} />
+                      {isExpanded && <span className="text-sm">{item.name}</span>}
+                    </button>
                   )}
                 </div>
               ))}
             </div>
-          </div>
+          )}
+        </nav>
 
-        </div>
+        {/* User and Settings Section */}
+        <div className="flex-shrink-0 border-t border-zinc-800">
+          {/* Toggle Dark Mode Button */}
+          <button
+            onClick={toggleDarkMode}
+            className={cn(
+              "w-full flex items-center py-2 px-3 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-300",
+              !isExpanded && "justify-center"
+            )}
+            title="Toggle Dark Mode"
+          >
+            {darkMode ? (
+              <>
+                <Sun className={cn("h-5 w-5", isExpanded && "mr-3")} />
+                {isExpanded && <span className="text-sm">Light Mode</span>}
+              </>
+            ) : (
+              <>
+                <Moon className={cn("h-5 w-5", isExpanded && "mr-3")} />
+                {isExpanded && <span className="text-sm">Dark Mode</span>}
+              </>
+            )}
+          </button>
 
-        {/* Settings & Account */}
-        <div className="border-t border-zinc-800 py-3 px-2 space-y-2">
-          <IntelliSearchButton 
-            variant="ghost" 
-            className={`w-full justify-start ${isExpanded ? '' : 'justify-center'}`}
-          />
-          
+          {/* Settings Button */}
           <button
             onClick={() => router.push('/settings')}
-            className={`w-full flex items-center ${isExpanded ? 'space-x-2' : 'justify-center'} px-3 py-1.5 text-sm rounded-md text-zinc-300 hover:bg-zinc-800`}
+            className={cn(
+              "w-full flex items-center py-2 px-3 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-300",
+              !isExpanded && "justify-center"
+            )}
+            title="Settings"
           >
-            <FiSettings className="h-4 w-4 flex-shrink-0" />
-            {isExpanded && <span>Settings</span>}
+            <FiSettings className={cn("h-5 w-5", isExpanded && "mr-3")} />
+            {isExpanded && <span className="text-sm">Settings</span>}
           </button>
-          
-          {user && 'role' in user && user.role === 'admin' && (
-            <button
-              onClick={() => router.push('/admin')}
-              className={`w-full flex items-center ${isExpanded ? 'space-x-2' : 'justify-center'} px-3 py-1.5 text-sm rounded-md text-zinc-300 hover:bg-zinc-800`}
-            >
-              <FiShield className="h-4 w-4 flex-shrink-0" />
-              {isExpanded && <span>Admin</span>}
-            </button>
-          )}
 
-          <button
-            onClick={() => router.push('/account')}
-            className={`w-full flex items-center ${isExpanded ? 'space-x-2' : 'justify-center'} px-3 py-1.5 text-sm rounded-md text-zinc-300 hover:bg-zinc-800`}
+          {/* User Profile/Logout */}
+          <div 
+            className={cn(
+              "flex items-center px-3 py-3 mt-2 border-t border-zinc-800 text-zinc-300",
+              !isExpanded && "justify-center"
+            )}
           >
-            <div className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-              </svg>
+            <div 
+              className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-zinc-100 font-medium text-sm"
+            >
+              {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
             </div>
-            {isExpanded && <span>Account</span>}
-          </button>
-          
-          <button 
-            onClick={() => signOut()}
-            className={`w-full flex items-center ${isExpanded ? 'space-x-2' : 'justify-center'} px-3 py-1.5 text-sm rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800`}
-          >
-            <FiLogOut className="h-4 w-4 flex-shrink-0" />
-            {isExpanded && <span>Sign Out</span>}
-          </button>
+            
+            {isExpanded && (
+              <div className="ml-3 flex-1 min-w-0">
+                <div className="text-sm font-medium truncate">{user?.email || 'User'}</div>
+                <button
+                  onClick={signOut}
+                  className="text-xs text-red-400 hover:text-red-300 flex items-center mt-1"
+                >
+                  <FiLogOut className="h-3 w-3 mr-1" />
+                  Sign Out
+                </button>
+              </div>
+            )}
+            
+            {!isExpanded && (
+              <button
+                onClick={signOut}
+                className="text-red-400 hover:text-red-300 p-1 ml-1"
+                title="Sign Out"
+              >
+                <FiLogOut className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </aside>
-  );
+  )
 } 

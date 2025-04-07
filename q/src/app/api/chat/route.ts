@@ -9,6 +9,10 @@ import { createMCPSystemPrompt, parseMCPResponse } from "@/lib/mcpHelper";
 import { supabase } from "@/lib/supabaseClient";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { TextModelId } from "@/store/settingsStore";
+
+// Define known image generation models
+const IMAGE_MODELS = ['flux.schnell', 'turbo', 'flux']; // Add known image models here
 
 // Helper to get authenticated Supabase client
 async function getServerSupabaseClient() {
@@ -75,13 +79,90 @@ function sanitizeMessage(message: any): string {
 // Make sure we're using the newer Next.js App Router handler signature
 export async function POST(req: NextRequest) {
   try {
-    const { messages, model, systemPrompt, agent } = await req.json();
+    const { messages, model, systemPrompt, agent, isImageGeneration, imagePrompt, enhanceOnly, promptToEnhance } = await req.json();
 
+    // === Handle Prompt Enhancement Request ===
+    if (enhanceOnly) {
+      if (!promptToEnhance || typeof promptToEnhance !== 'string') {
+        return NextResponse.json({ error: 'Invalid prompt provided for enhancement' }, { status: 400 });
+      }
+
+      const enhancementSystemPrompt = `Rewrite the following user input as a highly detailed prompt suitable for an AI image generator. Focus on subject, setting, lighting, style (e.g., photorealistic, cinematic, illustration), mood, and composition. Output ONLY the rewritten prompt. Do not include any conversational text, greetings, or explanations. Just the prompt.`;
+      const enhancementMessages = [
+        { role: 'system', content: enhancementSystemPrompt },
+        { role: 'user', content: promptToEnhance },
+      ];
+
+      // Use a reasonably fast model for enhancement, passed in or default to 'phi'
+      const enhancementModel = model || 'phi'; 
+      console.log(`API Route: Handling ENHANCE request for model: ${enhancementModel}`);
+
+      // Reusing the text generation logic structure
+      try {
+        console.log(`Making ENHANCE request to Pollinations API with payload:`, {
+          model: enhancementModel,
+          messageCount: enhancementMessages.length,
+          firstMessagePreview: enhancementMessages[0].content.substring(0, 50) + '...'
+        });
+
+        const response = await fetch('https://text.pollinations.ai/openai', { // Assuming this is the correct endpoint
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: enhancementModel, messages: enhancementMessages }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Pollinations API error for enhancement: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json();
+        const enhancedPromptText = data.choices[0].message.content.trim();
+        console.log('Received enhanced prompt from Pollinations API:', enhancedPromptText);
+
+        return NextResponse.json({ success: true, enhancedPrompt: enhancedPromptText });
+
+      } catch (error) {
+        console.error(`Enhancement request failed:`, error);
+        // Throw the error to be caught by the outer try-catch
+        throw error;
+      }
+    }
+
+    // === Handle Image Generation Request ===
+    if (isImageGeneration) {
+      console.log(`API Route: Constructing IMAGE URL for model: ${model}`);
+      
+      // Use the explicit imagePrompt if provided, otherwise fallback to the last message content
+      const prompt = imagePrompt || (messages && messages.length > 0 ? sanitizeMessage(messages[messages.length - 1].content) : "a default image");
+      
+      if (!prompt) {
+        return NextResponse.json({ error: 'Image prompt is missing' }, { status: 400 });
+      }
+      
+      // Use the provided model or default to flux.schnell
+      const imageModel = model || 'flux.schnell';
+      
+      // Construct the image URL based on the documentation
+      const encodedPrompt = encodeURIComponent(prompt);
+      const width = 1024; // Or get from request if needed
+      const height = 1024; // Or get from request if needed
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=${imageModel}&nologo=true&t=${Date.now()}`;
+      
+      console.log(`Constructed Pollinations IMAGE URL: ${imageUrl}`);
+
+      // Return the constructed URL
+      return NextResponse.json({
+        success: true,
+        imageUrl: imageUrl, // The URL to be used by the frontend
+        model: imageModel  // Confirm which model was used for URL construction
+      });
+    }
+
+    // === Handle Text Generation Request (Existing Logic) ===
+    console.log(`API Route: Handling TEXT generation request for model: ${model || 'default'}`);
     if (!messages || !Array.isArray(messages)) {
-      return NextResponse.json(
-        { error: 'Invalid messages format' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid messages format for text generation' }, { status: 400 });
     }
 
     // Set default model if none provided
@@ -216,13 +297,12 @@ export async function POST(req: NextRequest) {
     throw lastError;
 
   } catch (error) {
-    console.error('Error in chat API route:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'An unknown error occurred'
-      },
-      { status: 500 }
-    );
+    console.error("Error in /api/chat:", error);
+    // Ensure a generic error is returned if specific handling fails
+    return NextResponse.json({
+      success: false,
+      message: `An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      thinking: '', // No thinking available on error
+    }, { status: 500 });
   }
 }
