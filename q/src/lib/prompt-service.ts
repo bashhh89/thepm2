@@ -483,28 +483,37 @@ export const createVariable = (name: string, value: string): PromptVariable => (
  */
 export async function processMessage(message: string, systemMessage?: string): Promise<PromptExecutionResult> {
   try {
-    const settingsStore = useSettingsStore.getState();
-    const activeModel = settingsStore.activeTextModel;
-    const activeAgent = settingsStore.activeAgent;
-
-    console.log("API Route: Received request with model:", activeModel);
-    
-    // Build the system prompt based on the active agent or default
-    let finalSystemPrompt = systemMessage || "You are a helpful AI assistant.";
-    
-    if (activeAgent) {
-      console.log("API Route - Using direct agent object:", activeAgent.name);
-      finalSystemPrompt = activeAgent.systemPrompt;
+    // Check if the message is a command
+    if (message.startsWith('/')) {
+      return await executeCommand(message);
     }
 
-    console.log("API Route - Final model being used:", activeModel);
-    console.log("Final system prompt being used:", finalSystemPrompt);
+    // Otherwise, treat it as a regular message to the AI
+    try {
+      // Get the active chat messages from the store
+      const chatStore = useChatStore.getState();
+      const settingsStore = useSettingsStore.getState();
+      const messages = chatStore.getActiveChatMessages();
+      
+      const modelToUse = settingsStore.activeTextModel;
+      console.log('processMessage - Using model:', modelToUse);
+      
+      if (systemMessage) {
+        console.log('processMessage - Using custom system prompt for web search');
+      }
 
-    // Use a special system message to request thinking
-    const enhancedSystemPrompt = `${finalSystemPrompt}\n\nPlease provide your thinking process and reasoning separately before giving your final answer. Format your response with a "THINKING:" section followed by your reasoning process, and then an "ANSWER:" section with your final response.`;
+      // Build the system prompt based on the active agent or default
+      let finalSystemPrompt = systemMessage || "You are a helpful AI assistant.";
+      
+      if (settingsStore.activeAgent) {
+        console.log("API Route - Using agent:", settingsStore.activeAgent.name);
+        finalSystemPrompt = settingsStore.activeAgent.systemPrompt;
+      }
 
-    // For OpenAI models
-    if (activeModel === 'openai' || activeModel === 'searchgpt') {
+      // Use a special system message to request thinking
+      const enhancedSystemPrompt = `${finalSystemPrompt}\n\nPlease provide your thinking process and reasoning separately before giving your final answer. Format your response with a "THINKING:" section followed by your reasoning process, and then an "ANSWER:" section with your final response.`;
+
+      // Call the AI model with the message and history
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -512,10 +521,16 @@ export async function processMessage(message: string, systemMessage?: string): P
         },
         body: JSON.stringify({
           messages: [
-            { role: 'system', content: enhancedSystemPrompt },
+            ...messages.map((msg: Message) => ({
+              role: msg.role,
+              content: msg.content
+            })),
+            { role: 'system', content: enhancedSystemPrompt }, // Add special thinking system prompt
             { role: 'user', content: message }
           ],
-          model: activeModel,
+          model: modelToUse, // Use the selected model from settings
+          agent: settingsStore.activeAgent, // Send the active agent if any
+          systemPrompt: systemMessage // Add system prompt for search instructions
         }),
       });
 
@@ -526,9 +541,13 @@ export async function processMessage(message: string, systemMessage?: string): P
 
       const data = await response.json();
       
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to get AI response');
+      }
+
       // Extract thinking and answer from the response
       let thinking = '';
-      let answer = data.content || '';
+      let answer = data.message || '';
       
       // Check if the response contains the THINKING and ANSWER sections
       const thinkingMatch = answer.match(/THINKING:([\s\S]*?)(?=ANSWER:|$)/i);
@@ -543,13 +562,21 @@ export async function processMessage(message: string, systemMessage?: string): P
         success: true,
         content: answer,
         thinking: thinking,
-        message: answer // For backward compatibility
+        message: answer, // For backward compatibility
+        metadata: {
+          type: 'text',
+          model: data.model || modelToUse,
+          timestamp: Date.now()
+        }
+      };
+    } catch (error) {
+      console.error('Error calling AI:', error);
+      return {
+        content: 'Failed to get AI response. Please try again.',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       };
     }
-    
-    // ... handle other models ...
-
-    throw new Error(`Model ${activeModel} is not supported`);
   } catch (error) {
     console.error('Error processing message:', error);
     return {
