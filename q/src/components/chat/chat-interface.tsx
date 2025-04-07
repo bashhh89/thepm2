@@ -338,11 +338,13 @@ export function ChatInterface() {
   const handleSubmit = async (content: string) => {
     if (!content.trim()) return;
 
+    // Add user message immediately
+    addMessage('user', content);
+    setIsGenerating(true);
+
     try {
-      // Add web search instructions if enabled
-      let processedContent = content;
+      // Determine if web search needs specific instructions
       let systemMessage = '';
-      
       if (webSearchEnabled && activeTextModel === 'searchgpt') {
         systemMessage = `
 ---
@@ -356,33 +358,21 @@ Instructions for AI:
 7. Aim to provide an informative summary reflecting current web knowledge on the topic.`;
       }
 
-      // Add user message
-      addMessage('user', content);
-      setIsGenerating(true);
+      // Call processMessage - It will handle adding the response/error to the store
+      await processMessage(content, systemMessage);
 
-      // Process the message and get AI response
-      const response = await processMessage(content, systemMessage);
+      // We no longer need to check response.success or add messages here,
+      // as processMessage now handles both success and error cases internally.
 
-      // Add AI response with thinking if available
-      if (response.success) {
-        // Create a unique message ID
-        const messageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-        
-        // Extract thinking from response if available
-        const thinking = response.thinking || '';
-        const finalResponse = response.message || response.content;
-        
-        // Add message with thinking property
-        useChatStore.getState().addMessageWithThinking('assistant', finalResponse, thinking, messageId);
-      } else {
-        addMessage('assistant', `Error: ${response.error || 'Unknown error'}`);
-      }
     } catch (error) {
+      // Log the error, but processMessage should have already added an error message to the chat.
+      console.error('Error in handleSubmit after calling processMessage:', error);
       logError({
-        error: error instanceof Error ? error.toString() : 'Failed to process message',
-        context: 'Message Processing'
+        error: error instanceof Error ? error.toString() : 'handleSubmit failed',
+        context: 'Chat Submission'
       });
-      showError('Could not process message. Please try again.');
+      // Optionally show a generic toast error, but avoid adding another chat message.
+      showError('An unexpected error occurred. Please check the chat for details.');
     } finally {
       setIsGenerating(false);
     }
