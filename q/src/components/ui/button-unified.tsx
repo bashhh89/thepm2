@@ -1,117 +1,58 @@
-import React from 'react';
-import { cn } from '@/lib/utils';
-import { cva, type VariantProps } from 'class-variance-authority';
-import { Slot } from '@radix-ui/react-slot';
+"use client"
 
-const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "@/lib/utils"
+import { componentStyles } from "@/lib/design-system"
+
+const buttonUnifiedVariants = cva(
+  "inline-flex items-center justify-center rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:pointer-events-none",
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80',
-        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80',
-        outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/90 active:bg-secondary/80',
-        ghost: 'hover:bg-accent hover:text-accent-foreground',
-        link: 'text-primary underline-offset-4 hover:underline',
-        // QanDu specific variants
-        'primary-gradient': 'text-white bg-gradient-to-r from-qandu-blue-500 to-qandu-purple-500 hover:from-qandu-blue-600 hover:to-qandu-purple-600 active:from-qandu-blue-700 active:to-qandu-purple-700',
-        'primary-outline': 'border border-qandu-blue-500 text-qandu-blue-500 bg-transparent hover:bg-qandu-blue-50 active:bg-qandu-blue-100 dark:hover:bg-qandu-blue-900/20 dark:active:bg-qandu-blue-900/30',
-        'secondary-outline': 'border border-qandu-purple-500 text-qandu-purple-500 bg-transparent hover:bg-qandu-purple-50 active:bg-qandu-purple-100 dark:hover:bg-qandu-purple-900/20 dark:active:bg-qandu-purple-900/30',
+        default: componentStyles.button.primary,
+        secondary: componentStyles.button.secondary,
+        ghost: componentStyles.button.ghost,
+        "blue-light": "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30",
+        "zinc-light": "bg-zinc-700/50 text-zinc-300 hover:bg-zinc-700/70",
+        outline: "border border-zinc-700 bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-white",
+        destructive: "bg-red-600 text-white hover:bg-red-700",
+        link: "text-blue-400 underline-offset-4 hover:underline"
       },
       size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-9 rounded-md px-3',
-        lg: 'h-11 rounded-md px-8',
-        xl: 'h-12 rounded-md px-10 text-base',
-        icon: 'h-10 w-10',
-        'icon-sm': 'h-8 w-8',
-        'icon-lg': 'h-12 w-12',
-      },
-      fullWidth: {
-        true: 'w-full',
-      },
-      rounded: {
-        true: 'rounded-full',
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-md px-3 text-xs",
+        lg: "h-11 rounded-md px-8",
+        icon: "h-10 w-10 p-0",
+        "icon-sm": "h-8 w-8 p-0 rounded-md"
       },
     },
     defaultVariants: {
-      variant: 'default',
-      size: 'default',
+      variant: "default",
+      size: "default",
     },
   }
-);
+)
 
-export interface ButtonProps
+export interface ButtonUnifiedProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  asChild?: boolean;
-  isLoading?: boolean;
-  loadingText?: string;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
+    VariantProps<typeof buttonUnifiedVariants> {
+  asChild?: boolean
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    {
-      className,
-      variant,
-      size,
-      fullWidth,
-      rounded,
-      asChild = false,
-      isLoading = false,
-      loadingText,
-      leftIcon,
-      rightIcon,
-      children,
-      ...props
-    },
-    ref
-  ) => {
-    const Comp = asChild ? Slot : 'button';
-
+const ButtonUnified = React.forwardRef<HTMLButtonElement, ButtonUnifiedProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, fullWidth, rounded }), 
-          'qandu-transition-all', 
-          className
-        )}
+        className={cn(buttonUnifiedVariants({ variant, size, className }))}
         ref={ref}
-        disabled={isLoading || props.disabled}
         {...props}
-      >
-        {isLoading && (
-          <svg
-            className="mr-2 h-4 w-4 animate-spin"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            ></circle>
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
-        )}
-        {!isLoading && leftIcon && <span className="mr-2">{leftIcon}</span>}
-        {isLoading && loadingText ? loadingText : children}
-        {!isLoading && rightIcon && <span className="ml-2">{rightIcon}</span>}
-      </Comp>
-    );
+      />
+    )
   }
-);
+)
+ButtonUnified.displayName = "ButtonUnified"
 
-Button.displayName = 'Button';
-
-export { Button, buttonVariants }; 
+export { ButtonUnified, buttonUnifiedVariants } 

@@ -1,105 +1,58 @@
+// Design System for QanDu Platform
+// Based on the workspace component styles
+
+// Colors
 export const colors = {
-  // Primary brand colors
-  primary: {
-    50: '#f0f9ff',
-    100: '#e0f2fe',
-    200: '#bae6fd',
-    300: '#7dd3fc',
-    400: '#38bdf8',
-    500: '#0ea5e9', // Main QanDu blue
-    600: '#0284c7',
-    700: '#0369a1',
-    800: '#075985',
-    900: '#0c4a6e',
-    950: '#082f49',
+  // Core brand colors
+  blue: {
+    50: '#e6f0ff',
+    100: '#cce0ff',
+    200: '#99c1ff',
+    300: '#66a3ff',
+    400: '#3384ff',
+    500: '#0066ff', // Primary brand blue
+    600: '#0052cc',
+    700: '#003d99',
+    800: '#002966',
+    900: '#001433',
   },
-  // Secondary brand color
-  secondary: {
-    50: '#f5f3ff',
-    100: '#ede9fe',
-    200: '#ddd6fe',
-    300: '#c4b5fd',
-    400: '#a78bfa',
-    500: '#8b5cf6', // QanDu purple
-    600: '#7c3aed',
-    700: '#6d28d9',
-    800: '#5b21b6',
-    900: '#4c1d95',
-    950: '#2e1065',
+  // UI Colors
+  zinc: {
+    50: '#fafafa',
+    100: '#f4f4f5',
+    200: '#e4e4e7',
+    300: '#d4d4d8',
+    400: '#a1a1aa',
+    500: '#71717a',
+    600: '#52525b',
+    700: '#3f3f46',
+    800: '#27272a',
+    850: '#202022', // Custom shade used in workspace
+    900: '#18181b',
+    950: '#09090b',
   },
-  // Semantic colors
-  success: {
-    light: '#86efac',
-    DEFAULT: '#22c55e',
-    dark: '#15803d',
+  // Accent/Status colors
+  green: {
+    400: '#10b981',
+    500: '#10b981',
   },
-  warning: {
-    light: '#fed7aa',
-    DEFAULT: '#f97316',
-    dark: '#c2410c',
+  pink: {
+    400: '#ec4899',
+    500: '#ec4899',
   },
-  error: {
-    light: '#fca5a5',
-    DEFAULT: '#ef4444',
-    dark: '#b91c1c',
+  amber: {
+    400: '#f59e0b',
+    500: '#f59e0b',
   },
-  info: {
-    light: '#a5f3fc',
-    DEFAULT: '#06b6d4',
-    dark: '#0e7490',
-  },
-  // Neutral colors for text, backgrounds, etc.
-  neutral: {
-    50: '#f9fafb',
-    100: '#f3f4f6',
-    200: '#e5e7eb',
-    300: '#d1d5db',
-    400: '#9ca3af',
-    500: '#6b7280',
-    600: '#4b5563',
-    700: '#374151',
-    800: '#1f2937',
-    900: '#111827',
-    950: '#030712',
+  indigo: {
+    400: '#6366f1',
+    500: '#6366f1',
   },
 };
 
-export const typography = {
-  fontFamily: {
-    sans: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-    mono: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-  },
-  fontSize: {
-    xs: '0.75rem',
-    sm: '0.875rem',
-    base: '1rem',
-    lg: '1.125rem',
-    xl: '1.25rem',
-    '2xl': '1.5rem',
-    '3xl': '1.875rem',
-    '4xl': '2.25rem',
-    '5xl': '3rem',
-    '6xl': '3.75rem',
-  },
-  fontWeight: {
-    light: 300,
-    normal: 400,
-    medium: 500,
-    semibold: 600,
-    bold: 700,
-    extrabold: 800,
-  },
-  lineHeight: {
-    none: 1,
-    tight: 1.25,
-    snug: 1.375,
-    normal: 1.5,
-    relaxed: 1.625,
-    loose: 2,
-  }
-};
-
+// Spacing (consistent spacing across components)
 export const spacing = {
+  px: '1px',
   0: '0',
   1: '0.25rem',
   2: '0.5rem',
@@ -118,27 +71,15 @@ export const spacing = {
   48: '12rem',
   56: '14rem',
   64: '16rem',
+  72: '18rem',
+  80: '20rem',
 };
 
-export const animation = {
-  durations: {
-    fast: '150ms',
-    normal: '250ms',
-    slow: '350ms',
-    verySlow: '500ms',
-  },
-  timingFunctions: {
-    ease: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
-    easeIn: 'cubic-bezier(0.42, 0, 1, 1)',
-    easeOut: 'cubic-bezier(0, 0, 0.58, 1)',
-    easeInOut: 'cubic-bezier(0.42, 0, 0.58, 1)',
-  },
-};
-
+// Border Radii
 export const borderRadius = {
   none: '0',
   sm: '0.125rem',
-  DEFAULT: '0.25rem',
+  default: '0.25rem',
   md: '0.375rem',
   lg: '0.5rem',
   xl: '0.75rem',
@@ -147,116 +88,92 @@ export const borderRadius = {
   full: '9999px',
 };
 
-export const shadows = {
-  sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-  DEFAULT: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
-  md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
-  lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
-  xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-  '2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-  inner: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.05)',
-};
-
-export const zIndices = {
-  0: 0,
-  10: 10,
-  20: 20,
-  30: 30,
-  40: 40,
-  50: 50,
-  auto: 'auto',
-};
-
-// Component-specific design tokens
-export const components = {
-  // Button variants
-  button: {
-    primary: {
-      bg: colors.primary[500],
-      text: colors.neutral[50],
-      hoverBg: colors.primary[600],
-      activeBg: colors.primary[700],
-    },
-    secondary: {
-      bg: colors.secondary[500],
-      text: colors.neutral[50],
-      hoverBg: colors.secondary[600],
-      activeBg: colors.secondary[700],
-    },
-    outline: {
-      bg: 'transparent',
-      text: colors.primary[500],
-      border: colors.primary[500],
-      hoverBg: colors.primary[50],
-      activeBg: colors.primary[100],
-    },
-    ghost: {
-      bg: 'transparent',
-      text: colors.neutral[700],
-      hoverBg: colors.neutral[100],
-      activeBg: colors.neutral[200],
-    },
+// Animation
+export const animation = {
+  // Durations
+  duration: {
+    fast: '150ms',
+    normal: '300ms',
+    slow: '500ms',
   },
-  // Card styles
+  // Easing functions
+  easing: {
+    easeInOut: 'cubic-bezier(0.4, 0, 0.2, 1)',
+    easeOut: 'cubic-bezier(0, 0, 0.2, 1)',
+    easeIn: 'cubic-bezier(0.4, 0, 1, 1)',
+  },
+};
+
+// Typography
+export const typography = {
+  fontFamily: {
+    sans: 'var(--font-sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif)',
+  },
+  fontWeight: {
+    light: '300',
+    normal: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700',
+  },
+  lineHeight: {
+    none: '1',
+    tight: '1.25',
+    snug: '1.375',
+    normal: '1.5',
+    relaxed: '1.625',
+    loose: '2',
+  },
+  fontSize: {
+    xs: '0.75rem',
+    sm: '0.875rem',
+    base: '1rem',
+    lg: '1.125rem',
+    xl: '1.25rem',
+    '2xl': '1.5rem',
+    '3xl': '1.875rem',
+    '4xl': '2.25rem',
+    '5xl': '3rem',
+  },
+};
+
+// Common component styles (extracted from workspace components)
+export const componentStyles = {
   card: {
-    bg: colors.neutral[50],
-    bgDark: colors.neutral[900],
-    border: colors.neutral[200],
-    borderDark: colors.neutral[800],
-    shadow: shadows.md,
+    base: "rounded-xl border bg-zinc-800/50 backdrop-blur-xl border-zinc-700/50 p-6",
+    hover: "hover:border-zinc-600 transition-all duration-300",
+    active: "border-blue-500 bg-blue-500/10",
   },
-  // Input styles
   input: {
-    bg: colors.neutral[50],
-    bgDark: colors.neutral[900],
-    border: colors.neutral[300],
-    borderDark: colors.neutral[700],
-    text: colors.neutral[900],
-    textDark: colors.neutral[50],
-    placeholder: colors.neutral[400],
-    focusBorder: colors.primary[500],
+    base: "bg-zinc-800 border-zinc-700 focus:border-blue-500 rounded-lg",
+  },
+  button: {
+    primary: "bg-blue-600 text-white hover:bg-blue-500 rounded-lg transition-colors",
+    secondary: "bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition-colors",
+    ghost: "text-zinc-300 hover:bg-zinc-800 rounded-lg transition-colors",
+  },
+  sidebar: {
+    base: "bg-zinc-900 border-r border-zinc-800",
+  },
+  header: {
+    base: "border-b border-zinc-700/50 backdrop-blur-sm bg-zinc-900/30 sticky top-0 z-10",
   },
 };
 
-// Animation variants for transitions
-export const transitions = {
-  // Page transitions
-  page: {
-    enter: {
-      duration: animation.durations.normal,
-      timing: animation.timingFunctions.easeOut,
-    },
-    exit: {
-      duration: animation.durations.fast,
-      timing: animation.timingFunctions.easeIn,
-    },
-  },
-  // Modal/dialog transitions
-  modal: {
-    enter: {
-      duration: animation.durations.normal,
-      timing: animation.timingFunctions.easeOut,
-    },
-    exit: {
-      duration: animation.durations.fast,
-      timing: animation.timingFunctions.easeIn,
-    },
-  },
-  // Chat message animations
-  chatMessage: {
-    appear: {
-      duration: animation.durations.normal,
-      timing: animation.timingFunctions.easeOut,
-    },
-  },
+// Common layout patterns
+export const layouts = {
+  container: "container mx-auto py-4 px-6",
+  section: "mb-8",
+  grid: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6",
 };
 
-// Breakpoints for responsive design
-export const breakpoints = {
-  xs: '320px',
-  sm: '640px',
-  md: '768px',
-  lg: '1024px',
-  xl: '1280px',
-  '2xl': '1536px',
+// Theme mapping (for styling consistency)
+export const theme = {
+  background: colors.zinc[900],
+  foreground: colors.zinc[50],
+  primary: colors.blue[500],
+  secondary: colors.zinc[700],
+  accent: colors.blue[400],
+  muted: colors.zinc[600],
+  border: colors.zinc[700],
 }; 

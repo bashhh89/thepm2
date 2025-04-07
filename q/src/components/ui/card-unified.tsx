@@ -1,208 +1,126 @@
-import React from 'react';
-import { cn } from '@/lib/utils';
+import * as React from "react"
+import { cn } from "@/lib/utils"
+import { componentStyles } from "@/lib/design-system"
 
-type CardProps = {
-  children: React.ReactNode;
-  className?: string;
-  variant?: 'default' | 'outline' | 'muted' | 'highlight' | 'primary' | 'secondary';
-  size?: 'default' | 'sm' | 'lg';
-  clickable?: boolean;
-  fullWidth?: boolean;
-  noPadding?: boolean;
-  asChild?: boolean;
-};
+export interface CardUnifiedProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: 'default' | 'active' | 'interactive'
+  noPadding?: boolean
+}
 
-type CardHeaderProps = {
-  children: React.ReactNode;
-  className?: string;
-  actions?: React.ReactNode;
-};
-
-type CardContentProps = {
-  children: React.ReactNode;
-  className?: string;
-};
-
-type CardFooterProps = {
-  children: React.ReactNode;
-  className?: string;
-  divider?: boolean;
-};
-
-type CardTitleProps = {
-  children: React.ReactNode;
-  className?: string;
-  as?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
-};
-
-type CardDescriptionProps = {
-  children: React.ReactNode;
-  className?: string;
-};
-
-export const Card = React.forwardRef<
-  HTMLDivElement,
-  CardProps & React.HTMLAttributes<HTMLDivElement>
->(
-  (
-    {
-      children,
-      className,
-      variant = 'default',
-      size = 'default',
-      clickable = false,
-      fullWidth = false,
-      noPadding = false,
-      asChild = false,
-      ...props
-    },
-    ref
-  ) => {
-    const Comp = asChild ? React.Fragment : 'div';
+const CardUnified = React.forwardRef<HTMLDivElement, CardUnifiedProps>(
+  ({ className, variant = 'default', noPadding = false, ...props }, ref) => {
+    const baseClasses = componentStyles.card.base
+    const hoverClasses = variant === 'interactive' ? componentStyles.card.hover : ''
+    const activeClasses = variant === 'active' ? componentStyles.card.active : ''
+    const paddingClasses = noPadding ? 'p-0' : ''
     
     return (
-      <Comp
+      <div
         ref={ref}
         className={cn(
-          'qandu-card overflow-hidden',
-          {
-            // Variants
-            'bg-card text-card-foreground border-border': variant === 'default',
-            'bg-background text-foreground border-border': variant === 'outline',
-            'bg-muted text-muted-foreground border-muted': variant === 'muted',
-            'bg-primary/10 text-primary border-primary/20': variant === 'primary',
-            'bg-secondary/10 text-secondary border-secondary/20': variant === 'secondary',
-            'bg-card border-primary/30': variant === 'highlight',
-            
-            // Sizes
-            'rounded-lg border shadow-sm': size === 'default',
-            'rounded-md border shadow-sm': size === 'sm',
-            'rounded-xl border shadow-md': size === 'lg',
-            
-            // Behavior
-            'hover:shadow-md hover:border-primary/40 cursor-pointer transition-all': clickable,
-            'w-full': fullWidth,
-            'p-0': noPadding,
-            'p-6': !noPadding,
-          },
+          baseClasses,
+          hoverClasses,
+          activeClasses,
+          paddingClasses,
           className
         )}
         {...props}
-      >
-        {children}
-      </Comp>
-    );
+      />
+    )
   }
-);
+)
+CardUnified.displayName = "CardUnified"
 
-Card.displayName = 'Card';
+const CardUnifiedHeader = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex flex-col space-y-1.5 p-6", className)}
+    {...props}
+  />
+))
+CardUnifiedHeader.displayName = "CardUnifiedHeader"
 
-export const CardHeader = ({
-  children,
-  className,
-  actions,
-  ...props
-}: CardHeaderProps & React.HTMLAttributes<HTMLDivElement>) => {
-  return (
-    <div
-      className={cn(
-        'flex flex-col space-y-1.5 p-6',
-        {
-          'flex flex-row justify-between items-center space-y-0': actions,
-        },
-        className
-      )}
-      {...props}
-    >
-      <div className="flex-1">{children}</div>
-      {actions && <div className="flex-shrink-0">{actions}</div>}
-    </div>
-  );
-};
+const CardUnifiedTitle = React.forwardRef<
+  HTMLHeadingElement,
+  React.HTMLAttributes<HTMLHeadingElement>
+>(({ className, ...props }, ref) => (
+  <h3
+    ref={ref}
+    className={cn("text-xl font-medium", className)}
+    {...props}
+  />
+))
+CardUnifiedTitle.displayName = "CardUnifiedTitle"
 
-CardHeader.displayName = 'CardHeader';
+const CardUnifiedDescription = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => (
+  <p
+    ref={ref}
+    className={cn("text-sm text-zinc-400", className)}
+    {...props}
+  />
+))
+CardUnifiedDescription.displayName = "CardUnifiedDescription"
 
-export const CardContent = ({
-  children,
-  className,
-  ...props
-}: CardContentProps & React.HTMLAttributes<HTMLDivElement>) => {
-  return (
-    <div
-      className={cn('p-6 pt-0', className)}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-};
+const CardUnifiedContent = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+))
+CardUnifiedContent.displayName = "CardUnifiedContent"
 
-CardContent.displayName = 'CardContent';
+const CardUnifiedFooter = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex items-center p-6 pt-0", className)}
+    {...props}
+  />
+))
+CardUnifiedFooter.displayName = "CardUnifiedFooter"
 
-export const CardFooter = ({
-  children,
-  className,
-  divider = false,
-  ...props
-}: CardFooterProps & React.HTMLAttributes<HTMLDivElement>) => {
-  return (
-    <div
-      className={cn(
-        'flex items-center p-6 pt-0',
-        {
-          'border-t border-border pt-4 mt-4': divider,
-        },
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-};
+// For icon placement at top-right
+const CardUnifiedIcon = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("absolute top-4 right-4", className)}
+    {...props}
+  />
+))
+CardUnifiedIcon.displayName = "CardUnifiedIcon"
 
-CardFooter.displayName = 'CardFooter';
+// For decoration purposes (like the colorful blobs seen in workspace design)
+const CardUnifiedDecoration = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement> & { color?: string }
+>(({ className, color = "#3b82f6", ...props }, ref) => (
+  <div 
+    ref={ref}
+    className={cn("absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-20", className)}
+    style={{ backgroundColor: color }}
+    {...props}
+  />
+))
+CardUnifiedDecoration.displayName = "CardUnifiedDecoration"
 
-export const CardTitle = ({
-  children,
-  className,
-  as: Component = 'h3',
-  ...props
-}: CardTitleProps & React.HTMLAttributes<HTMLHeadingElement>) => {
-  return (
-    <Component
-      className={cn(
-        'font-semibold leading-none tracking-tight text-foreground',
-        {
-          'text-2xl': Component === 'h1',
-          'text-xl': Component === 'h2',
-          'text-lg': Component === 'h3',
-          'text-base': Component === 'h4' || Component === 'h5' || Component === 'h6',
-        },
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </Component>
-  );
-};
-
-CardTitle.displayName = 'CardTitle';
-
-export const CardDescription = ({
-  children,
-  className,
-  ...props
-}: CardDescriptionProps & React.HTMLAttributes<HTMLParagraphElement>) => {
-  return (
-    <p
-      className={cn('text-sm text-muted-foreground', className)}
-      {...props}
-    >
-      {children}
-    </p>
-  );
-};
-
-CardDescription.displayName = 'CardDescription'; 
+export { 
+  CardUnified, 
+  CardUnifiedHeader, 
+  CardUnifiedFooter, 
+  CardUnifiedTitle, 
+  CardUnifiedDescription, 
+  CardUnifiedContent,
+  CardUnifiedIcon,
+  CardUnifiedDecoration
+} 
