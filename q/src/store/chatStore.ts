@@ -107,10 +107,19 @@ export const useChatStore = create<ChatState>()(
           set({ activeChatId: newChatId });
         }
 
+        // Determine content format: Keep as string if it is a simple string.
+        // Otherwise, assume it's already in MessageContent[] format or needs wrapping.
+        const finalContent: string | MessageContent[] = 
+          typeof content === 'string' && !content.startsWith('[{') 
+            ? content // Keep as simple string
+            // Explicitly assert type 'text' to satisfy MessageContent interface
+            : typeof content === 'string' ? [{ type: 'text' as const, content }] 
+            : content; // Assume it's already MessageContent[]
+
         const newMessage: Message = {
           id: id || Date.now().toString(),
           role,
-          content: typeof content === 'string' ? [{ type: 'text', content }] : content,
+          content: finalContent, // Use the determined format
           timestamp: Date.now(),
           thinking,
           metadata,
