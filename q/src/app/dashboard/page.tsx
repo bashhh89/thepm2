@@ -5,7 +5,11 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient'; // Keep for project fetching
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
-import { Home, MessageSquare, Folder, Image, Headphones, Plus, ArrowRight } from 'lucide-react';
+import { Home, MessageSquare, Folder, Image, Headphones, Plus, ArrowRight, LayoutDashboard } from 'lucide-react';
+import { CardUnified, CardUnifiedHeader, CardUnifiedTitle, CardUnifiedContent, CardUnifiedDecoration } from '@/components/ui/card-unified';
+import { ButtonUnified } from '@/components/ui/button-unified';
+import HeaderUnified from '@/components/ui/header-unified';
+import { componentStyles, layouts } from '@/lib/design-system';
 
 interface Project {
   id: string;
@@ -107,79 +111,69 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="py-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-indigo-600 mb-2">
-            Manage Your Projects with Ease
-          </h1>
-          <p className="text-zinc-400 max-w-2xl mx-auto">
-            Organize tasks, track progress, and collaborate with your team in one powerful platform
-          </p>
-        </div>
+    <div className="bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 min-h-screen">
+      <HeaderUnified 
+        title="Dashboard" 
+        description="Your project overview and quickstart tools"
+        icon={<LayoutDashboard className="h-5 w-5" />}
+        breadcrumbs={[
+          { label: "Home", href: "/" },
+          { label: "Dashboard" }
+        ]}
+      />
+
+      <div className={layouts.container}>
+        {/* Welcome Section */}
+        <CardUnified className="mb-8 relative overflow-hidden">
+          <CardUnifiedDecoration color="#3b82f6" />
+          <CardUnifiedContent className="relative z-10 pt-6">
+            <h1 className="text-3xl font-bold mb-2">
+              Welcome back, {user?.email?.split('@')[0] || 'User'}
+            </h1>
+            <p className="text-zinc-400 max-w-2xl">
+              Organize tasks, track progress, and collaborate with your team in one powerful platform
+            </p>
+          </CardUnifiedContent>
+        </CardUnified>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-          <div className="bg-zinc-800/30 rounded-lg p-5 border border-zinc-700/50 hover:bg-zinc-800/50 transition-all">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm text-zinc-400">Recent Chats</p>
-                <h3 className="text-2xl font-bold mt-1">{projectStats.recentChats}</h3>
-              </div>
-              <div className="p-2 bg-blue-500/10 rounded-full">
-                <MessageSquare className="h-5 w-5 text-blue-500" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-zinc-800/30 rounded-lg p-5 border border-zinc-700/50 hover:bg-zinc-800/50 transition-all">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm text-zinc-400">Active Projects</p>
-                <h3 className="text-2xl font-bold mt-1">{projectStats.activeProjects}</h3>
-              </div>
-              <div className="p-2 bg-purple-500/10 rounded-full">
-                <Folder className="h-5 w-5 text-purple-500" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-zinc-800/30 rounded-lg p-5 border border-zinc-700/50 hover:bg-zinc-800/50 transition-all">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm text-zinc-400">Images Created</p>
-                <h3 className="text-2xl font-bold mt-1">{projectStats.imagesCreated}</h3>
-              </div>
-              <div className="p-2 bg-green-500/10 rounded-full">
-                <Image className="h-5 w-5 text-green-500" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-zinc-800/30 rounded-lg p-5 border border-zinc-700/50 hover:bg-zinc-800/50 transition-all">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm text-zinc-400">Audio Generated</p>
-                <h3 className="text-2xl font-bold mt-1">{projectStats.audioGenerated}</h3>
-              </div>
-              <div className="p-2 bg-amber-500/10 rounded-full">
-                <Headphones className="h-5 w-5 text-amber-500" />
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard 
+            title="Recent Chats" 
+            value={projectStats.recentChats} 
+            icon={<MessageSquare className="h-5 w-5" />} 
+            color="blue" 
+          />
+          <StatCard 
+            title="Active Projects" 
+            value={projectStats.activeProjects} 
+            icon={<Folder className="h-5 w-5" />} 
+            color="pink" 
+          />
+          <StatCard 
+            title="Images Created" 
+            value={projectStats.imagesCreated} 
+            icon={<Image className="h-5 w-5" />} 
+            color="green" 
+          />
+          <StatCard 
+            title="Audio Generated" 
+            value={projectStats.audioGenerated} 
+            icon={<Headphones className="h-5 w-5" />} 
+            color="amber" 
+          />
         </div>
 
         {/* Projects Section */}
-        <div className="mb-10">
+        <div className="mb-8">
           <div className="flex justify-between items-center mb-5">
             <h2 className="text-xl font-bold">Your Projects</h2>
-            <Link 
-              href="/projects/create" 
-              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md text-sm flex items-center"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Create New Project
-            </Link>
+            <ButtonUnified asChild>
+              <Link href="/projects/create">
+                <Plus className="h-4 w-4 mr-2" />
+                Create New Project
+              </Link>
+            </ButtonUnified>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -208,17 +202,47 @@ export default function Dashboard() {
         </div>
 
         {/* AI Tools Section */}
-        <div>
+        <div className="mb-8">
           <h2 className="text-xl font-bold mb-5">AI Tools</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ToolCard icon={<Image className="h-5 w-5 text-blue-400" />} title="Image Generator" href="/image-generator" />
-            <ToolCard icon={<Headphones className="h-5 w-5 text-purple-400" />} title="Text to Speech" href="/audio-tts" />
-            <ToolCard icon={<MessageSquare className="h-5 w-5 text-green-400" />} title="Create Agent" href="/agents/create" />
-            <ToolCard icon={<ArrowRight className="h-5 w-5 text-amber-400" />} title="Test Tools" href="/test-tools" />
+            <ToolCard icon={<Image className="h-5 w-5" />} title="Image Generator" href="/image-generator" color="blue" />
+            <ToolCard icon={<Headphones className="h-5 w-5" />} title="Text to Speech" href="/audio-tts" color="pink" />
+            <ToolCard icon={<MessageSquare className="h-5 w-5" />} title="Create Agent" href="/agents/create" color="green" />
+            <ToolCard icon={<ArrowRight className="h-5 w-5" />} title="Test Tools" href="/test-tools" color="amber" />
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function StatCard({ title, value, icon, color }: { 
+  title: string; 
+  value: number; 
+  icon: React.ReactNode;
+  color: 'blue' | 'pink' | 'green' | 'amber';
+}) {
+  const colorMap = {
+    blue: "text-blue-400 bg-blue-500/10",
+    pink: "text-pink-400 bg-pink-500/10",
+    green: "text-green-400 bg-green-500/10",
+    amber: "text-amber-400 bg-amber-500/10"
+  };
+  
+  return (
+    <CardUnified variant="interactive">
+      <CardUnifiedContent className="pt-5">
+        <div className="flex justify-between items-center">
+          <div>
+            <p className="text-sm text-zinc-400">{title}</p>
+            <h3 className="text-2xl font-bold mt-1">{value}</h3>
+          </div>
+          <div className={`p-2 rounded-full ${colorMap[color]}`}>
+            {icon}
+          </div>
+        </div>
+      </CardUnifiedContent>
+    </CardUnified>
   );
 }
 
@@ -229,30 +253,49 @@ function ProjectCard({ title, description, lastUpdated, status }: {
   status: string;
 }) {
   return (
-    <div className="bg-zinc-800/30 border border-zinc-700/50 rounded-lg overflow-hidden hover:bg-zinc-800/50 transition-all">
-      <div className="p-5">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-semibold text-zinc-100 text-base">{title}</h3>
+    <CardUnified variant="interactive" className="relative overflow-hidden">
+      <CardUnifiedHeader>
+        <div className="flex justify-between items-start">
+          <CardUnifiedTitle className="text-base">{title}</CardUnifiedTitle>
           <span className={`text-xs px-2 py-1 rounded-full ${
-            status === 'active' ? 'bg-green-900/30 text-green-400 border border-green-800' : 'bg-zinc-700/30 text-zinc-400 border border-zinc-600'
+            status === 'active' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-zinc-700/30 text-zinc-400 border border-zinc-600'
           }`}>
             {status}
           </span>
         </div>
+      </CardUnifiedHeader>
+      <CardUnifiedContent>
         <p className="text-zinc-400 text-sm mb-3 line-clamp-2">{description}</p>
         <p className="text-xs text-zinc-500">Last updated: {lastUpdated}</p>
-      </div>
-    </div>
+      </CardUnifiedContent>
+    </CardUnified>
   );
 }
 
-function ToolCard({ icon, title, href }: { icon: React.ReactNode; title: string; href: string }) {
+function ToolCard({ icon, title, href, color }: { 
+  icon: React.ReactNode; 
+  title: string; 
+  href: string;
+  color: 'blue' | 'pink' | 'green' | 'amber';
+}) {
+  const colorMap = {
+    blue: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+    pink: "text-pink-400 bg-pink-500/10 border-pink-500/20",
+    green: "text-green-400 bg-green-500/10 border-green-500/20",
+    amber: "text-amber-400 bg-amber-500/10 border-amber-500/20"
+  };
+  
   return (
-    <Link href={href} className="bg-zinc-800/30 border border-zinc-700/50 rounded-lg p-4 flex flex-col items-center justify-center text-center hover:bg-zinc-800/50 transition-all">
-      <div className="p-3 bg-zinc-700/30 rounded-full mb-3">
-        {icon}
-      </div>
-      <h3 className="text-zinc-200 text-sm">{title}</h3>
+    <Link href={href}>
+      <CardUnified variant="interactive" className="group">
+        <CardUnifiedContent className="pt-5 flex items-center">
+          <div className={`p-2 rounded-lg mr-3 ${colorMap[color]}`}>
+            {icon}
+          </div>
+          <span className="font-medium group-hover:text-white transition-colors">{title}</span>
+          <ArrowRight className="h-4 w-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-zinc-400" />
+        </CardUnifiedContent>
+      </CardUnified>
     </Link>
   );
 } 
