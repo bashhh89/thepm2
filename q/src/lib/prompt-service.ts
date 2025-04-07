@@ -489,96 +489,105 @@ export async function processMessage(message: string, systemMessage?: string): P
     }
 
     // Otherwise, treat it as a regular message to the AI
-    try {
-      // Get the active chat messages from the store
-      const chatStore = useChatStore.getState();
-      const settingsStore = useSettingsStore.getState();
-      const messages = chatStore.getActiveChatMessages();
-      
-      const modelToUse = settingsStore.activeTextModel;
-      console.log('processMessage - Using model:', modelToUse);
-      
-      if (systemMessage) {
-        console.log('processMessage - Using custom system prompt for web search');
-      }
+    // Get necessary state
+    const chatStore = useChatStore.getState();
+    const settingsStore = useSettingsStore.getState();
+    const messages = chatStore.getActiveChatMessages();
+    const modelToUse = settingsStore.activeTextModel;
+    const activeAgent = settingsStore.activeAgent;
 
-      // Build the system prompt based on the active agent or default
-      let finalSystemPrompt = systemMessage || "You are a helpful AI assistant.";
-      
-      if (settingsStore.activeAgent) {
-        console.log("API Route - Using agent:", settingsStore.activeAgent.name);
-        finalSystemPrompt = settingsStore.activeAgent.systemPrompt;
-      }
+    console.log('processMessage - Using model:', modelToUse);
 
-      // Use a special system message to request thinking
-      const enhancedSystemPrompt = `${finalSystemPrompt}\n\nPlease provide your thinking process and reasoning separately before giving your final answer. Format your response with a "THINKING:" section followed by your reasoning process, and then an "ANSWER:" section with your final response.`;
+    // Build the final system prompt incorporating agent and thinking instructions
+    let finalSystemPrompt = systemMessage || (activeAgent?.systemPrompt) || "You are a helpful AI assistant.";
+    const thinkingInstruction = `\n\nPlease provide your thinking process and reasoning separately before giving your final answer. Format your response with a "THINKING:" section followed by your reasoning process, and then an "ANSWER:" section with your final response.`;
+    
+    // Check if the last system message already included thinking instructions
+    const lastSystemMessage = messages.findLast(m => m.role === 'system');
+    if (!lastSystemMessage || !(typeof lastSystemMessage.content === 'string' && lastSystemMessage.content.includes('THINKING:'))) {
+        finalSystemPrompt += thinkingInstruction;
+    }
+    
+    console.log("Final system prompt being used:", finalSystemPrompt);
 
-      // Call the AI model with the message and history
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: [
-            ...messages.map((msg: Message) => ({
-              role: msg.role,
-              content: msg.content
-            })),
-            { role: 'system', content: enhancedSystemPrompt }, // Add special thinking system prompt
-            { role: 'user', content: message }
-          ],
-          model: modelToUse, // Use the selected model from settings
-          agent: settingsStore.activeAgent, // Send the active agent if any
-          systemPrompt: systemMessage // Add system prompt for search instructions
-        }),
-      });
+    // Prepare messages for API call
+    const apiMessages = [
+        { role: 'system', content: finalSystemPrompt },
+        ...messages.filter(m => m.role !== 'system').map((msg: Message) => ({
+            role: msg.role,
+            // Handle both string and MessageContent[] formats correctly
+            content: Array.isArray(msg.content) 
+                ? msg.content.map((c: any) => c.content).join('\n') 
+                : typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
+        })),
+        { role: 'user', content: message }
+    ];
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to process message");
-      }
+    // Call the API
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: apiMessages,
+        model: modelToUse,
+        // Pass agent details if available (API route handles merging)
+        agent: activeAgent, 
+      }),
+    });
 
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to get AI response');
-      }
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to process message via API");
+    }
 
-      // Extract thinking and answer from the response
-      let thinking = '';
-      let answer = data.message || '';
-      
-      // Check if the response contains the THINKING and ANSWER sections
-      const thinkingMatch = answer.match(/THINKING:([\s\S]*?)(?=ANSWER:|$)/i);
-      const answerMatch = answer.match(/ANSWER:([\s\S]*?)$/i);
-      
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'API returned unsuccessful response');
+    }
+
+    // Extract thinking and answer from the API response
+    const rawResponse = data.message || ''; // Assuming API now returns 'message' and 'thinking'
+    const thinking = data.thinking || ''; 
+    let answer = rawResponse; // Default to raw response if parsing fails
+
+    // Attempt to parse if thinking wasn't explicitly provided but might be embedded
+    if (!thinking && rawResponse.includes('ANSWER:') && rawResponse.includes('THINKING:')) {
+      const thinkingMatch = rawResponse.match(/THINKING:([\s\S]*?)(?=ANSWER:|$)/i);
+      const answerMatch = rawResponse.match(/ANSWER:([\s\S]*?)$/i);
       if (thinkingMatch && answerMatch) {
-        thinking = thinkingMatch[1].trim();
+        // Re-assign thinking and answer if parsed successfully
+        // thinking = thinkingMatch[1].trim(); // Already handled by API route now
         answer = answerMatch[1].trim();
       }
-      
-      return {
-        success: true,
-        content: answer,
-        thinking: thinking,
-        message: answer, // For backward compatibility
-        metadata: {
-          type: 'text',
-          model: data.model || modelToUse,
-          timestamp: Date.now()
-        }
-      };
-    } catch (error) {
-      console.error('Error calling AI:', error);
-      return {
-        content: 'Failed to get AI response. Please try again.',
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      };
+    } 
+    // If API explicitly provided thinking, use the message field directly as answer
+    else if (thinking) {
+      answer = rawResponse; 
     }
+    
+    // *** Add the assistant message WITH thinking to the store ***
+    chatStore.addMessageWithThinking('assistant', answer, thinking);
+
+    // Return the result (though primary action is adding to store)
+    return {
+      success: true,
+      content: answer, // Use parsed answer
+      thinking: thinking,
+      message: answer, // Include for compatibility if needed elsewhere
+      metadata: {
+        type: 'text',
+        model: data.model || modelToUse,
+        timestamp: Date.now()
+      }
+    };
+
   } catch (error) {
     console.error('Error processing message:', error);
+    // Add error message to chat store
+    useChatStore.getState().addMessage('assistant', `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`);
     return {
       success: false,
       content: '',
