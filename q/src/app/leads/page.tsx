@@ -4,12 +4,14 @@ import { useState, useEffect, useMemo } from "react";
 import { useSettingsStore } from "@/store/settingsStore";
 import { usePipelineStore } from "@/store/pipelineStore";
 import { toast } from "@/components/ui/use-toast";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { CardUnified, CardUnifiedHeader, CardUnifiedTitle, CardUnifiedContent, CardUnifiedFooter } from "@/components/ui/card-unified";
+import { ButtonUnified } from "@/components/ui/button-unified";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import HeaderUnified from "@/components/ui/header-unified";
+import { layouts, componentStyles } from "@/lib/design-system";
 import {
   DndContext,
   DragOverlay,
@@ -22,7 +24,10 @@ import {
   DragEndEvent,
 } from "@dnd-kit/core";
 import { restrictToParentElement } from "@dnd-kit/modifiers";
-import { UserPlus, MoreHorizontal, Plus, X, Clock, CheckCircle, AlertCircle, PenLine } from "lucide-react";
+import { 
+  UserPlus, MoreHorizontal, Plus, X, Clock, CheckCircle, 
+  AlertCircle, PenLine, Filter, Users, ArrowLeft, ArrowRight 
+} from "lucide-react";
 import { KanbanBoard } from "@/components/leads/KanbanBoard";
 import { PipelineManager } from "@/components/leads/PipelineManager";
 import { LeadChatPanel } from "@/components/leads/LeadChatPanel";
@@ -63,42 +68,62 @@ function LeadRow({
   onDelete: (id: string) => void;
 }) {
   return (
-    <tr className="border-b last:border-0">
+    <tr className="border-b border-zinc-800 last:border-0">
       <td className="py-3">{lead.name}</td>
       <td className="py-3">{lead.email}</td>
       <td className="py-3">{lead.agents?.name || "-"}</td>
       <td className="py-3">
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-          lead.status === "new" ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" :
-          lead.status === "contacted" ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
-          lead.status === "qualified" ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" :
-          lead.status === "converted" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
-          "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
-        }`}>
-          {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
-        </span>
+        <StatusBadge status={lead.status} />
       </td>
       <td className="py-3">{new Date(lead.created_at).toLocaleDateString()}</td>
       <td className="py-3">
         <div className="flex gap-2">
-          <Button 
+          <ButtonUnified 
             variant="ghost" 
             size="sm"
             onClick={() => onEdit(lead)}
           >
+            <PenLine className="h-4 w-4 mr-1" /> 
             Edit
-          </Button>
-          <Button 
-            variant="ghost" 
+          </ButtonUnified>
+          <ButtonUnified 
+            variant="outline" 
             size="sm" 
-            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+            className="text-red-400 hover:text-red-300"
             onClick={() => onDelete(lead.id)}
           >
+            <X className="h-4 w-4 mr-1" />
             Delete
-          </Button>
+          </ButtonUnified>
         </div>
       </td>
     </tr>
+  );
+}
+
+// Status Badge Component
+function StatusBadge({ status }: { status: string }) {
+  const getStatusClasses = () => {
+    switch (status) {
+      case "new":
+        return "bg-blue-500/10 text-blue-400 border border-blue-500/20";
+      case "contacted":
+        return "bg-amber-500/10 text-amber-400 border border-amber-500/20";
+      case "qualified":
+        return "bg-purple-500/10 text-purple-400 border border-purple-500/20";
+      case "converted":
+        return "bg-green-500/10 text-green-400 border border-green-500/20";
+      case "closed":
+        return "bg-zinc-700/30 text-zinc-400 border border-zinc-600";
+      default:
+        return "bg-zinc-700/30 text-zinc-400 border border-zinc-600";
+    }
+  };
+
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs ${getStatusClasses()}`}>
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
   );
 }
 
@@ -380,337 +405,362 @@ export default function LeadsPage() {
     }
   };
 
+  const columns: StatusColumn[] = [
+    {
+      id: "new",
+      name: "New Leads",
+      description: "Leads that have just entered the system",
+      icon: <Clock className="h-5 w-5 text-blue-400" />,
+      color: "blue",
+    },
+    {
+      id: "contacted",
+      name: "Contacted",
+      description: "Leads that have been reached out to",
+      icon: <PenLine className="h-5 w-5 text-amber-400" />,
+      color: "amber",
+    },
+    {
+      id: "qualified",
+      name: "Qualified",
+      description: "Leads that have shown serious interest",
+      icon: <CheckCircle className="h-5 w-5 text-purple-400" />,
+      color: "purple",
+    },
+    {
+      id: "converted",
+      name: "Converted",
+      description: "Leads that have become customers",
+      icon: <CheckCircle className="h-5 w-5 text-green-400" />,
+      color: "green",
+    },
+    {
+      id: "closed",
+      name: "Closed",
+      description: "Leads that have been marked as lost or rejected",
+      icon: <X className="h-5 w-5 text-zinc-400" />,
+      color: "zinc",
+    },
+  ];
+
+  const getLeadsByStatus = (status: string) => {
+    return leads.filter(lead => lead.status === status);
+  };
+
   return (
-    <div className="pl-0 pr-0 max-w-full">
-      <div className="flex flex-col justify-between mb-4 px-4 py-4 border-b bg-card/50">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Leads Pipeline</h1>
-            <p className="text-muted-foreground">
-              Manage and track your leads through the sales process
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {/* View Toggle */}
-            <Tabs 
-              value={viewMode} 
-              onValueChange={(value) => setViewMode(value as "kanban" | "list")}
-              className="mr-2"
+    <div className="bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 min-h-screen">
+      <HeaderUnified 
+        title="Leads & Clients" 
+        description="Manage your sales pipeline and client relationships"
+        icon={<Users className="h-5 w-5" />}
+        breadcrumbs={[
+          { label: "Home", href: "/" },
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Leads" }
+        ]}
+        actions={
+          <div className="flex space-x-3">
+            <ButtonUnified 
+              variant="outline" 
+              onClick={() => setViewMode(viewMode === "kanban" ? "list" : "kanban")}
             >
-              <TabsList className="grid w-[200px] grid-cols-2">
-                <TabsTrigger value="kanban">Kanban</TabsTrigger>
-                <TabsTrigger value="list">List</TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-            {/* Agent filter */}
-            <select
-              className="bg-background border rounded-md px-3 py-1 text-sm h-9"
-              value={selectedAgentId}
-              onChange={(e) => {
-                setSelectedAgentId(e.target.value);
-                setCurrentPage(1); // Reset to first page on filter change
-              }}
-            >
-              <option value="">All Agents</option>
-              {agents.map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agent.name}
-                </option>
-              ))}
-            </select>
-
-            {/* Refresh button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchLeads}
-              disabled={loading}
-              className="h-9"
-            >
-              {loading ? "Loading..." : "Refresh"}
-            </Button>
-
-            {/* Add new lead button */}
-            <Button
-              size="sm"
-              className="h-9"
-              onClick={() => setIsAddingLead(true)}
-            >
+              {viewMode === "kanban" ? "List View" : "Kanban View"}
+            </ButtonUnified>
+            <ButtonUnified onClick={() => setIsAddingLead(true)}>
               <UserPlus className="h-4 w-4 mr-2" />
               Add Lead
-            </Button>
+            </ButtonUnified>
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 p-4 mx-4 rounded-md mb-4">
-          {error}
-        </div>
-      )}
+      <div className={layouts.container}>
+        {/* Filter Controls */}
+        <CardUnified className="mb-6">
+          <CardUnifiedContent className="pt-5">
+            <div className="flex flex-wrap gap-4 items-center">
+              <div className="flex-grow max-w-xs">
+                <label className="block mb-1 text-sm text-zinc-400">Filter by Agent</label>
+                <select 
+                  className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-white"
+                  value={selectedAgentId}
+                  onChange={e => setSelectedAgentId(e.target.value)}
+                >
+                  <option value="">All Agents</option>
+                  {agents.map(agent => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-      {viewMode === "kanban" ? (
-        <div className="h-[calc(100vh-10rem)]">
-          <div className="bg-card border-b">
-            <div className="px-4 py-3">
-              <PipelineManager />
+              <div className="flex-grow flex justify-end">
+                <ButtonUnified 
+                  variant="outline" 
+                  onClick={fetchLeads}
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  Apply Filters
+                </ButtonUnified>
+              </div>
             </div>
+          </CardUnifiedContent>
+        </CardUnified>
+
+        {error && (
+          <CardUnified className="mb-6 border-red-500/50 bg-red-900/10">
+            <CardUnifiedContent className="pt-5">
+              <p className="text-red-400">{error}</p>
+            </CardUnifiedContent>
+          </CardUnified>
+        )}
+
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
           </div>
-          <div className="h-[calc(100vh-15rem)]">
-            {loading ? (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                Loading leads...
+        ) : leads.length === 0 ? (
+          <CardUnified className="text-center py-12">
+            <CardUnifiedContent className="pt-12 flex flex-col items-center">
+              <Users className="h-12 w-12 text-zinc-400 mb-4" />
+              <h3 className="text-xl font-medium mb-2">No Leads Found</h3>
+              <p className="text-zinc-400 mb-6">Start by adding your first lead to begin managing your pipeline.</p>
+              <ButtonUnified onClick={() => setIsAddingLead(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Add Your First Lead
+              </ButtonUnified>
+            </CardUnifiedContent>
+          </CardUnified>
+        ) : (
+          <div>
+            {viewMode === "kanban" ? (
+              <div className="overflow-x-auto pb-6">
+                <div className="grid grid-cols-5 gap-4 min-w-[1000px]">
+                  {columns.map(column => (
+                    <div key={column.id} className="flex flex-col h-full">
+                      <div className={`flex items-center p-3 rounded-t-lg bg-${column.color}-500/10 border border-${column.color}-500/20`}>
+                        {column.icon}
+                        <h3 className="ml-2 font-medium">{column.name} ({getLeadsByStatus(column.id).length})</h3>
+                      </div>
+                      <div className="flex-grow bg-zinc-800/50 border border-t-0 border-zinc-700 rounded-b-lg p-3 min-h-[500px]">
+                        {getLeadsByStatus(column.id).map(lead => (
+                          <CardUnified 
+                            key={lead.id} 
+                            variant="interactive" 
+                            className="mb-3"
+                          >
+                            <CardUnifiedContent className="pt-5">
+                              <h4 className="font-medium">{lead.name}</h4>
+                              <p className="text-sm text-zinc-400 mt-1">{lead.email}</p>
+                              {lead.agents?.name && (
+                                <div className="flex items-center mt-2 text-xs text-zinc-500">
+                                  <UserPlus className="h-3 w-3 mr-1" />
+                                  {lead.agents.name}
+                                </div>
+                              )}
+                              <div className="flex justify-end mt-2">
+                                <ButtonUnified 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => onEdit(lead)}
+                                >
+                                  <PenLine className="h-3 w-3" />
+                                </ButtonUnified>
+                              </div>
+                            </CardUnifiedContent>
+                          </CardUnified>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
-              <KanbanBoard
-                leads={leads}
-                onLeadMove={handleLeadMove}
-                onLeadClick={setEditingLead}
-              />
+              <CardUnified>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-zinc-800 text-left">
+                        <th className="p-3 font-medium">Name</th>
+                        <th className="p-3 font-medium">Email</th>
+                        <th className="p-3 font-medium">Agent</th>
+                        <th className="p-3 font-medium">Status</th>
+                        <th className="p-3 font-medium">Created</th>
+                        <th className="p-3 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leads.map(lead => (
+                        <LeadRow 
+                          key={lead.id} 
+                          lead={lead} 
+                          onEdit={setEditingLead} 
+                          onDelete={deleteLead} 
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardUnified>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center mt-6">
+                <ButtonUnified
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Previous
+                </ButtonUnified>
+                
+                <span className="text-zinc-400">
+                  Page {currentPage} of {totalPages}
+                </span>
+                
+                <ButtonUnified
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </ButtonUnified>
+              </div>
             )}
           </div>
-        </div>
-      ) : (
-        // Traditional List View
-        <div className="bg-card rounded-lg border shadow-sm mx-4">
-          <div className="p-4">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left pb-3 font-medium text-sm">Name</th>
-                  <th className="text-left pb-3 font-medium text-sm">Email</th>
-                  <th className="text-left pb-3 font-medium text-sm">Agent</th>
-                  <th className="text-left pb-3 font-medium text-sm">Status</th>
-                  <th className="text-left pb-3 font-medium text-sm">Created</th>
-                  <th className="text-left pb-3 font-medium text-sm">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leads.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-4 text-center text-muted-foreground">
-                      {loading ? "Loading leads..." : "No leads found"}
-                    </td>
-                  </tr>
-                ) : (
-                  leads.map((lead) => (
-                    <LeadRow
-                      key={lead.id}
-                      lead={lead}
-                      onEdit={setEditingLead}
-                      onDelete={deleteLead}
-                    />
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        )}
 
-          {/* Pagination controls */}
-          {totalPages > 1 && (
-            <div className="flex justify-between items-center border-t p-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-              >
-                Previous
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {currentPage} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-              >
-                Next
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Edit Lead Modal */}
-      {editingLead && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-6xl h-[80vh] overflow-hidden">
-            <CardHeader className="px-4 py-3 border-b">
-              <CardTitle className="flex justify-between items-center">
-                <span className="text-xl">Lead: {editingLead.name}</span>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-8 w-8 p-0"
-                  onClick={() => setEditingLead(null)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 h-[calc(80vh-61px)]">
-              <div className="border-r p-4 overflow-auto">
+        {/* Add Lead Modal */}
+        {isAddingLead && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+            <CardUnified className="w-full max-w-md">
+              <CardUnifiedHeader>
+                <CardUnifiedTitle>Add New Lead</CardUnifiedTitle>
+              </CardUnifiedHeader>
+              <CardUnifiedContent>
+                {/* Form content for adding a new lead */}
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="status">Status</Label>
-                    <select
-                      id="status"
-                      className="w-full bg-background border rounded-md px-3 py-2 mt-1"
-                      value={newStatus || editingLead.status}
-                      onChange={(e) => setNewStatus(e.target.value)}
+                    <label className="block mb-1 text-sm text-zinc-400">Name</label>
+                    <Input
+                      className={componentStyles.input.base}
+                      placeholder="Full Name"
+                      value={newLead.name}
+                      onChange={e => setNewLead({...newLead, name: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block mb-1 text-sm text-zinc-400">Email</label>
+                    <Input
+                      className={componentStyles.input.base}
+                      type="email"
+                      placeholder="email@example.com"
+                      value={newLead.email}
+                      onChange={e => setNewLead({...newLead, email: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block mb-1 text-sm text-zinc-400">Initial Message</label>
+                    <Textarea
+                      className={componentStyles.input.base}
+                      placeholder="Initial contact message or notes..."
+                      value={newLead.initial_message}
+                      onChange={e => setNewLead({...newLead, initial_message: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block mb-1 text-sm text-zinc-400">Assign to Agent</label>
+                    <select 
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-white"
+                      value={newLead.agent_id}
+                      onChange={e => setNewLead({...newLead, agent_id: e.target.value})}
                     >
-                      {pipelines.map((pipeline) => (
-                        <option key={pipeline.id} value={pipeline.id}>
-                          {pipeline.name}
+                      <option value="">Unassigned</option>
+                      {agents.map(agent => (
+                        <option key={agent.id} value={agent.id}>
+                          {agent.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </CardUnifiedContent>
+              <CardUnifiedFooter className="flex justify-end space-x-3">
+                <ButtonUnified 
+                  variant="outline" 
+                  onClick={() => setIsAddingLead(false)}
+                >
+                  Cancel
+                </ButtonUnified>
+                <ButtonUnified onClick={addLead}>
+                  Add Lead
+                </ButtonUnified>
+              </CardUnifiedFooter>
+            </CardUnified>
+          </div>
+        )}
+
+        {/* Edit Lead Modal */}
+        {editingLead && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+            <CardUnified className="w-full max-w-md">
+              <CardUnifiedHeader>
+                <CardUnifiedTitle>Edit Lead: {editingLead.name}</CardUnifiedTitle>
+              </CardUnifiedHeader>
+              <CardUnifiedContent>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block mb-1 text-sm text-zinc-400">Status</label>
+                    <select 
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-white"
+                      value={newStatus || editingLead.status}
+                      onChange={e => setNewStatus(e.target.value)}
+                    >
+                      {columns.map(column => (
+                        <option key={column.id} value={column.id}>
+                          {column.name}
                         </option>
                       ))}
                     </select>
                   </div>
                   
                   <div>
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea 
-                      id="notes"
-                      className="w-full mt-1"
-                      placeholder="Add notes about this lead"
-                      value={newNotes || editingLead.notes || ''}
-                      onChange={(e) => setNewNotes(e.target.value)}
-                      rows={5}
+                    <label className="block mb-1 text-sm text-zinc-400">Notes</label>
+                    <Textarea
+                      className={componentStyles.input.base}
+                      placeholder="Add notes about this lead..."
+                      value={newNotes || editingLead.notes || ""}
+                      onChange={e => setNewNotes(e.target.value)}
                     />
                   </div>
-                  
-                  <div className="pt-4 grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Contact</Label>
-                      <div className="text-sm mt-1">{editingLead.email}</div>
-                    </div>
-                    <div>
-                      <Label>Agent</Label>
-                      <div className="text-sm mt-1">{editingLead.agents?.name || "Not assigned"}</div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Initial Message</Label>
-                    <div className="text-sm mt-1 p-3 bg-muted rounded-md">
-                      {editingLead.initial_message || "No initial message"}
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between border-t pt-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => setEditingLead(null)}
-                    >
-                      Cancel
-                    </Button>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="destructive"
-                        onClick={() => deleteLead(editingLead.id)}
-                      >
-                        Delete
-                      </Button>
-                      <Button onClick={updateLead}>
-                        Save Changes
-                      </Button>
-                    </div>
-                  </div>
                 </div>
-              </div>
-              
-              {/* AI Chat Panel */}
-              <div className="h-full overflow-hidden">
-                <LeadChatPanel lead={editingLead} />
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Add Lead Modal */}
-      {isAddingLead && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-lg mx-4">
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Add New Lead</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsAddingLead(false)}
+              </CardUnifiedContent>
+              <CardUnifiedFooter className="flex justify-end space-x-3">
+                <ButtonUnified 
+                  variant="outline" 
+                  onClick={() => {
+                    setEditingLead(null);
+                    setNewNotes("");
+                    setNewStatus("");
+                  }}
                 >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    value={newLead.name}
-                    onChange={(e) => setNewLead(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Enter lead name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newLead.email}
-                    onChange={(e) => setNewLead(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="Enter lead email"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="message">Initial Message</Label>
-                  <Textarea
-                    id="message"
-                    value={newLead.initial_message}
-                    onChange={(e) => setNewLead(prev => ({ ...prev, initial_message: e.target.value }))}
-                    placeholder="Enter initial message or notes"
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="agent">Assign to Agent</Label>
-                  <select
-                    id="agent"
-                    className="w-full p-2 border rounded-md bg-background"
-                    value={newLead.agent_id}
-                    onChange={(e) => setNewLead(prev => ({ ...prev, agent_id: e.target.value }))}
-                  >
-                    <option value="">Select an agent</option>
-                    {agents.map((agent) => (
-                      <option key={agent.id} value={agent.id}>
-                        {agent.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsAddingLead(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={addLead}
-                disabled={!newLead.name || !newLead.email || !newLead.agent_id}
-              >
-                Create Lead
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      )}
+                  Cancel
+                </ButtonUnified>
+                <ButtonUnified onClick={updateLead}>
+                  Save Changes
+                </ButtonUnified>
+              </CardUnifiedFooter>
+            </CardUnified>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
