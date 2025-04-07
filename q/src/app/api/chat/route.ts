@@ -105,23 +105,39 @@ export async function POST(req: NextRequest) {
     const finalModel = model || agentDetails.modelPreference || 'openai';
     console.log('API Route - Final model being used:', finalModel);
 
+    // Look for a thinking system prompt in the messages
+    const hasThinkingPrompt = messages.some(msg => 
+      msg.role === 'system' && 
+      typeof msg.content === 'string' && 
+      msg.content.includes('THINKING:') && 
+      msg.content.includes('ANSWER:')
+    );
+
     // Combine system prompt with knowledge base
-    const finalSystemPrompt = agentDetails.systemPrompt || systemPrompt || 'You are a helpful AI assistant.';
+    let finalSystemPrompt = agentDetails.systemPrompt || systemPrompt || 'You are a helpful AI assistant.';
+    
+    // Add thinking instructions if not already present
+    if (!hasThinkingPrompt) {
+      finalSystemPrompt = `${finalSystemPrompt}\n\nPlease provide your thinking process and reasoning separately before giving your final answer. Format your response with a "THINKING:" section followed by your reasoning process, and then an "ANSWER:" section with your final response.`;
+    }
+    
     console.log('Final system prompt being used:', finalSystemPrompt);
 
     // Format messages for API
     const formattedMessages = messages.map(msg => ({
       role: msg.role,
       content: Array.isArray(msg.content) 
-        ? msg.content.map(c => typeof c === 'string' ? c : c.content).join(' ')
+        ? msg.content.map((c: any) => typeof c === 'string' ? c : c.content).join(' ')
         : msg.content
     }));
 
-    // Add system prompt as first message
-    formattedMessages.unshift({
-      role: 'system',
-      content: finalSystemPrompt
-    });
+    // Add system prompt as first message if not already a system message
+    if (formattedMessages.length === 0 || formattedMessages[0].role !== 'system') {
+      formattedMessages.unshift({
+        role: 'system',
+        content: finalSystemPrompt
+      });
+    }
 
     // Try Pollinations API with retries
     let attempts = 0;
@@ -153,14 +169,33 @@ export async function POST(req: NextRequest) {
         }
 
         const data = await response.json();
+        const aiResponse = data.choices[0].message.content;
         console.log('Received response from Pollinations API:', {
           success: true,
-          messagePreview: data.choices[0].message.content.substring(0, 50) + '...'
+          messagePreview: aiResponse.substring(0, 50) + '...'
         });
+
+        // Extract thinking and answer from the response
+        let thinking = '';
+        let answer = aiResponse;
+        
+        // Check if the response contains the THINKING and ANSWER sections
+        const thinkingMatch = aiResponse.match(/THINKING:([\s\S]*?)(?=ANSWER:|$)/i);
+        const answerMatch = aiResponse.match(/ANSWER:([\s\S]*?)$/i);
+        
+        if (thinkingMatch && answerMatch) {
+          thinking = thinkingMatch[1].trim();
+          answer = answerMatch[1].trim();
+          console.log('Successfully separated thinking and answer sections');
+        } else {
+          console.log('Could not identify separate thinking and answer sections');
+        }
 
         return NextResponse.json({
           success: true,
-          message: data.choices[0].message.content
+          message: answer,
+          thinking: thinking,
+          model: finalModel
         });
 
       } catch (error) {
