@@ -4,10 +4,12 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
+import { CardUnified, CardUnifiedHeader, CardUnifiedTitle, CardUnifiedContent, CardUnifiedFooter } from '@/components/ui/card-unified';
+import { ButtonUnified } from '@/components/ui/button-unified';
+import HeaderUnified from '@/components/ui/header-unified';
+import { layouts, componentStyles } from '@/lib/design-system';
 import { 
   Bold, 
   Italic, 
@@ -24,7 +26,11 @@ import {
   History,
   Share2,
   Calendar,
-  BarChart
+  BarChart,
+  FileText,
+  ArrowRight,
+  Eye,
+  Settings
 } from 'lucide-react';
 
 interface Content {
@@ -114,201 +120,243 @@ export default function ContentEditor() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-900 text-zinc-100">
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold">Content Editor</h1>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <History className="w-4 h-4 mr-2" />
-                History
-              </Button>
-              <Button variant="outline" size="sm">
-                <Share2 className="w-4 h-4 mr-2" />
-                Share
-              </Button>
-              <Button variant="outline" size="sm">
-                <Calendar className="w-4 h-4 mr-2" />
-                Schedule
-              </Button>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm">
-              <BarChart className="w-4 h-4 mr-2" />
-              Analytics
-            </Button>
-            <Button size="sm">
+    <div className="bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 min-h-screen">
+      <HeaderUnified 
+        title="Content Editor" 
+        description="Create and manage your content"
+        icon={<FileText className="h-5 w-5" />}
+        breadcrumbs={[
+          { label: "Home", href: "/" },
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Content" }
+        ]}
+        actions={
+          <div className="flex space-x-3">
+            <ButtonUnified variant="outline" size="sm">
+              <Eye className="h-4 w-4 mr-2" />
+              Preview
+            </ButtonUnified>
+            <ButtonUnified>
               Publish
-            </Button>
+            </ButtonUnified>
           </div>
+        }
+      />
+
+      <div className={layouts.container}>
+        {/* Action Bar */}
+        <div className="mb-6 flex flex-wrap gap-3">
+          <ButtonUnified variant="outline" size="sm">
+            <History className="w-4 h-4 mr-2" />
+            History
+          </ButtonUnified>
+          <ButtonUnified variant="outline" size="sm">
+            <Share2 className="w-4 h-4 mr-2" />
+            Share
+          </ButtonUnified>
+          <ButtonUnified variant="outline" size="sm">
+            <Calendar className="w-4 h-4 mr-2" />
+            Schedule
+          </ButtonUnified>
+          <ButtonUnified variant="outline" size="sm">
+            <BarChart className="w-4 h-4 mr-2" />
+            Analytics
+          </ButtonUnified>
+          <ButtonUnified variant="outline" size="sm">
+            <Settings className="w-4 h-4 mr-2" />
+            Settings
+          </ButtonUnified>
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Editor */}
-          <div className="col-span-8">
-            <Card className="p-6 bg-zinc-800 border-zinc-700">
-              <Input
-                placeholder="Enter title..."
-                value={content.title}
-                onChange={(e) => setContent(prev => ({ ...prev, title: e.target.value }))}
-                className="text-2xl font-bold mb-4 bg-transparent border-0 focus-visible:ring-0"
-              />
-              
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="mb-4">
-                  <TabsTrigger value="write">Write</TabsTrigger>
-                  <TabsTrigger value="preview">Preview</TabsTrigger>
-                  <TabsTrigger value="seo">SEO</TabsTrigger>
-                </TabsList>
+          <div className="lg:col-span-8">
+            <CardUnified>
+              <CardUnifiedContent>
+                <Input
+                  placeholder="Enter title..."
+                  value={content.title}
+                  onChange={(e) => setContent(prev => ({ ...prev, title: e.target.value }))}
+                  className={`text-2xl font-bold mb-4 ${componentStyles.input.transparent}`}
+                />
+                
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="mb-4 bg-zinc-800">
+                    <TabsTrigger value="write">Write</TabsTrigger>
+                    <TabsTrigger value="preview">Preview</TabsTrigger>
+                    <TabsTrigger value="seo">SEO</TabsTrigger>
+                  </TabsList>
 
-                <TabsContent value="write" className="space-y-4">
-                  {/* Toolbar */}
-                  <div className="flex items-center gap-2 p-2 bg-zinc-700 rounded-lg">
-                    <Button variant="ghost" size="sm">
-                      <Bold className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Italic className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <List className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <ListOrdered className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Quote className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Image className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Link className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Code className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Heading1 className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Heading2 className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Heading3 className="w-4 h-4" />
-                    </Button>
-                  </div>
-
-                  {/* Editor */}
-                  <Textarea
-                    ref={editorRef}
-                    value={content.content}
-                    onChange={(e) => setContent(prev => ({ ...prev, content: e.target.value }))}
-                    className="min-h-[500px] bg-transparent border-0 focus-visible:ring-0"
-                    placeholder="Start writing..."
-                  />
-                </TabsContent>
-
-                <TabsContent value="preview">
-                  <div className="prose prose-invert max-w-none">
-                    <h1>{content.title}</h1>
-                    <div dangerouslySetInnerHTML={{ __html: content.content }} />
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="seo">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Meta Title</label>
-                      <Input
-                        value={content.metadata.seo?.title || ''}
-                        onChange={(e) => setContent(prev => ({
-                          ...prev,
-                          metadata: {
-                            ...prev.metadata,
-                            seo: { ...prev.metadata.seo, title: e.target.value }
-                          }
-                        }))}
-                      />
+                  <TabsContent value="write" className="space-y-4">
+                    {/* Toolbar */}
+                    <div className="flex flex-wrap items-center gap-2 p-2 bg-zinc-800/50 border border-zinc-700 rounded-lg">
+                      <ButtonUnified variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Bold className="w-4 h-4" />
+                      </ButtonUnified>
+                      <ButtonUnified variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Italic className="w-4 h-4" />
+                      </ButtonUnified>
+                      <ButtonUnified variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <List className="w-4 h-4" />
+                      </ButtonUnified>
+                      <ButtonUnified variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <ListOrdered className="w-4 h-4" />
+                      </ButtonUnified>
+                      <ButtonUnified variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Quote className="w-4 h-4" />
+                      </ButtonUnified>
+                      <ButtonUnified variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Image className="w-4 h-4" />
+                      </ButtonUnified>
+                      <ButtonUnified variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Link className="w-4 h-4" />
+                      </ButtonUnified>
+                      <ButtonUnified variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Code className="w-4 h-4" />
+                      </ButtonUnified>
+                      <ButtonUnified variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Heading1 className="w-4 h-4" />
+                      </ButtonUnified>
+                      <ButtonUnified variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Heading2 className="w-4 h-4" />
+                      </ButtonUnified>
+                      <ButtonUnified variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Heading3 className="w-4 h-4" />
+                      </ButtonUnified>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Meta Description</label>
-                      <Textarea
-                        value={content.metadata.seo?.description || ''}
-                        onChange={(e) => setContent(prev => ({
-                          ...prev,
-                          metadata: {
-                            ...prev.metadata,
-                            seo: { ...prev.metadata.seo, description: e.target.value }
-                          }
-                        }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Keywords</label>
-                      <Input
-                        value={content.metadata.seo?.keywords?.join(', ') || ''}
-                        onChange={(e) => setContent(prev => ({
-                          ...prev,
-                          metadata: {
-                            ...prev.metadata,
-                            seo: {
-                              ...prev.metadata.seo,
-                              keywords: e.target.value.split(',').map(k => k.trim())
-                            }
-                          }
-                        }))}
-                      />
-                    </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </Card>
+
+                    {/* Editor */}
+                    <Textarea
+                      ref={editorRef}
+                      value={content.content}
+                      onChange={(e) => setContent(prev => ({ ...prev, content: e.target.value }))}
+                      className={`min-h-[500px] ${componentStyles.input.transparent}`}
+                      placeholder="Start writing..."
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="preview">
+                    <CardUnified variant="secondary" className="p-6 min-h-[500px]">
+                      <div className="prose prose-invert max-w-none">
+                        <h1>{content.title}</h1>
+                        <div dangerouslySetInnerHTML={{ __html: content.content }} />
+                      </div>
+                    </CardUnified>
+                  </TabsContent>
+
+                  <TabsContent value="seo">
+                    <CardUnified variant="secondary" className="p-6">
+                      <div className="space-y-5">
+                        <div>
+                          <label className="block text-sm font-medium mb-2 text-zinc-300">Meta Title</label>
+                          <Input
+                            value={content.metadata.seo?.title || ''}
+                            onChange={(e) => setContent(prev => ({
+                              ...prev,
+                              metadata: {
+                                ...prev.metadata,
+                                seo: { ...prev.metadata.seo, title: e.target.value }
+                              }
+                            }))}
+                            className={componentStyles.input.base}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2 text-zinc-300">Meta Description</label>
+                          <Textarea
+                            value={content.metadata.seo?.description || ''}
+                            onChange={(e) => setContent(prev => ({
+                              ...prev,
+                              metadata: {
+                                ...prev.metadata,
+                                seo: { ...prev.metadata.seo, description: e.target.value }
+                              }
+                            }))}
+                            className={componentStyles.input.base}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2 text-zinc-300">Keywords</label>
+                          <Input
+                            value={content.metadata.seo?.keywords?.join(', ') || ''}
+                            onChange={(e) => setContent(prev => ({
+                              ...prev,
+                              metadata: {
+                                ...prev.metadata,
+                                seo: {
+                                  ...prev.metadata.seo,
+                                  keywords: e.target.value.split(',').map(k => k.trim())
+                                }
+                              }
+                            }))}
+                            className={componentStyles.input.base}
+                          />
+                        </div>
+                      </div>
+                    </CardUnified>
+                  </TabsContent>
+                </Tabs>
+              </CardUnifiedContent>
+            </CardUnified>
           </div>
 
           {/* Sidebar */}
-          <div className="col-span-4 space-y-6">
+          <div className="lg:col-span-4 space-y-6">
             {/* AI Assistant */}
-            <Card className="p-6 bg-zinc-800 border-zinc-700">
-              <h2 className="text-xl font-bold mb-4">AI Assistant</h2>
-              <Button
-                className="w-full"
-                onClick={generateContent}
-                disabled={isGenerating}
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                {isGenerating ? 'Generating...' : 'Generate Content'}
-              </Button>
-            </Card>
+            <CardUnified>
+              <CardUnifiedHeader>
+                <CardUnifiedTitle>AI Assistant</CardUnifiedTitle>
+              </CardUnifiedHeader>
+              <CardUnifiedContent>
+                <p className="text-zinc-400 mb-4">
+                  Let AI generate content based on your title. The generated content will be added to your editor.
+                </p>
+                <ButtonUnified
+                  className="w-full"
+                  onClick={generateContent}
+                  disabled={isGenerating}
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  {isGenerating ? 'Generating...' : 'Generate Content'}
+                </ButtonUnified>
+              </CardUnifiedContent>
+            </CardUnified>
 
             {/* Content Stats */}
-            <Card className="p-6 bg-zinc-800 border-zinc-700">
-              <h2 className="text-xl font-bold mb-4">Content Stats</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm text-zinc-400">Word Count</label>
-                  <p className="text-2xl font-bold">
-                    {content.content.split(/\s+/).filter(Boolean).length}
-                  </p>
+            <CardUnified>
+              <CardUnifiedHeader>
+                <CardUnifiedTitle>Content Stats</CardUnifiedTitle>
+              </CardUnifiedHeader>
+              <CardUnifiedContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center pb-3 border-b border-zinc-700">
+                    <label className="block text-sm text-zinc-400">Word Count</label>
+                    <p className="text-xl font-bold">
+                      {content.content.split(/\s+/).filter(Boolean).length}
+                    </p>
+                  </div>
+                  <div className="flex justify-between items-center pb-3 border-b border-zinc-700">
+                    <label className="block text-sm text-zinc-400">Reading Time</label>
+                    <p className="text-xl font-bold">
+                      {Math.ceil(content.content.split(/\s+/).filter(Boolean).length / 200)} min
+                    </p>
+                  </div>
+                  <div className="flex justify-between items-center pb-3 border-b border-zinc-700">
+                    <label className="block text-sm text-zinc-400">Status</label>
+                    <div className="bg-amber-500/10 text-amber-400 px-2 py-1 rounded-full text-xs border border-amber-500/20">
+                      {content.status.charAt(0).toUpperCase() + content.status.slice(1)}
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <label className="block text-sm text-zinc-400">Last Saved</label>
+                    <p className="text-sm text-zinc-300">
+                      {new Date(content.updated_at).toLocaleString()}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm text-zinc-400">Reading Time</label>
-                  <p className="text-2xl font-bold">
-                    {Math.ceil(content.content.split(/\s+/).filter(Boolean).length / 200)} min
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm text-zinc-400">Last Saved</label>
-                  <p className="text-sm">
-                    {new Date(content.updated_at).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </Card>
+              </CardUnifiedContent>
+            </CardUnified>
           </div>
         </div>
       </div>
