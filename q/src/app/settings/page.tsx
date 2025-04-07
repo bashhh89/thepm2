@@ -3,17 +3,31 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { useSettingsStore } from '@/store/settingsStore';
-import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CardUnified, CardUnifiedHeader, CardUnifiedTitle, CardUnifiedContent, CardUnifiedFooter } from '@/components/ui/card-unified';
+import { ButtonUnified } from '@/components/ui/button-unified';
+import HeaderUnified from '@/components/ui/header-unified';
+import { layouts, componentStyles } from '@/lib/design-system';
 import { AVAILABLE_MODELS } from '@/lib/pollinationsApi';
 import { toast } from '@/components/ui/use-toast';
 import { useUser } from '@/hooks/useUser';
 import { logger } from '@/lib/utils';
+import {
+  Palette,
+  MessageCircle,
+  Sparkles,
+  Bell,
+  Settings,
+  Download,
+  Upload,
+  Trash2,
+  Zap,
+  LayoutDashboard
+} from 'lucide-react';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -240,310 +254,363 @@ export default function SettingsPage() {
   }
   
   return (
-    <div className="container mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6">Settings</h1>
+    <div className="bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 min-h-screen">
+      <HeaderUnified
+        title="Settings"
+        description="Configure your application preferences"
+        icon={<Settings className="h-5 w-5" />}
+        breadcrumbs={[
+          { label: "Home", href: "/" },
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Settings" }
+        ]}
+      />
       
-      <Tabs defaultValue="appearance" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="appearance">Appearance</TabsTrigger>
-          <TabsTrigger value="chat">Chat</TabsTrigger>
-          <TabsTrigger value="models">AI Models</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="advanced">Advanced</TabsTrigger>
-        </TabsList>
-        
-        {/* Appearance Settings */}
-        <TabsContent value="appearance">
-          <Card>
-            <CardHeader>
-              <CardTitle>Appearance</CardTitle>
-              <CardDescription>Customize the look and feel of the application.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="theme">Theme</Label>
-                <Select value={theme} onValueChange={handleThemeChange}>
-                  <SelectTrigger id="theme">
-                    <SelectValue placeholder="Select a theme" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="system">System</SelectItem>
-                    <SelectItem value="light">Light</SelectItem>
-                    <SelectItem value="dark">Dark</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="fontSize">Font Size ({interfaceSettings.fontSize}px)</Label>
-                <Slider 
-                  id="fontSize"
-                  min={12} 
-                  max={24} 
-                  step={1}
-                  value={[interfaceSettings.fontSize]} 
-                  onValueChange={(value) => handleInterfaceSettingChange('fontSize', value[0])}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="showTimestamps">Show Message Timestamps</Label>
-                <Switch 
-                  id="showTimestamps" 
-                  checked={interfaceSettings.showTimestamps}
-                  onCheckedChange={(checked) => handleInterfaceSettingChange('showTimestamps', checked)}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="compactMode">Compact Mode</Label>
-                <Switch 
-                  id="compactMode" 
-                  checked={interfaceSettings.compactMode}
-                  onCheckedChange={(checked) => handleInterfaceSettingChange('compactMode', checked)}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="highContrast">High Contrast Mode</Label>
-                <Switch 
-                  id="highContrast" 
-                  checked={interfaceSettings.highContrast}
-                  onCheckedChange={(checked) => handleInterfaceSettingChange('highContrast', checked)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* Chat Settings */}
-        <TabsContent value="chat">
-          <Card>
-            <CardHeader>
-              <CardTitle>Chat Settings</CardTitle>
-              <CardDescription>Configure your chat experience.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="autoSave">Automatically Save Chats</Label>
-                <Switch 
-                  id="autoSave" 
-                  checked={chatSettings.autoSave}
-                  onCheckedChange={(checked) => handleChatSettingChange('autoSave', checked)}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="messageHistory">Message History Limit ({chatSettings.messageHistory})</Label>
-                <Slider 
-                  id="messageHistory"
-                  min={10} 
-                  max={500} 
-                  step={10}
-                  value={[chatSettings.messageHistory]} 
-                  onValueChange={(value) => handleChatSettingChange('messageHistory', value[0])}
-                />
-                <p className="text-sm text-muted-foreground">
-                  Limit the number of messages to keep in history. Lower values may improve performance.
-                </p>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="autoScroll">Automatically Scroll to New Messages</Label>
-                <Switch 
-                  id="autoScroll" 
-                  checked={chatSettings.autoScroll}
-                  onCheckedChange={(checked) => handleChatSettingChange('autoScroll', checked)}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="inlineImages">Show Images Inline</Label>
-                <Switch 
-                  id="inlineImages" 
-                  checked={chatSettings.inlineImages}
-                  onCheckedChange={(checked) => handleChatSettingChange('inlineImages', checked)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* AI Models Settings */}
-        <TabsContent value="models">
-          <Card>
-            <CardHeader>
-              <CardTitle>AI Models</CardTitle>
-              <CardDescription>Configure which AI models to use.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="textModel">Text Generation Model</Label>
-                <Select value={activeTextModel} onValueChange={setActiveTextModel}>
-                  <SelectTrigger id="textModel">
-                    <SelectValue placeholder="Select a model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AVAILABLE_MODELS.TEXT.map(model => (
-                      <SelectItem key={model.id} value={model.id}>
-                        {model.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="voiceModel">Voice</Label>
-                <Select value={activeVoice} onValueChange={setActiveVoice}>
-                  <SelectTrigger id="voiceModel">
-                    <SelectValue placeholder="Select a voice" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AVAILABLE_MODELS.TEXT.find(m => m.id === 'openai-audio')?.voices?.map(voice => (
-                      <SelectItem key={voice} value={voice}>
-                        {voice.charAt(0).toUpperCase() + voice.slice(1)}
-                      </SelectItem>
-                    )) || 
-                    ['nova', 'alloy', 'echo', 'fable', 'onyx', 'shimmer'].map(voice => (
-                      <SelectItem key={voice} value={voice}>
-                        {voice.charAt(0).toUpperCase() + voice.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="agent">Agent</Label>
-                <Select value={activeAgent} onValueChange={setActiveAgent}>
-                  <SelectTrigger id="agent">
-                    <SelectValue placeholder="Select an agent" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {agents.map(agent => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        {agent.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* Notification Settings */}
-        <TabsContent value="notifications">
-          <Card>
-            <CardHeader>
-              <CardTitle>Notifications</CardTitle>
-              <CardDescription>Configure notification preferences.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="enableNotifications">Enable Notifications</Label>
-                <Switch 
-                  id="enableNotifications" 
-                  checked={notificationSettings.enableNotifications}
-                  onCheckedChange={(checked) => handleNotificationSettingChange('enableNotifications', checked)}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="soundAlerts">Sound Alerts</Label>
-                <Switch 
-                  id="soundAlerts" 
-                  checked={notificationSettings.soundAlerts}
-                  onCheckedChange={(checked) => handleNotificationSettingChange('soundAlerts', checked)}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="desktopNotifications">Desktop Notifications</Label>
-                <Switch 
-                  id="desktopNotifications" 
-                  checked={notificationSettings.desktopNotifications}
-                  onCheckedChange={(checked) => handleNotificationSettingChange('desktopNotifications', checked)}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="mentionAlerts">Mention Alerts</Label>
-                <Switch 
-                  id="mentionAlerts" 
-                  checked={notificationSettings.mentionAlerts}
-                  onCheckedChange={(checked) => handleNotificationSettingChange('mentionAlerts', checked)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* Advanced Settings */}
-        <TabsContent value="advanced">
-          <Card>
-            <CardHeader>
-              <CardTitle>Advanced Settings</CardTitle>
-              <CardDescription>Configure advanced settings for developers and power users.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="debugMode">Debug Mode</Label>
-                <Switch 
-                  id="debugMode" 
-                  checked={debugMode}
-                  onCheckedChange={handleDebugModeToggle}
-                />
-              </div>
-              
-              <div className="pt-4 space-y-4">
-                <h3 className="text-lg font-semibold">Data Management</h3>
-                
-                <div className="space-y-2">
-                  <Button onClick={handleExportSettings} variant="outline">
-                    Export Settings
-                  </Button>
-                  <p className="text-sm text-muted-foreground">
-                    Export your settings as a JSON file.
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
+      <div className={layouts.container}>
+        <Tabs defaultValue="appearance" className="w-full">
+          <TabsList className="mb-6 bg-zinc-800 p-1 border border-zinc-700">
+            <TabsTrigger value="appearance" className="flex items-center gap-2 data-[state=active]:bg-zinc-700">
+              <Palette className="h-4 w-4" />
+              <span>Appearance</span>
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="flex items-center gap-2 data-[state=active]:bg-zinc-700">
+              <MessageCircle className="h-4 w-4" />
+              <span>Chat</span>
+            </TabsTrigger>
+            <TabsTrigger value="models" className="flex items-center gap-2 data-[state=active]:bg-zinc-700">
+              <Sparkles className="h-4 w-4" />
+              <span>AI Models</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2 data-[state=active]:bg-zinc-700">
+              <Bell className="h-4 w-4" />
+              <span>Notifications</span>
+            </TabsTrigger>
+            <TabsTrigger value="advanced" className="flex items-center gap-2 data-[state=active]:bg-zinc-700">
+              <Zap className="h-4 w-4" />
+              <span>Advanced</span>
+            </TabsTrigger>
+          </TabsList>
+          
+          {/* Appearance Settings */}
+          <TabsContent value="appearance">
+            <CardUnified>
+              <CardUnifiedHeader>
+                <CardUnifiedTitle>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => document.getElementById('import-settings')?.click()}
-                    >
-                      Import Settings
-                    </Button>
-                    <input
-                      type="file"
-                      id="import-settings"
-                      accept=".json"
-                      className="hidden"
-                      onChange={handleImportSettings}
-                    />
+                    <Palette className="h-5 w-5" />
+                    <span>Appearance</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Import settings from a JSON file.
-                  </p>
+                </CardUnifiedTitle>
+              </CardUnifiedHeader>
+              <CardUnifiedContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="theme" className="text-zinc-400">Theme</Label>
+                  <Select value={theme} onValueChange={handleThemeChange}>
+                    <SelectTrigger id="theme" className={componentStyles.select.base}>
+                      <SelectValue placeholder="Select a theme" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="system">System</SelectItem>
+                      <SelectItem value="light">Light</SelectItem>
+                      <SelectItem value="dark">Dark</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div className="space-y-2">
-                  <Button onClick={handleClearAllData} variant="destructive">
-                    Clear All Data
-                  </Button>
-                  <p className="text-sm text-muted-foreground">
-                    Clear all application data, including settings, chat history, and saved prompts.
-                    This action cannot be undone.
+                  <Label htmlFor="fontSize" className="text-zinc-400">Font Size ({interfaceSettings.fontSize}px)</Label>
+                  <Slider 
+                    id="fontSize"
+                    min={12} 
+                    max={24} 
+                    step={1}
+                    value={[interfaceSettings.fontSize]} 
+                    onValueChange={(value) => handleInterfaceSettingChange('fontSize', value[0])}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between py-3 border-b border-zinc-700">
+                  <Label htmlFor="showTimestamps" className="text-zinc-400">Show Message Timestamps</Label>
+                  <Switch 
+                    id="showTimestamps" 
+                    checked={interfaceSettings.showTimestamps}
+                    onCheckedChange={(checked) => handleInterfaceSettingChange('showTimestamps', checked)}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between py-3 border-b border-zinc-700">
+                  <Label htmlFor="compactMode" className="text-zinc-400">Compact Mode</Label>
+                  <Switch 
+                    id="compactMode" 
+                    checked={interfaceSettings.compactMode}
+                    onCheckedChange={(checked) => handleInterfaceSettingChange('compactMode', checked)}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between py-3 border-b border-zinc-700">
+                  <Label htmlFor="highContrast" className="text-zinc-400">High Contrast Mode</Label>
+                  <Switch 
+                    id="highContrast" 
+                    checked={interfaceSettings.highContrast}
+                    onCheckedChange={(checked) => handleInterfaceSettingChange('highContrast', checked)}
+                  />
+                </div>
+              </CardUnifiedContent>
+            </CardUnified>
+          </TabsContent>
+          
+          {/* Chat Settings */}
+          <TabsContent value="chat">
+            <CardUnified>
+              <CardUnifiedHeader>
+                <CardUnifiedTitle>
+                  <div className="flex items-center gap-2">
+                    <MessageCircle className="h-5 w-5" />
+                    <span>Chat Settings</span>
+                  </div>
+                </CardUnifiedTitle>
+              </CardUnifiedHeader>
+              <CardUnifiedContent className="space-y-6">
+                <div className="flex items-center justify-between py-3 border-b border-zinc-700">
+                  <Label htmlFor="autoSave" className="text-zinc-400">Automatically Save Chats</Label>
+                  <Switch 
+                    id="autoSave" 
+                    checked={chatSettings.autoSave}
+                    onCheckedChange={(checked) => handleChatSettingChange('autoSave', checked)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="messageHistory" className="text-zinc-400">Message History Limit ({chatSettings.messageHistory})</Label>
+                  <Slider 
+                    id="messageHistory"
+                    min={10} 
+                    max={500} 
+                    step={10}
+                    value={[chatSettings.messageHistory]} 
+                    onValueChange={(value) => handleChatSettingChange('messageHistory', value[0])}
+                  />
+                  <p className="text-sm text-zinc-500">
+                    Limit the number of messages to keep in history. Lower values may improve performance.
                   </p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                
+                <div className="flex items-center justify-between py-3 border-b border-zinc-700">
+                  <Label htmlFor="autoScroll" className="text-zinc-400">Automatically Scroll to New Messages</Label>
+                  <Switch 
+                    id="autoScroll" 
+                    checked={chatSettings.autoScroll}
+                    onCheckedChange={(checked) => handleChatSettingChange('autoScroll', checked)}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between py-3 border-b border-zinc-700">
+                  <Label htmlFor="inlineImages" className="text-zinc-400">Show Images Inline</Label>
+                  <Switch 
+                    id="inlineImages" 
+                    checked={chatSettings.inlineImages}
+                    onCheckedChange={(checked) => handleChatSettingChange('inlineImages', checked)}
+                  />
+                </div>
+              </CardUnifiedContent>
+            </CardUnified>
+          </TabsContent>
+          
+          {/* AI Models Settings */}
+          <TabsContent value="models">
+            <CardUnified>
+              <CardUnifiedHeader>
+                <CardUnifiedTitle>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5" />
+                    <span>AI Models</span>
+                  </div>
+                </CardUnifiedTitle>
+              </CardUnifiedHeader>
+              <CardUnifiedContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="textModel" className="text-zinc-400">Text Generation Model</Label>
+                  <Select value={activeTextModel} onValueChange={setActiveTextModel}>
+                    <SelectTrigger id="textModel" className={componentStyles.select.base}>
+                      <SelectValue placeholder="Select a model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AVAILABLE_MODELS.TEXT.map(model => (
+                        <SelectItem key={model.id} value={model.id}>
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="voiceModel" className="text-zinc-400">Voice</Label>
+                  <Select value={activeVoice} onValueChange={setActiveVoice}>
+                    <SelectTrigger id="voiceModel" className={componentStyles.select.base}>
+                      <SelectValue placeholder="Select a voice" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AVAILABLE_MODELS.TEXT.find(m => m.id === 'openai-audio')?.voices?.map(voice => (
+                        <SelectItem key={voice} value={voice}>
+                          {voice.charAt(0).toUpperCase() + voice.slice(1)}
+                        </SelectItem>
+                      )) || 
+                      ['nova', 'alloy', 'echo', 'fable', 'onyx', 'shimmer'].map(voice => (
+                        <SelectItem key={voice} value={voice}>
+                          {voice.charAt(0).toUpperCase() + voice.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="agent" className="text-zinc-400">Agent</Label>
+                  <Select value={activeAgent} onValueChange={setActiveAgent}>
+                    <SelectTrigger id="agent" className={componentStyles.select.base}>
+                      <SelectValue placeholder="Select an agent" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {agents.map(agent => (
+                        <SelectItem key={agent.id} value={agent.id}>
+                          {agent.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardUnifiedContent>
+            </CardUnified>
+          </TabsContent>
+          
+          {/* Notification Settings */}
+          <TabsContent value="notifications">
+            <CardUnified>
+              <CardUnifiedHeader>
+                <CardUnifiedTitle>
+                  <div className="flex items-center gap-2">
+                    <Bell className="h-5 w-5" />
+                    <span>Notifications</span>
+                  </div>
+                </CardUnifiedTitle>
+              </CardUnifiedHeader>
+              <CardUnifiedContent className="space-y-6">
+                <div className="flex items-center justify-between py-3 border-b border-zinc-700">
+                  <Label htmlFor="enableNotifications" className="text-zinc-400">Enable Notifications</Label>
+                  <Switch 
+                    id="enableNotifications" 
+                    checked={notificationSettings.enableNotifications}
+                    onCheckedChange={(checked) => handleNotificationSettingChange('enableNotifications', checked)}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between py-3 border-b border-zinc-700">
+                  <Label htmlFor="soundAlerts" className="text-zinc-400">Sound Alerts</Label>
+                  <Switch 
+                    id="soundAlerts" 
+                    checked={notificationSettings.soundAlerts}
+                    onCheckedChange={(checked) => handleNotificationSettingChange('soundAlerts', checked)}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between py-3 border-b border-zinc-700">
+                  <Label htmlFor="desktopNotifications" className="text-zinc-400">Desktop Notifications</Label>
+                  <Switch 
+                    id="desktopNotifications" 
+                    checked={notificationSettings.desktopNotifications}
+                    onCheckedChange={(checked) => handleNotificationSettingChange('desktopNotifications', checked)}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between py-3 border-b border-zinc-700">
+                  <Label htmlFor="mentionAlerts" className="text-zinc-400">Mention Alerts</Label>
+                  <Switch 
+                    id="mentionAlerts" 
+                    checked={notificationSettings.mentionAlerts}
+                    onCheckedChange={(checked) => handleNotificationSettingChange('mentionAlerts', checked)}
+                  />
+                </div>
+              </CardUnifiedContent>
+            </CardUnified>
+          </TabsContent>
+          
+          {/* Advanced Settings */}
+          <TabsContent value="advanced">
+            <CardUnified>
+              <CardUnifiedHeader>
+                <CardUnifiedTitle>
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-5 w-5" />
+                    <span>Advanced Settings</span>
+                  </div>
+                </CardUnifiedTitle>
+              </CardUnifiedHeader>
+              <CardUnifiedContent className="space-y-6">
+                <div className="flex items-center justify-between py-3 border-b border-zinc-700">
+                  <Label htmlFor="debugMode" className="text-zinc-400">Debug Mode</Label>
+                  <Switch 
+                    id="debugMode" 
+                    checked={debugMode}
+                    onCheckedChange={handleDebugModeToggle}
+                  />
+                </div>
+                
+                <div className="pt-4 space-y-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <LayoutDashboard className="h-5 w-5" />
+                    <span>Data Management</span>
+                  </h3>
+                  
+                  <div className="space-y-2">
+                    <ButtonUnified onClick={handleExportSettings} variant="outline" className="flex items-center gap-2">
+                      <Download className="h-4 w-4" />
+                      <span>Export Settings</span>
+                    </ButtonUnified>
+                    <p className="text-sm text-zinc-500">
+                      Export your settings as a JSON file.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <ButtonUnified
+                        variant="outline"
+                        className="flex items-center gap-2"
+                        onClick={() => document.getElementById('import-settings')?.click()}
+                      >
+                        <Upload className="h-4 w-4" />
+                        <span>Import Settings</span>
+                      </ButtonUnified>
+                      <input
+                        type="file"
+                        id="import-settings"
+                        accept=".json"
+                        className="hidden"
+                        onChange={handleImportSettings}
+                      />
+                    </div>
+                    <p className="text-sm text-zinc-500">
+                      Import settings from a JSON file.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2 pt-4">
+                    <ButtonUnified onClick={handleClearAllData} className="flex items-center gap-2 bg-red-900/20 border-red-500/30 hover:bg-red-900/30 text-red-400">
+                      <Trash2 className="h-4 w-4" />
+                      <span>Clear All Data</span>
+                    </ButtonUnified>
+                    <p className="text-sm text-zinc-500">
+                      Clear all application data, including settings, chat history, and saved prompts.
+                      This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+              </CardUnifiedContent>
+            </CardUnified>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 } 
